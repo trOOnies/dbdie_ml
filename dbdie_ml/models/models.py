@@ -216,7 +216,7 @@ class IEModel:
                 i += labels_len
 
         print("Indices with errors:", np.where(all_preds != all_labels)[0])
-        return all_labels
+        return all_preds
 
     def predict_batch(self, dataset_path: str) -> np.ndarray:
         assert self.model_is_trained
@@ -225,8 +225,8 @@ class IEModel:
         dataset = DatasetClass(dataset_path, transform=self._transform)
         loader = DataLoader(dataset, batch_size=self._cfg["batch_size"])
 
-        all_labels = self._predict_process(dataset, loader)
-        return all_labels
+        all_preds = self._predict_process(dataset, loader)
+        return all_preds
 
     def predict():
         raise NotImplementedError

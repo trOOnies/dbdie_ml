@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union, Dict, List
 from dbdie_ml.classes import SnippetInfo
 from dbdie_ml.models import IEModel
@@ -121,7 +122,30 @@ class InfoExtractor:
         preds: Union["ndarray", Dict["ModelType", "ndarray"]],
         on: Optional[Union["ModelType", List["ModelType"]]] = None
     ) -> Union[List[str], Dict["ModelType", List[str]]]:
-        raise NotImplementedError
+        assert self.models_are_trained
+
+        preds_is_dict = isinstance(preds, dict)
+        if preds_is_dict:
+            preds_ = {deepcopy(k): p for k, p in preds.items()}
+            if on is None:
+                on_ = list(preds_is_dict.keys())
+            elif isinstance(on, list):
+                on_ = deepcopy(on)
+            else:  # Modeltype
+                on_ = [deepcopy(on)]
+        else:
+            assert isinstance(on, str), "'on' must be a ModelType if 'preds' is not a dict."
+            preds_ = {deepcopy(on): preds}
+            on_ = [deepcopy(on)]
+
+        names = {
+            k: self._models[k].convert_names(preds_[k])
+            for k in on_
+        }
+        if isinstance(on, str):
+            return names[list(names.keys())[0]]  # list
+        else:
+            return names  # dict
 
     @staticmethod
     def to_players(snippets_info: "AllSnippetInfo") -> List["PlayerOut"]:
