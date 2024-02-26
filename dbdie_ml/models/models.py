@@ -11,6 +11,7 @@ from torch import max as torch_max
 from torch.cuda import mem_get_info
 from torch.cuda import device as get_device
 from torch.cuda import is_available as cuda_is_available
+import torch.nn.functional as F
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -96,7 +97,6 @@ class IEModel:
         self._device = get_device("cuda")
 
         config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
-        print(config_path)
         with open(config_path) as f:
             self._cfg = yaml.safe_load(f)
 
@@ -122,16 +122,17 @@ class IEModel:
         print(64 * "-")
 
     def _load_process(self, train_ds_path: str, val_ds_path: str) -> Tuple[DataLoader, DataLoader]:
-        print("Loading data...")
+        print("Loading data...", end=" ")
         train_dataset = DatasetClass(train_ds_path, transform=self._transform)
         val_dataset = DatasetClass(val_ds_path, transform=self._transform)
 
-        print("Train datapoints:", len(train_dataset))
-        print("Val datapoints:", len(val_dataset))
-
         train_loader = DataLoader(train_dataset, batch_size=self._cfg["batch_size"], shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=self._cfg["batch_size"])
+
         print("Data loaded.")
+        print("- Train datapoints:", len(train_dataset))
+        print("- Val datapoints:", len(val_dataset))
+
         return train_loader, val_loader
 
     def _load_label_ref(self, path: str) -> None:
@@ -142,7 +143,8 @@ class IEModel:
         self.label_ref = {row["label_id"]: row["name"] for _, row in self.label_ref.iterrows()}
 
     def _train_process(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
-        print("Training initialized.")
+        print("Training initialized...")
+        epochs_clen = len(str(self._cfg["epochs"]))
         for epoch in range(1, self._cfg["epochs"] + 1):
             self._model.train()
             for images, labels in train_loader:
@@ -172,9 +174,9 @@ class IEModel:
 
                 val_acc_pp = 100.0 * correct / total
                 print(
-                    f"Epoch [{epoch}/{self._cfg['epochs']}],",
-                    f"Loss: {loss.item():.4f},",
-                    f"Validation Accuracy: {val_acc_pp:.2f}%"
+                    f"- Epoch [{epoch:>{epochs_clen}}/{self._cfg['epochs']}]",
+                    f"Loss: {loss.item():.4f}",
+                    f"Val Acc: {val_acc_pp:.2f}%"
                 )
                 if self._estop.early_stop(100.0 - val_acc_pp):
                     break
@@ -190,6 +192,7 @@ class IEModel:
         self._train_process(train_loader, val_loader)
 
     def save_model(self, dst: str) -> None:
+        print("Saving model...", end=" ")
         assert self.model_is_trained
         assert dst.endswith(".pt")
         save(self._model, dst)
@@ -200,42 +203,57 @@ class IEModel:
         dataset: DatasetClass,
         loader: DataLoader
     ) -> np.ndarray:
-        all_preds = np.zeros(len(dataset), dtype=int)
-        all_labels = np.zeros(len(dataset), dtype=int)
+        all_preds = np.zeros(len(dataset), dtype=np.ushort)
         i = 0
         with no_grad():
             for images, labels in loader:
                 labels_len = labels.size()[0]
                 images = images.cuda()
-                labels = labels.cuda()
 
                 outputs = self._model(images)
                 _, predicted = torch_max(outputs.data, 1)
                 all_preds[i:i+labels_len] = predicted.cpu().numpy()
-                all_labels[i:i+labels_len] = labels.cpu().numpy()
                 i += labels_len
-
-        print("Indices with errors:", np.where(all_preds != all_labels)[0])
         return all_preds
 
-    def predict_batch(self, dataset_path: str) -> np.ndarray:
+    def _predict_probas_process(
+        self,
+        dataset: DatasetClass,
+        loader: DataLoader
+    ) -> np.ndarray:
+        all_preds = np.zeros((len(dataset), self.total_classes), dtype=int)
+        i = 0
+        with no_grad():
+            for images, labels in loader:
+                labels_len = labels.size()[0]
+                images = images.cuda()
+
+                outputs = self._model(images)
+                all_preds[i:i+labels_len, :] = outputs.cpu().numpy()
+                i += labels_len
+        return all_preds
+
+    def predict_batch(self, dataset_path: str, probas: bool = False) -> np.ndarray:
+        """Returns: preds or probas, indices_with_errors"""
         assert self.model_is_trained
 
         print("Predictions for:", dataset_path)
         dataset = DatasetClass(dataset_path, transform=self._transform)
         loader = DataLoader(dataset, batch_size=self._cfg["batch_size"])
 
-        all_preds = self._predict_process(dataset, loader)
-        return all_preds
-
-    def predict():
-        raise NotImplementedError
+        if probas:
+            return self._predict_probas_process(dataset, loader)
+        else:
+            return self._predict_process(dataset, loader)
 
     def convert_names(self, labels: np.ndarray) -> List[str]:
+        assert isinstance(labels[0], (np.ushort, int))
         assert self.model_is_trained
         return [self.label_ref[lbl] for lbl in labels]
 
     @staticmethod
     def save_preds(preds: np.ndarray, dst: str) -> None:
+        print("Saving preds...", end=" ")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
+        print("Preds saved.")

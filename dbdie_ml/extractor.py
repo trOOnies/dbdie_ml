@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, Union, Dict, List
+from typing import TYPE_CHECKING, Optional, Union, Dict, List, Tuple
 from dbdie_ml.classes import SnippetInfo
 from dbdie_ml.models import IEModel
 from dbdie_ml.db import to_player
@@ -109,11 +109,11 @@ class InfoExtractor:
             for i, s in snippets.items()
         }
 
-    def predict_batch(self, datasets: Dict["ModelType", str]) -> Dict["ModelType", "ndarray"]:
+    def predict_batch(self, datasets: Dict["ModelType", str], probas: bool = False) -> Dict["ModelType", "ndarray"]:
         assert self.models_are_trained
         self._check_datasets(datasets)
         return {
-            mt: model.predict_batch(datasets[mt])
+            mt: model.predict_batch(datasets[mt], probas=probas)
             for mt, model in self._models.items()
         }
 
