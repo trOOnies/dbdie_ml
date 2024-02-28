@@ -22,7 +22,23 @@ TYPES_TO_ID_NAMES = {
 
 
 class InfoExtractor:
-    """Extracts information of an image using multiple `IEModels`."""
+    """Extracts information of an image using multiple `IEModels`.
+
+    Inputs:
+        name: An optional string.
+
+    Attributes:
+        version: A string that is inferred from its models.
+        model_types: An optional list of `ModelTypes`.
+
+    Usage:
+        >>> ie = InfoExtractor()
+        >>> # ie._models = {"perks": my_model, ...}  # only for super-users
+        >>> ie.init_extractor()  # this uses all standard models
+        >>> ie.train(...)
+        >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
+    """
+
     def __init__(self, name: Optional[str] = None) -> None:
         self.name = name
         self._models: Optional[Dict["ModelType", IEModel]] = None

@@ -5,7 +5,7 @@ import os
 import yaml
 import numpy as np
 import pandas as pd
-from typing import TYPE_CHECKING, Optional, List, Tuple
+from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
 from torch import no_grad, save
 from torch import max as torch_max
 from torch.cuda import mem_get_info
@@ -20,6 +20,8 @@ from torch.nn import CrossEntropyLoss
 from dbdie_ml.data import DatasetClass, get_total_classes
 if TYPE_CHECKING:
     from torch.nn import Sequential
+    from torch.optim import Optimizer
+    from torch.nn.modules.loss import _Loss
     from dbdie_ml.classes import ModelType
 
 
@@ -41,7 +43,29 @@ class EarlyStopper:
 
 
 class IEModel:
-    """ML model for information extraction"""
+    """ML model for information extraction
+
+    Inputs:
+        model: A `torch.nn.Sequential`.
+        model_type: A `ModelType` (string).
+        version: A string that matches the DBD version,
+        preferably the minimum version used for the training process.
+        norm_means: A list of 3 floats for the torch `Compose`.
+        norm_std: Idem norm_means.
+        name: An optional string.
+
+    Usage:
+        >>> model = IEModel(Sequential(...), "perks", "7.6.0", ...)
+        >>> model.init_model()  # this uses all standard models
+        >>> model.get_summary()
+        >>> model.train(...)
+        >>> model.save_model("/path/to/model.pt")
+        >>> preds = model.predict_batch("/path/to/dataset.csv")
+        >>> names = model.convert_names(preds)
+        >>> model.save_preds(preds, "/path/to/preds.txt")
+        >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
+    """
+
     def __init__(
         self,
         model: "Sequential",
@@ -57,14 +81,14 @@ class IEModel:
         self.version = version
         self._norm_means = norm_means
         self._norm_std = norm_std
-        self.total_classes = None
+        self.total_classes: Optional[int] = None
         self._device = None
-        self._transform = None
-        self._optimizer = None
-        self._criterion = None
-        self._estop = None
-        self._cfg = None
-        self.label_ref = None
+        self._transform: Optional[transforms.Compose] = None
+        self._optimizer: Optional[Optimizer] = None
+        self._criterion: Optional[_Loss] = None
+        self._estop: Optional[EarlyStopper] = None
+        self._cfg: Dict[str, Any] = None
+        self.label_ref: Optional[Dict[int, str]] = None
         self.model_is_trained = False
 
     def __repr__(self) -> str:
