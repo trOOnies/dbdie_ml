@@ -6,7 +6,7 @@ import yaml
 import numpy as np
 import pandas as pd
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
-from torch import no_grad, save
+from torch import no_grad, load, save
 from torch import max as torch_max
 from torch.cuda import mem_get_info
 from torch.cuda import device as get_device
@@ -215,11 +215,33 @@ class IEModel:
         train_loader, val_loader = self._load_process(train_dataset_path, val_dataset_path)
         self._train_process(train_loader, val_loader)
 
+    def save_metadata(self, dst: str) -> None:
+        assert dst.endswith(".yaml")
+        metadata = {
+            k: getattr(self, k)
+            for k in ["name", "model_type", "version"] 
+        }
+        metadata.update(
+            {
+                k: getattr(self, f"_{k}")
+                for k in ["norm_means", "norm_std"]
+            }
+        )
+        with open(dst, "w") as f:
+            yaml.dump(metadata, f)
+
     def save_model(self, dst: str) -> None:
-        print("Saving model...", end=" ")
         assert self.model_is_trained
         assert dst.endswith(".pt")
         save(self._model, dst)
+        # save(self._model.state_dict(), dst)
+
+    def save(self, model_fd: str) -> None:
+        print("Saving model...", end=" ")
+        if not os.path.isdir(model_fd):
+            os.mkdir(model_fd)
+        self.save_metadata(os.path.join(model_fd, "metadata.yaml"))
+        self.save_model(os.path.join(model_fd, "model.pt"))
         print("Model saved.")
 
     def _predict_process(
@@ -245,7 +267,7 @@ class IEModel:
         dataset: DatasetClass,
         loader: DataLoader
     ) -> np.ndarray:
-        all_preds = np.zeros((len(dataset), self.total_classes), dtype=int)
+        all_preds = np.zeros((len(dataset), self.total_classes), dtype=float)
         i = 0
         with no_grad():
             for images, labels in loader:
@@ -253,12 +275,13 @@ class IEModel:
                 images = images.cuda()
 
                 outputs = self._model(images)
+                outputs = F.softmax(outputs, dim=1)
                 all_preds[i:i+labels_len, :] = outputs.cpu().numpy()
                 i += labels_len
         return all_preds
 
     def predict_batch(self, dataset_path: str, probas: bool = False) -> np.ndarray:
-        """Returns: preds or probas, indices_with_errors"""
+        """Returns: preds or probas"""
         assert self.model_is_trained
 
         print("Predictions for:", dataset_path)
@@ -281,3 +304,14 @@ class IEModel:
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
         print("Preds saved.")
+
+
+def load_model(model_fd_path: str) -> IEModel:
+    """Loads a DBDIE model using its metadata and the actual model"""
+    # TODO: Take into account this case to mark as pretrained
+    # TODO: Check if any other PT object needs to be saved
+    with open(os.path.join(model_fd_path, "metadata.yaml"), "r") as f:
+        metadata = yaml.safe_load(f)
+    with open(os.path.join(model_fd_path, "model.pt"), "rb") as f:
+        model = load(f)
+    return IEModel(model=model, **metadata)
