@@ -3,6 +3,7 @@ load_dotenv("../.env", override=True)
 
 import os
 import yaml
+import json
 import numpy as np
 import pandas as pd
 from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
@@ -241,6 +242,8 @@ class IEModel:
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
         self.save_metadata(os.path.join(model_fd, "metadata.yaml"))
+        with open(os.path.join(model_fd, "label_ref.json"), "w") as f:
+            json.dump(self.label_ref, f, indent=4)
         self.save_model(os.path.join(model_fd, "model.pt"))
         print("Model saved.")
 
@@ -308,10 +311,15 @@ class IEModel:
 
 def load_model(model_fd_path: str) -> IEModel:
     """Loads a DBDIE model using its metadata and the actual model"""
-    # TODO: Take into account this case to mark as pretrained
     # TODO: Check if any other PT object needs to be saved
     with open(os.path.join(model_fd_path, "metadata.yaml"), "r") as f:
         metadata = yaml.safe_load(f)
     with open(os.path.join(model_fd_path, "model.pt"), "rb") as f:
         model = load(f)
-    return IEModel(model=model, **metadata)
+    iem = IEModel(model=model, **metadata)
+    iem.init_model()
+    iem.model_is_trained = True
+    with open(os.path.join(model_fd_path, "label_ref.json"), "r") as f:
+        iem.label_ref = json.load(f)
+    iem.label_ref = {int(k): v for k, v in iem.label_ref.items()}
+    return iem

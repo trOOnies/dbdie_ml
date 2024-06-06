@@ -1,14 +1,14 @@
 from typing import Optional, List, Union
 from pydantic import BaseModel, ConfigDict
-from dbdie_ml.classes import PlayerId
+from dbdie_ml.classes import PlayerId, Probability
 
-ALL_CHARACTERS_ID = 0
-ALL_KILLERS_ID = 1
-ALL_SURVIVORS_ID = 2
+ALL_CHARS_IDS = {"all": 0, "killer": 1, "surv": 2}
+ADDONS_IDS = {"none": 0, "killer": 1, "base": (2, 3, 4, 5, 6)}
 
-NONE_ADDON_ID = 0
-KILLER_ADDON_ID = 1
-BASE_ADDON_IDS = (2, 3, 4, 5, 6)
+
+class CharacterCreate(BaseModel):
+    name: str
+    is_killer: bool
 
 
 class Character(BaseModel):
@@ -16,8 +16,13 @@ class Character(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     is_killer: Optional[bool]
+
+
+class PerkCreate(BaseModel):
+    name: str
+    character_id: int
 
 
 class Perk(BaseModel):
@@ -25,7 +30,7 @@ class Perk(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     character_id: int
     is_for_killer: Optional[bool]
 
@@ -35,7 +40,7 @@ class Item(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     type_id: int
 
 
@@ -44,10 +49,16 @@ class Offering(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     type_id: int
     user_id: int
     is_for_killer: Optional[bool]
+
+
+class AddonCreate(BaseModel):
+    name: str
+    type_id: int
+    user_id: int
 
 
 class Addon(BaseModel):
@@ -55,7 +66,7 @@ class Addon(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     type_id: int
     user_id: int
 
@@ -65,9 +76,15 @@ class Status(BaseModel):
 
     id: int
     name: str
-    proba: float
+    proba: Probability = None
     character_id: int
     is_dead: Optional[bool]
+
+
+class FullCharacter(BaseModel):
+    character: Character
+    perks: List[Perk]
+    addons: List[Addon]
 
 
 class PlayerIn(BaseModel):
@@ -116,29 +133,29 @@ class PlayerOut(BaseModel):
         return obj.is_for_killer is None or (obj.is_for_killer == self.is_killer)
 
     def _check_item_consistency(self) -> bool:
-        return self.is_killer == (self.item.type_id == KILLER_ADDON_ID)
+        return self.is_killer == (self.item.type_id == ADDONS_IDS["killer"])
 
     def _check_addons_consistency(self) -> bool:
         if self.is_killer:
             return all(
-                a.type_id == KILLER_ADDON_ID or a.type_id == NONE_ADDON_ID
+                a.type_id == ADDONS_IDS["killer"] or a.type_id == ADDONS_IDS["none"]
                 for a in self.addons
             )
         else:
             return all(
-                a.type_id == NONE_ADDON_ID or (
-                    a.type_id in BASE_ADDON_IDS
+                a.type_id == ADDONS_IDS["none"] or (
+                    a.type_id in ADDONS_IDS["base"]
                     and a.type_id == self.item.type_id
-                ) or a.type_id != KILLER_ADDON_ID
+                ) or a.type_id != ADDONS_IDS["killer"]
                 for a in self.addons
             )
 
     def _check_status_consistency(self) -> bool:
-        if self.status.character_id == ALL_CHARACTERS_ID:
+        if self.status.character_id == ALL_CHARS_IDS["all"]:
             return True
-        elif (self.status.character_id == ALL_SURVIVORS_ID) == (not self.is_killer):
+        elif (self.status.character_id == ALL_CHARS_IDS["surv"]) == (not self.is_killer):
             return True
-        elif (self.status.character_id == ALL_KILLERS_ID) == self.is_killer:
+        elif (self.status.character_id == ALL_CHARS_IDS["killer"]) == self.is_killer:
             return True
         else:
             return False
