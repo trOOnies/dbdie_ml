@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
 PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal["character", "perks", "item", "addons", "offering", "status", "points"]
+Probability = float  # 0.0 a 1.0
 
 Filename = str
 PathToFolder = str

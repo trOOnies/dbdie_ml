@@ -12,15 +12,15 @@ keywords = ["dbd", "ml", "pytorch"]
 license = { text = "GNU-3" }
 classifiers = ["Framework :: Pytorch", "Programming Language :: Python :: 3"]
 dependencies = [
-    "numpy==1.21.5",
-    "Pillow==9.4.0",
+    "numpy==1.26.3",
+    "Pillow==10.2.0",
     "pydantic==2.5.3",
     "pydantic_core==2.14.6",
     "python-dotenv==0.21.1",
     "PyYAML==6.0.1",
-    "torch==2.2.0+cu121",
+    "torch==2.3.1",                              # +cu118
     "torchsummary==1.5.1",
-    "torchvision==0.17.0+cu121",
+    "torchvision==0.18.1",                       # +cu118
     'importlib-metadata; python_version<"3.10"',
 ]
 dynamic = ["version"]
