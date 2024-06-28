@@ -1,13 +1,13 @@
 import os
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, Union, Dict, List, Tuple
-from dbdie_ml.classes import SnippetInfo
+from typing import TYPE_CHECKING, Optional, Union
+from dbdie_ml.classes import SnippetInfo, Path
 from dbdie_ml.models import IEModel
 from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
 if TYPE_CHECKING:
     from numpy import ndarray
-    from dbdie_ml.classes import AllSnippetCoords, AllSnippetInfo, SnippetCoords, ModelType
+    from dbdie_ml.classes import AllSnippetCoords, AllSnippetInfo, SnippetCoords, FullModelType
     from dbdie_ml.schemas import PlayerOut
 
 TYPES_TO_ID_NAMES = {
@@ -29,7 +29,7 @@ class InfoExtractor:
 
     Attributes:
         version: A string that is inferred from its models.
-        model_types: An optional list of `ModelTypes`.
+        model_types: An optional list of `FullModelTypes`.
 
     Usage:
         >>> ie = InfoExtractor()
@@ -41,7 +41,7 @@ class InfoExtractor:
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name = name
-        self._models: Optional[Dict["ModelType", IEModel]] = None
+        self._models: Optional[dict["FullModelType", IEModel]] = None
         self.version: Optional[str] = None
 
     def __repr__(self) -> str:
@@ -52,7 +52,7 @@ class InfoExtractor:
         return f"InfoExtractor({vals})"
 
     @property
-    def model_types(self) -> Optional[List["ModelType"]]:
+    def model_types(self) -> Optional[list["FullModelType"]]:
         return list(self._models.keys()) if self.models_are_init else None
 
     @property
@@ -67,36 +67,38 @@ class InfoExtractor:
             return all(m.model_is_trained for m in self._models.values())
 
     def _init_models(self) -> None:
-        version = None
-        for mt, model in self._models.items():
-            assert mt == model.model_type
+        assert all(model.selected_fd == mt for mt, model in self._models.items())
 
+        version = {model.version for model in self._models.values()}
+        assert len(version) == 1, "All model versions must match"
+        self.version = list(version)[0]
+
+        for model in self._models.values():
             model.init_model()
-            if version is None:
-                version = model.version
-            else:
-                assert model.version == version, "All model versions must match"
-        self.version = version
 
     def init_extractor(self) -> None:
         if self._models is None:
-            from dbdie_ml.models.custom import PerkModel
+            from dbdie_ml.models.custom import PerkModel, CharacterModel
             self._models = {
-                "perks": PerkModel()
+                "perks__killer": PerkModel(is_for_killer=True),
+                "perks__surv": PerkModel(is_for_killer=False),
+                "character__killer": CharacterModel(is_for_killer=True),
+                "character__surv": CharacterModel(is_for_killer=False)
             }
         self._init_models()
 
-    def _check_datasets(self, datasets: Dict["ModelType", str]) -> None:
+    def _check_datasets(self, datasets: dict["FullModelType", Path]) -> None:
         assert set(self.model_types) == set(datasets.keys())
         assert all(os.path.exists(p) for p in datasets.values())
 
     def train(
         self,
-        label_ref_paths: Dict["ModelType", str],
-        train_datasets: Dict["ModelType", str],
-        val_datasets: Dict["ModelType", str]
+        label_ref_paths: dict["FullModelType", Path],
+        train_datasets: dict["FullModelType", Path],
+        val_datasets: dict["FullModelType", Path]
     ) -> None:
         """Train all models one after the other."""
+        # TODO: Fix
         assert self.models_are_init and not self.models_are_trained
         self._check_datasets(label_ref_paths)
         self._check_datasets(train_datasets)
@@ -125,7 +127,11 @@ class InfoExtractor:
             for i, s in snippets.items()
         }
 
-    def predict_batch(self, datasets: Dict["ModelType", str], probas: bool = False) -> Dict["ModelType", "ndarray"]:
+    def predict_batch(
+        self,
+        datasets: dict["FullModelType", Path],
+        probas: bool = False
+    ) -> dict["FullModelType", "ndarray"]:
         assert self.models_are_trained
         self._check_datasets(datasets)
         return {
@@ -135,9 +141,9 @@ class InfoExtractor:
 
     def convert_names(
         self,
-        preds: Union["ndarray", Dict["ModelType", "ndarray"]],
-        on: Optional[Union["ModelType", List["ModelType"]]] = None
-    ) -> Union[List[str], Dict["ModelType", List[str]]]:
+        preds: Union["ndarray", dict["FullModelType", "ndarray"]],
+        on: Optional[Union["FullModelType", list["FullModelType"]]] = None
+    ) -> Union[list[str], dict["FullModelType", list[str]]]:
         assert self.models_are_trained
 
         preds_is_dict = isinstance(preds, dict)
@@ -150,7 +156,7 @@ class InfoExtractor:
             else:  # Modeltype
                 on_ = [deepcopy(on)]
         else:
-            assert isinstance(on, str), "'on' must be a ModelType if 'preds' is not a dict."
+            assert isinstance(on, str), "'on' must be a FullModelType if 'preds' is not a dict."
             preds_ = {deepcopy(on): preds}
             on_ = [deepcopy(on)]
 
@@ -164,10 +170,10 @@ class InfoExtractor:
             return names  # dict
 
     @staticmethod
-    def to_players(snippets_info: "AllSnippetInfo") -> List["PlayerOut"]:
+    def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
         return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
 
-    def form_match(self, players: List["PlayerOut"]) -> MatchOut:
+    def form_match(self, players: list["PlayerOut"]) -> MatchOut:
         return MatchOut(
             version=self.version,
             players=players

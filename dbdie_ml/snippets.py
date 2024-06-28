@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional, Literal, Any, Dict
+from typing import TYPE_CHECKING, Optional, Any
 from PIL import Image
 if TYPE_CHECKING:
     from dbdie_ml.classes import Boxes, AllSnippetCoords, PlayerId
@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 class SnippetGenerator:
     """Generates player snippets from a full-screen screenshot"""
-    def __init__(self, snippet_coords: Dict["PlayerId", Any]) -> None:
+    def __init__(self, snippet_coords: dict["PlayerId", Any]) -> None:
         self.snippet_coords = snippet_coords
 
     def _crop_image(

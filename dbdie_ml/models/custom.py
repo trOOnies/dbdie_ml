@@ -13,7 +13,7 @@ from dbdie_ml.data import get_total_classes
 
 class PerkModel(IEModel):
     """Recommended custom `IEModel` with a perk-based non-trained `model`"""
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:
         super().__init__(
             name=name,
             model=Sequential(
@@ -26,10 +26,48 @@ class PerkModel(IEModel):
                 Flatten(),  # Output size: 64*13*14
                 Linear(64*13*14, 128),
                 ReLU(),
-                Linear(128, get_total_classes()),
+                Linear(
+                    128,
+                    get_total_classes(f"perks__{'killer' if is_for_killer else 'surv'}")
+                ),
             ),
             model_type="perks",
+            is_for_killer=is_for_killer,
+            image_size=(55, 56),
             version="7.5.0",
+            norm_means=[0.485, 0.456, 0.406],
+            norm_std=[0.229, 0.224, 0.225]
+        )
+
+
+class CharacterModel(IEModel):
+    """Recommended custom `IEModel` with a character-based non-trained `model`"""
+    def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:
+        super().__init__(
+            name=name,
+            model=Sequential(
+                Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
+                ReLU(),
+                MaxPool2d((2, 2)),  # Output size: 32x238x16  (rounded down)
+                Conv2d(32, 64, (5, 5), padding=2),  # 64 filters
+                ReLU(),
+                MaxPool2d((2, 2)),  # Output size: 64x119x8
+                Conv2d(64, 128, (5, 5), padding=2),  # 128 filters
+                ReLU(),
+                MaxPool2d((2, 2)),  # Output size: 128x59x4
+                Flatten(),  # Output size: 128*59*4
+                Linear(128*59*4, 256),
+                ReLU(),
+                Linear(
+                    256,
+                    get_total_classes(f"character__{'killer' if is_for_killer else 'surv'}")
+                ),
+            ),
+            model_type="character",
+            is_for_killer=is_for_killer,
+            image_size=(476, 33),
+            version="7.5.0",
+            # Update normalization means and stds if necessary
             norm_means=[0.485, 0.456, 0.406],
             norm_std=[0.229, 0.224, 0.225]
         )

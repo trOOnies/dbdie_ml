@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict
 from dbdie_ml.classes import PlayerId, Probability
 
@@ -83,24 +83,24 @@ class Status(BaseModel):
 
 class FullCharacter(BaseModel):
     character: Character
-    perks: List[Perk]
-    addons: List[Addon]
+    perks: list[Perk]
+    addons: list[Addon]
 
 
 class PlayerIn(BaseModel):
     character_id: int
-    perk_ids: List[int]
+    perk_ids: list[int]
     item_id: int
-    addon_ids: List[int]
+    addon_ids: list[int]
     offering_id: int
 
 
 class PlayerOut(BaseModel):
     id: PlayerId
     character: Character
-    perks: List[Perk]
+    perks: list[Perk]
     item: Item
-    addons: List[Addon]
+    addons: list[Addon]
     offering: Offering
     status: Status
     points: int
@@ -163,7 +163,7 @@ class PlayerOut(BaseModel):
 
 class MatchOut(BaseModel):
     version: str
-    players: List[PlayerOut]
+    players: list[PlayerOut]
     kills: Optional[int] = None
     is_consistent: Optional[bool] = None
 

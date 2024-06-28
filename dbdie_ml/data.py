@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 from PIL import Image
 from torch.utils.data import Dataset
 if TYPE_CHECKING:
@@ -9,9 +9,9 @@ if TYPE_CHECKING:
     from torchvision.transforms import Compose
 
 
-def get_total_classes() -> int:
+def get_total_classes(selected_fd: str) -> int:
     class_df = pd.read_csv(
-        os.path.join(os.environ["LABELS_FD"], os.environ["SELECTED_FD"], "label_ref.csv")
+        os.path.join(os.environ["LABELS_FD"], selected_fd, "label_ref.csv")
     )
     assert (class_df.label_id == class_df.index).all()
     return class_df.shape[0]
@@ -29,7 +29,7 @@ class DatasetClass(Dataset):
     def __len__(self) -> int:
         return self.labels.shape[0]
 
-    def __getitem__(self, idx: int) -> Tuple["Tensor", "np_int64"]:
+    def __getitem__(self, idx: int) -> tuple["Tensor", "np_int64"]:
         image = Image.open(
             os.path.join(
                 os.environ["CROPS_FD"],

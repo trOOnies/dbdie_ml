@@ -6,7 +6,7 @@ import yaml
 import json
 import numpy as np
 import pandas as pd
-from typing import TYPE_CHECKING, Optional, List, Tuple, Dict, Any
+from typing import TYPE_CHECKING, Optional, Any
 from torch import no_grad, load, save
 from torch import max as torch_max
 from torch.cuda import mem_get_info
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from torch.nn import Sequential
     from torch.optim import Optimizer
     from torch.nn.modules.loss import _Loss
-    from dbdie_ml.classes import ModelType
+    from dbdie_ml.classes import PathToFolder, Path, ModelType
 
 
 class EarlyStopper:
@@ -71,30 +71,38 @@ class IEModel:
         self,
         model: "Sequential",
         model_type: "ModelType",
+        is_for_killer: bool,
+        image_size: tuple[int, int],
         version: str,
-        norm_means: List[float],
-        norm_std: List[float],
+        norm_means: list[float],
+        norm_std: list[float],
         name: Optional[str] = None
     ) -> None:
         self.name = name
         self._model = model
         self.model_type = model_type
+        self.is_for_killer = is_for_killer
+        self.image_size = image_size
         self.version = version
+
         self._norm_means = norm_means
         self._norm_std = norm_std
         self.total_classes: Optional[int] = None
+
         self._device = None
         self._transform: Optional[transforms.Compose] = None
         self._optimizer: Optional[Optimizer] = None
         self._criterion: Optional[_Loss] = None
         self._estop: Optional[EarlyStopper] = None
-        self._cfg: Dict[str, Any] = None
-        self.label_ref: Optional[Dict[int, str]] = None
+        self._cfg: dict[str, Any] = None
+
+        self.label_ref: Optional[dict[int, str]] = None
         self.model_is_trained = False
 
     def __repr__(self) -> str:
         vals = {
             "type": self.model_type,
+            "for_killer": self.is_for_killer,
             "version": self.version,
             "classes": self.total_classes,
             "trained": self.model_is_trained,
@@ -107,6 +115,10 @@ class IEModel:
     @property
     def model_is_init(self) -> bool:
         return self._optimizer is not None
+
+    @property
+    def selected_fd(self) -> str:
+        return f"{self.model_type}__{'killer' if self.is_for_killer else 'surv'}"
 
     def _get_transform(self) -> transforms.Compose:
         """Define any image transformations here"""
@@ -125,9 +137,8 @@ class IEModel:
         with open(config_path) as f:
             self._cfg = yaml.safe_load(f)
 
-        self.total_classes = get_total_classes()
+        self.total_classes = get_total_classes(self.selected_fd)
 
-        # Input image size is 55x56 and the number of channels is 3 (RGB)
         self._optimizer = Adam(self._model.parameters(), lr=self._cfg["adam_lr"])
         self._criterion = CrossEntropyLoss()
         self._estop = EarlyStopper(patience=3, min_delta=-0.01)
@@ -138,7 +149,13 @@ class IEModel:
 
     def get_summary(self) -> None:
         assert self.model_is_init
-        summary(self._model, (3, 55, 57), batch_size=self._cfg["batch_size"], device="cuda")
+
+        summary(
+            self._model,
+            (3, self.image_size[0], self.image_size[1]),  # The number of channels is 3 (RGB)
+            batch_size=self._cfg["batch_size"],
+            device="cuda"
+        )
 
         print("MEMORY")
         print("- Free: {:,.2} GiB\n- Total: {:,.2} GiB".format(
@@ -146,7 +163,7 @@ class IEModel:
         )
         print(64 * "-")
 
-    def _load_process(self, train_ds_path: str, val_ds_path: str) -> Tuple[DataLoader, DataLoader]:
+    def _load_process(self, train_ds_path: "Path", val_ds_path: "Path") -> tuple[DataLoader, DataLoader]:
         print("Loading data...", end=" ")
         train_dataset = DatasetClass(train_ds_path, transform=self._transform)
         val_dataset = DatasetClass(val_ds_path, transform=self._transform)
@@ -160,7 +177,7 @@ class IEModel:
 
         return train_loader, val_loader
 
-    def _load_label_ref(self, path: str) -> None:
+    def _load_label_ref(self, path: "Path") -> None:
         self.label_ref = pd.read_csv(path, usecols=["label_id", "name"], dtype={"label_id": int, "name": str})
         assert self.label_ref.label_id.min() == 0
         assert self.label_ref.label_id.max() + 1 == self.label_ref.shape[0]
@@ -209,19 +226,20 @@ class IEModel:
         self.model_is_trained = True
         self._model.eval()
 
-    def train(self, label_ref_path: str, train_dataset_path: str, val_dataset_path: str) -> None:
+    def train(self, label_ref_path: "Path", train_dataset_path: "Path", val_dataset_path: "Path") -> None:
         """Trains the `IEModel`"""
         assert self.model_is_init and not self.model_is_trained
         self._load_label_ref(label_ref_path)
         train_loader, val_loader = self._load_process(train_dataset_path, val_dataset_path)
         self._train_process(train_loader, val_loader)
 
-    def save_metadata(self, dst: str) -> None:
+    def save_metadata(self, dst: "Path") -> None:
         assert dst.endswith(".yaml")
         metadata = {
             k: getattr(self, k)
-            for k in ["name", "model_type", "version"] 
+            for k in ["name", "model_type", "is_for_killer", "version"]
         }
+        metadata["image_size"] = list(self.image_size)
         metadata.update(
             {
                 k: getattr(self, f"_{k}")
@@ -231,13 +249,13 @@ class IEModel:
         with open(dst, "w") as f:
             yaml.dump(metadata, f)
 
-    def save_model(self, dst: str) -> None:
+    def save_model(self, dst: "Path") -> None:
         assert self.model_is_trained
         assert dst.endswith(".pt")
         save(self._model, dst)
         # save(self._model.state_dict(), dst)
 
-    def save(self, model_fd: str) -> None:
+    def save(self, model_fd: "PathToFolder") -> None:
         print("Saving model...", end=" ")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
@@ -283,7 +301,7 @@ class IEModel:
                 i += labels_len
         return all_preds
 
-    def predict_batch(self, dataset_path: str, probas: bool = False) -> np.ndarray:
+    def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
         """Returns: preds or probas"""
         assert self.model_is_trained
 
@@ -296,30 +314,35 @@ class IEModel:
         else:
             return self._predict_process(dataset, loader)
 
-    def convert_names(self, labels: np.ndarray) -> List[str]:
+    def convert_names(self, labels: np.ndarray) -> list[str]:
         assert isinstance(labels[0], (np.ushort, int))
         assert self.model_is_trained
         return [self.label_ref[lbl] for lbl in labels]
 
     @staticmethod
-    def save_preds(preds: np.ndarray, dst: str) -> None:
+    def save_preds(preds: np.ndarray, dst: "Path") -> None:
         print("Saving preds...", end=" ")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
         print("Preds saved.")
 
 
-def load_model(model_fd_path: str) -> IEModel:
+def load_model(model_fd_path: "PathToFolder") -> IEModel:
     """Loads a DBDIE model using its metadata and the actual model"""
     # TODO: Check if any other PT object needs to be saved
     with open(os.path.join(model_fd_path, "metadata.yaml"), "r") as f:
         metadata = yaml.safe_load(f)
+    metadata["image_size"] = tuple(metadata["image_size"])
+
     with open(os.path.join(model_fd_path, "model.pt"), "rb") as f:
         model = load(f)
+
     iem = IEModel(model=model, **metadata)
     iem.init_model()
     iem.model_is_trained = True
+
     with open(os.path.join(model_fd_path, "label_ref.json"), "r") as f:
         iem.label_ref = json.load(f)
     iem.label_ref = {int(k): v for k, v in iem.label_ref.items()}
+
     return iem
