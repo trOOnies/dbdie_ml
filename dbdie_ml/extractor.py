@@ -103,12 +103,16 @@ class InfoExtractor:
         self._check_datasets(label_ref_paths)
         self._check_datasets(train_datasets)
         self._check_datasets(val_datasets)
+        print(50 * "-")
         for mt, model in self._models.items():
+            print(f"Training {mt} model...")
             model.train(
                 label_ref_path=label_ref_paths[mt],
                 train_dataset_path=train_datasets[mt],
                 val_dataset_path=val_datasets[mt]
             )
+            print(50 * "-")
+        print("All models have been trained.")
 
     def save(self) -> None:
         assert self.models_are_trained

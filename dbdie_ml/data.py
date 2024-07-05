@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from numpy import int64 as np_int64
     from torch import Tensor
     from torchvision.transforms import Compose
+    from dbdie_ml.classes import FullModelType
 
 
 def get_total_classes(selected_fd: str) -> int:
@@ -20,9 +21,11 @@ def get_total_classes(selected_fd: str) -> int:
 class DatasetClass(Dataset):
     def __init__(
         self,
+        full_model_type: "FullModelType",
         csv_path: str,
         transform: Optional["Compose"] = None
     ) -> None:
+        self.full_model_type = full_model_type
         self.labels = pd.read_csv(csv_path, usecols=["name", "label_id"])
         self.transform = transform
 
@@ -33,7 +36,7 @@ class DatasetClass(Dataset):
         image = Image.open(
             os.path.join(
                 os.environ["CROPS_FD"],
-                os.environ["SELECTED_FD"],
+                self.full_model_type,
                 self.labels.name.iat[idx]
             )
         )

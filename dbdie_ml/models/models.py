@@ -165,8 +165,8 @@ class IEModel:
 
     def _load_process(self, train_ds_path: "Path", val_ds_path: "Path") -> tuple[DataLoader, DataLoader]:
         print("Loading data...", end=" ")
-        train_dataset = DatasetClass(train_ds_path, transform=self._transform)
-        val_dataset = DatasetClass(val_ds_path, transform=self._transform)
+        train_dataset = DatasetClass(self.selected_fd, train_ds_path, transform=self._transform)
+        val_dataset = DatasetClass(self.selected_fd, val_ds_path, transform=self._transform)
 
         train_loader = DataLoader(train_dataset, batch_size=self._cfg["batch_size"], shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=self._cfg["batch_size"])
@@ -306,7 +306,7 @@ class IEModel:
         assert self.model_is_trained
 
         print("Predictions for:", dataset_path)
-        dataset = DatasetClass(dataset_path, transform=self._transform)
+        dataset = DatasetClass(self.selected_fd, dataset_path, transform=self._transform)
         loader = DataLoader(dataset, batch_size=self._cfg["batch_size"])
 
         if probas:
