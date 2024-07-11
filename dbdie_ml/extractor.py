@@ -1,7 +1,10 @@
+from __future__ import annotations
 import os
+import yaml
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union
-from dbdie_ml.classes import SnippetInfo, Path
+from shutil import rmtree
+from dbdie_ml.classes import SnippetInfo, Path, PathToFolder
 from dbdie_ml.models import IEModel
 from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
@@ -33,14 +36,18 @@ class InfoExtractor:
 
     Usage:
         >>> ie = InfoExtractor()
-        >>> # ie._models = {"perks": my_model, ...}  # only for super-users
+        >>> # ie._models = {"perks__surv": my_model, ...}  # only for super-users
         >>> ie.init_extractor()  # this uses all standard models
         >>> ie.train(...)
+        >>> ie.save(...)
         >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
     """
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name = name
+        self._set_empty_placeholders()
+
+    def _set_empty_placeholders(self) -> None:
         self._models: Optional[dict["FullModelType", IEModel]] = None
         self.version: Optional[str] = None
 
@@ -66,15 +73,24 @@ class InfoExtractor:
         else:
             return all(m.model_is_trained for m in self._models.values())
 
-    def _init_models(self) -> None:
+    @staticmethod
+    def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
+        return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
+
+    # * Base
+
+    def _set_version(self, expected: Optional[str] = None) -> None:
         assert all(model.selected_fd == mt for mt, model in self._models.items())
 
         version = {model.version for model in self._models.values()}
         assert len(version) == 1, "All model versions must match"
-        self.version = list(version)[0]
 
-        for model in self._models.values():
-            model.init_model()
+        version = list(version)[0]
+
+        if expected is not None:
+            assert version == expected, f"Seen version ({version}) is different from expected version ({expected})"
+
+        self.version = version
 
     def init_extractor(self) -> None:
         if self._models is None:
@@ -85,7 +101,98 @@ class InfoExtractor:
                 "character__killer": CharacterModel(is_for_killer=True),
                 "character__surv": CharacterModel(is_for_killer=False)
             }
-        self._init_models()
+        self._set_version()
+        for model in self._models.values():
+            model.init_model()
+
+    # * Loading and saving
+
+    @classmethod
+    def from_folder(cls, extractor_fd: "PathToFolder") -> InfoExtractor:
+        """Loads a DBDIE extractor using each model's metadata and the actual models"""
+        with open(os.path.join(extractor_fd, "metadata.yaml"), "r") as f:
+            metadata = yaml.safe_load(f)
+
+        model_names = set(metadata["models"])
+        assert len(model_names) == len(metadata["models"]), "Duplicate model names in the metadata YAML file"
+        del metadata["models"]
+
+        models_fd = os.path.join(extractor_fd, "models")
+
+        assert model_names == set(
+            fd for fd in os.listdir(models_fd)
+            if os.path.isdir(os.path.join(models_fd, fd))
+        ), "The model subfolders do not match the metadata YAML file"
+        model_names = list(model_names)
+
+        exp_version = metadata["version"]
+        del metadata["version"]
+
+        ie = InfoExtractor(**metadata)
+        ie._models = {
+            mn: IEModel.from_folder(os.path.join(models_fd, mn))
+            for mn in model_names
+        }
+        ie._set_version(expected=exp_version)
+
+        return ie
+
+    def _save_metadata(self, dst: "Path") -> None:
+        assert dst.endswith(".yaml")
+        metadata = {
+            k: getattr(self, k)
+            for k in ["name", "version"]
+        }
+        metadata["models"] = list(self._models.keys())
+        with open(dst, "w") as f:
+            yaml.dump(metadata, f)
+
+    def _folder_save_logic(
+        self,
+        extractor_fd: str,
+        replace: bool
+    ) -> None:
+        """Logic for the creation of the saving folder and subfolders."""
+        if replace:
+            if os.path.isdir(extractor_fd):
+                rmtree(extractor_fd)
+            os.mkdir(extractor_fd)
+            os.mkdir(os.path.join(extractor_fd, "models"))
+        else:
+            models_fd = os.path.join(extractor_fd, "models")
+
+            if not os.path.isdir(extractor_fd):
+                os.mkdir(extractor_fd)
+                os.mkdir(models_fd)
+                for mn in self._models:
+                    path = os.path.join(models_fd, mn)
+                    os.mkdir(path)
+            else:
+                if not os.path.isdir(models_fd):
+                    os.mkdir(models_fd)
+                    for mn in self._models:
+                        path = os.path.join(models_fd, mn)
+                        os.mkdir(path)
+                else:
+                    for mn in self._models:
+                        path = os.path.join(models_fd, mn)
+                        if not os.path.isdir(path):
+                            os.mkdir(path)
+
+    def save(
+        self,
+        extractor_fd: "PathToFolder",
+        replace: bool = True
+    ) -> None:
+        assert self.models_are_trained
+
+        self._folder_save_logic(extractor_fd, replace)
+
+        self._save_metadata(os.path.join(extractor_fd, "metadata.yaml"))
+        for mn, model in self._models.items():
+            model.save(os.path.join(extractor_fd, "models", mn))
+
+    # * Training
 
     def _check_datasets(self, datasets: dict["FullModelType", Path]) -> None:
         assert set(self.model_types) == set(datasets.keys())
@@ -98,7 +205,6 @@ class InfoExtractor:
         val_datasets: dict["FullModelType", Path]
     ) -> None:
         """Train all models one after the other."""
-        # TODO: Fix
         assert self.models_are_init and not self.models_are_trained
         self._check_datasets(label_ref_paths)
         self._check_datasets(train_datasets)
@@ -114,9 +220,13 @@ class InfoExtractor:
             print(50 * "-")
         print("All models have been trained.")
 
-    def save(self) -> None:
-        assert self.models_are_trained
-        raise NotImplementedError
+    def flush(self) -> None:
+        model_names = (mn for mn in self._models)
+        for mn in model_names:
+            self._models[mn].flush()
+        self._set_empty_placeholders()
+
+    # * Prediction
 
     def predict_on_snippet(self, s: "SnippetCoords") -> SnippetInfo:
         preds = {
@@ -173,19 +283,10 @@ class InfoExtractor:
         else:
             return names  # dict
 
-    @staticmethod
-    def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
-        return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
+    # * Match
 
     def form_match(self, players: list["PlayerOut"]) -> MatchOut:
         return MatchOut(
             version=self.version,
             players=players
         )
-
-    def end_models(self) -> None:
-        model_names = (mn for mn in self._models)
-        for mn in model_names:
-            del self._models[mn]
-        self._models = None
-        self.version = None

@@ -1,1 +1,1 @@
-from dbdie_ml.models.models import IEModel, load_model
+from dbdie_ml.models.models import IEModel

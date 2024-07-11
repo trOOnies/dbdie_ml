@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dotenv import load_dotenv
 load_dotenv("../.env", override=True)
 
@@ -60,7 +61,7 @@ class IEModel:
         >>> model.init_model()  # this uses all standard models
         >>> model.get_summary()
         >>> model.train(...)
-        >>> model.save_model("/path/to/model.pt")
+        >>> model.save("/path/to/model/folder")
         >>> preds = model.predict_batch("/path/to/dataset.csv")
         >>> names = model.convert_names(preds)
         >>> model.save_preds(preds, "/path/to/preds.txt")
@@ -87,6 +88,10 @@ class IEModel:
 
         self._norm_means = norm_means
         self._norm_std = norm_std
+
+        self._set_empty_placeholders()
+
+    def _set_empty_placeholders(self) -> None:
         self.total_classes: Optional[int] = None
 
         self._device = None
@@ -119,6 +124,8 @@ class IEModel:
     @property
     def selected_fd(self) -> str:
         return f"{self.model_type}__{'killer' if self.is_for_killer else 'surv'}"
+
+    # * Base
 
     def _get_transform(self) -> transforms.Compose:
         """Define any image transformations here"""
@@ -163,7 +170,78 @@ class IEModel:
         )
         print(64 * "-")
 
-    def _load_process(self, train_ds_path: "Path", val_ds_path: "Path") -> tuple[DataLoader, DataLoader]:
+    # * Loading and saving
+
+    @classmethod
+    def from_folder(cls, model_fd: "PathToFolder") -> IEModel:
+        """Loads a DBDIE model using its metadata and the actual model"""
+        # TODO: Check if any other PT object needs to be saved
+        with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
+            metadata = yaml.safe_load(f)
+        metadata["image_size"] = tuple(metadata["image_size"])
+
+        with open(os.path.join(model_fd, "model.pt"), "rb") as f:
+            model = load(f)
+
+        iem = cls(model=model, **metadata)
+        iem.init_model()
+        iem.model_is_trained = True
+
+        with open(os.path.join(model_fd, "label_ref.json"), "r") as f:
+            iem.label_ref = json.load(f)
+        iem.label_ref = {int(k): v for k, v in iem.label_ref.items()}
+
+        return iem
+
+    def _save_metadata(self, dst: "Path") -> None:
+        assert dst.endswith(".yaml")
+        metadata = {
+            k: getattr(self, k)
+            for k in ["name", "model_type", "is_for_killer", "version"]
+        }
+        metadata["image_size"] = list(self.image_size)
+        metadata.update(
+            {
+                k: getattr(self, f"_{k}")
+                for k in ["norm_means", "norm_std"]
+            }
+        )
+        with open(dst, "w") as f:
+            yaml.dump(metadata, f)
+
+    def _save_model(self, dst: "Path") -> None:
+        assert self.model_is_trained
+        assert dst.endswith(".pt")
+        save(self._model, dst)
+        # save(self._model.state_dict(), dst)
+
+    def save(self, model_fd: "PathToFolder") -> None:
+        print("Saving model...", end=" ")
+        if not os.path.isdir(model_fd):
+            os.mkdir(model_fd)
+
+        self._save_metadata(os.path.join(model_fd, "metadata.yaml"))
+        with open(os.path.join(model_fd, "label_ref.json"), "w") as f:
+            json.dump(self.label_ref, f, indent=4)
+        self._save_model(os.path.join(model_fd, "model.pt"))
+
+        print("Model saved.")
+
+    def flush(self) -> None:
+        # TODO: Reinit a flushed model
+        if not self.model_is_init:
+            return
+        del self._model
+        self._model = None
+        self._set_empty_placeholders()
+
+    # * Training
+
+    def _load_process(
+        self,
+        train_ds_path: "Path",
+        val_ds_path: "Path"
+    ) -> tuple[DataLoader, DataLoader]:
         print("Loading data...", end=" ")
         train_dataset = DatasetClass(self.selected_fd, train_ds_path, transform=self._transform)
         val_dataset = DatasetClass(self.selected_fd, val_ds_path, transform=self._transform)
@@ -178,13 +256,21 @@ class IEModel:
         return train_loader, val_loader
 
     def _load_label_ref(self, path: "Path") -> None:
-        self.label_ref = pd.read_csv(path, usecols=["label_id", "name"], dtype={"label_id": int, "name": str})
+        self.label_ref = pd.read_csv(
+            path,
+            usecols=["label_id", "name"],
+            dtype={"label_id": int, "name": str}
+        )
         assert self.label_ref.label_id.min() == 0
         assert self.label_ref.label_id.max() + 1 == self.label_ref.shape[0]
         assert self.label_ref.label_id.nunique() == self.label_ref.shape[0]
         self.label_ref = {row["label_id"]: row["name"] for _, row in self.label_ref.iterrows()}
 
-    def _train_process(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
+    def _train_process(
+        self,
+        train_loader: DataLoader,
+        val_loader: DataLoader
+    ) -> None:
         print("Training initialized...")
         epochs_clen = len(str(self._cfg["epochs"]))
         for epoch in range(1, self._cfg["epochs"] + 1):
@@ -226,44 +312,19 @@ class IEModel:
         self.model_is_trained = True
         self._model.eval()
 
-    def train(self, label_ref_path: "Path", train_dataset_path: "Path", val_dataset_path: "Path") -> None:
+    def train(
+        self,
+        label_ref_path: "Path",
+        train_dataset_path: "Path",
+        val_dataset_path: "Path"
+    ) -> None:
         """Trains the `IEModel`"""
         assert self.model_is_init and not self.model_is_trained
         self._load_label_ref(label_ref_path)
         train_loader, val_loader = self._load_process(train_dataset_path, val_dataset_path)
         self._train_process(train_loader, val_loader)
 
-    def save_metadata(self, dst: "Path") -> None:
-        assert dst.endswith(".yaml")
-        metadata = {
-            k: getattr(self, k)
-            for k in ["name", "model_type", "is_for_killer", "version"]
-        }
-        metadata["image_size"] = list(self.image_size)
-        metadata.update(
-            {
-                k: getattr(self, f"_{k}")
-                for k in ["norm_means", "norm_std"]
-            }
-        )
-        with open(dst, "w") as f:
-            yaml.dump(metadata, f)
-
-    def save_model(self, dst: "Path") -> None:
-        assert self.model_is_trained
-        assert dst.endswith(".pt")
-        save(self._model, dst)
-        # save(self._model.state_dict(), dst)
-
-    def save(self, model_fd: "PathToFolder") -> None:
-        print("Saving model...", end=" ")
-        if not os.path.isdir(model_fd):
-            os.mkdir(model_fd)
-        self.save_metadata(os.path.join(model_fd, "metadata.yaml"))
-        with open(os.path.join(model_fd, "label_ref.json"), "w") as f:
-            json.dump(self.label_ref, f, indent=4)
-        self.save_model(os.path.join(model_fd, "model.pt"))
-        print("Model saved.")
+    # * Prediction
 
     def _predict_process(
         self,
@@ -301,7 +362,11 @@ class IEModel:
                 i += labels_len
         return all_preds
 
-    def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
+    def predict_batch(
+        self,
+        dataset_path: "Path",
+        probas: bool = False
+    ) -> np.ndarray:
         """Returns: preds or probas"""
         assert self.model_is_trained
 
@@ -325,24 +390,3 @@ class IEModel:
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
         print("Preds saved.")
-
-
-def load_model(model_fd_path: "PathToFolder") -> IEModel:
-    """Loads a DBDIE model using its metadata and the actual model"""
-    # TODO: Check if any other PT object needs to be saved
-    with open(os.path.join(model_fd_path, "metadata.yaml"), "r") as f:
-        metadata = yaml.safe_load(f)
-    metadata["image_size"] = tuple(metadata["image_size"])
-
-    with open(os.path.join(model_fd_path, "model.pt"), "rb") as f:
-        model = load(f)
-
-    iem = IEModel(model=model, **metadata)
-    iem.init_model()
-    iem.model_is_trained = True
-
-    with open(os.path.join(model_fd_path, "label_ref.json"), "r") as f:
-        iem.label_ref = json.load(f)
-    iem.label_ref = {int(k): v for k, v in iem.label_ref.items()}
-
-    return iem
