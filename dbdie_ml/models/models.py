@@ -48,24 +48,26 @@ class IEModel:
     """ML model for information extraction
 
     Inputs:
-        model: A `torch.nn.Sequential`.
-        model_type: A `ModelType` (string).
-        version: A string that matches the DBD version,
-        preferably the minimum version used for the training process.
-        norm_means: A list of 3 floats for the torch `Compose`.
-        norm_std: Idem norm_means.
-        name: An optional string.
+        model (torch.nn.Sequential)
+        model_type (ModelType)
+        is_for_killer (bool)
+        image_size (tuple[int, int])
+        version (str): DBD version, preferably the minimum version
+            used for the training process.
+        norm_means (list[float]): 3 floats for the torch `Compose`.
+        norm_std (list[float]): Idem norm_means.
+        name (str | None): Model name.
 
     Usage:
-        >>> model = IEModel(Sequential(...), "perks", "7.6.0", ...)
-        >>> model.init_model()  # this uses all standard models
-        >>> model.get_summary()
-        >>> model.train(...)
-        >>> model.save("/path/to/model/folder")
-        >>> preds = model.predict_batch("/path/to/dataset.csv")
-        >>> names = model.convert_names(preds)
-        >>> model.save_preds(preds, "/path/to/preds.txt")
-        >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
+    >>> model = IEModel(Sequential(...), "perks", "7.6.0", ...)
+    >>> model.init_model()  # this uses all standard models
+    >>> model.get_summary()
+    >>> model.train(...)
+    >>> model.save("/path/to/model/folder")
+    >>> preds = model.predict_batch("/path/to/dataset.csv")
+    >>> names = model.convert_names(preds)
+    >>> model.save_preds(preds, "/path/to/preds.txt")
+    >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
     """
 
     def __init__(
@@ -135,6 +137,8 @@ class IEModel:
         ])
 
     def init_model(self) -> None:
+        assert not self.model_is_init, "IEModel can't be reinitialized before being flushed first"
+
         os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
         assert cuda_is_available()
@@ -210,7 +214,7 @@ class IEModel:
             yaml.dump(metadata, f)
 
     def _save_model(self, dst: "Path") -> None:
-        assert self.model_is_trained
+        assert self.model_is_trained, "IEModel is not trained"
         assert dst.endswith(".pt")
         save(self._model, dst)
         # save(self._model.state_dict(), dst)
@@ -319,7 +323,9 @@ class IEModel:
         val_dataset_path: "Path"
     ) -> None:
         """Trains the `IEModel`"""
-        assert self.model_is_init and not self.model_is_trained
+        # TODO: Add training scores as attributes once trained
+        assert self.model_is_init, "IEModel is not initialized"
+        assert not self.model_is_trained, "IEModel cannot be retrained without being flushed first"
         self._load_label_ref(label_ref_path)
         train_loader, val_loader = self._load_process(train_dataset_path, val_dataset_path)
         self._train_process(train_loader, val_loader)
@@ -368,7 +374,7 @@ class IEModel:
         probas: bool = False
     ) -> np.ndarray:
         """Returns: preds or probas"""
-        assert self.model_is_trained
+        assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
         dataset = DatasetClass(self.selected_fd, dataset_path, transform=self._transform)
@@ -381,7 +387,7 @@ class IEModel:
 
     def convert_names(self, labels: np.ndarray) -> list[str]:
         assert isinstance(labels[0], (np.ushort, int))
-        assert self.model_is_trained
+        assert self.model_is_trained, "IEModel is not trained"
         return [self.label_ref[lbl] for lbl in labels]
 
     @staticmethod

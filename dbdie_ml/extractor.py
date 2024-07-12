@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import yaml
+import pandas as pd
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union
 from shutil import rmtree
@@ -28,19 +29,21 @@ class InfoExtractor:
     """Extracts information of an image using multiple `IEModels`.
 
     Inputs:
-        name: An optional string.
+        name (str | None): Name of the `InfoExtractor`.
 
-    Attributes:
-        version: A string that is inferred from its models.
-        model_types: An optional list of `FullModelTypes`.
+    Attrs:
+        version (str | None): Inferred from its models.
+        model_types (list[FullModelType] | None)
+        models_are_init (bool)
+        models_are_trained (bool)
 
     Usage:
-        >>> ie = InfoExtractor()
-        >>> # ie._models = {"perks__surv": my_model, ...}  # only for super-users
-        >>> ie.init_extractor()  # this uses all standard models
-        >>> ie.train(...)
-        >>> ie.save(...)
-        >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
+    >>> ie = InfoExtractor()
+    >>> # ie._models = {"perks__surv": my_model, ...}  # only for super-users
+    >>> ie.init_extractor()  # this uses all standard models
+    >>> ie.train(...)
+    >>> ie.save(...)
+    >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
     """
 
     def __init__(self, name: Optional[str] = None) -> None:
@@ -52,6 +55,7 @@ class InfoExtractor:
         self.version: Optional[str] = None
 
     def __repr__(self) -> str:
+        """InfoExtractor('my_info_extractor', version='7.5.0')"""
         vals = {"version": self.version if self.models_are_init else "not_initialized"}
         vals = ', '.join([f"{k}='{v}'" for k, v in vals.items()])
         if self.name is not None:
@@ -92,18 +96,87 @@ class InfoExtractor:
 
         self.version = version
 
-    def init_extractor(self) -> None:
-        if self._models is None:
+    def init_extractor(
+        self,
+        trained_models: Optional[dict["FullModelType", IEModel]] = None,
+        expected_version: Optional[str] = None
+    ) -> None:
+        """Initialize the `InfoExtractor` and its `IEModels`.
+        Can be provided with already trained models.
+        """
+        assert not self.models_are_init, "InfoExtractor can't be reinitialized before being flushed first"
+
+        if trained_models is None:
             from dbdie_ml.models.custom import PerkModel, CharacterModel
-            self._models = {
-                "perks__killer": PerkModel(is_for_killer=True),
-                "perks__surv": PerkModel(is_for_killer=False),
-                "character__killer": CharacterModel(is_for_killer=True),
-                "character__surv": CharacterModel(is_for_killer=False)
+            TYPES_TO_MODELS = {
+                "character": CharacterModel,
+                "perks": PerkModel,
             }
-        self._set_version()
-        for model in self._models.values():
-            model.init_model()
+            models = {
+                "character__killer": True,
+                "character__surv": False,
+                "perks__killer": True,
+                "perks__surv": False,
+            }
+            self._models = {
+                mt: TYPES_TO_MODELS[mt[:mt.index("__")]](
+                    name=f"{self.name}__m{i}" if self.name is not None else None,
+                    is_for_killer=ifk
+                )
+                for i, (mt, ifk) in enumerate(models.items())
+            }
+        else:
+            self._models = trained_models
+
+        self._set_version(expected=expected_version)
+        if trained_models is None:
+            for model in self._models.values():
+                model.init_model()
+
+    def _get_printable_info(self) -> dict[str, dict[str, str]]:
+        printable_info = {
+            mn: str(model)[8:-1]  # "IEModel(" and ")"
+            for mn, model in self._models.items()
+        }
+        printable_info = {
+            mn: s.split(", ")
+            for mn, s in printable_info.items()
+        }
+        printable_info = {
+            mn: {
+                v[:v.index("=")]: v[v.index("=") + 2:-1]
+                for v in vs
+                if v.find("=") > -1
+            }
+            for mn, vs in printable_info.items()
+        }
+        printable_info = {
+            mn: (
+                {
+                    "name": (
+                        self._models[mn].name
+                        if self._models[mn].name is not None
+                        else "UNNAMED"
+                    )
+                } | d
+            )
+            for mn, d in printable_info.items()
+        }
+        return printable_info
+
+    def print_models(self) -> None:
+        print("EXTRACTOR:", str(self))
+        print("MODELS:", end="")
+
+        if not self.models_are_init:
+            print(" NONE")
+        else:
+            print()
+            printable_info = self._get_printable_info()
+            printable_info = pd.DataFrame.from_dict(printable_info)
+            printable_info = printable_info.T
+            printable_info = printable_info.set_index("name", drop=True)
+            print(printable_info)
 
     # * Loading and saving
 
@@ -114,7 +187,7 @@ class InfoExtractor:
             metadata = yaml.safe_load(f)
 
         model_names = set(metadata["models"])
-        assert len(model_names) == len(metadata["models"]), "Duplicate model names in the metadata YAML file"
+        assert len(model_names) == len(metadata["models"]), "Duplicated model names in the metadata YAML file"
         del metadata["models"]
 
         models_fd = os.path.join(extractor_fd, "models")
@@ -129,12 +202,13 @@ class InfoExtractor:
         del metadata["version"]
 
         ie = InfoExtractor(**metadata)
-        ie._models = {
-            mn: IEModel.from_folder(os.path.join(models_fd, mn))
-            for mn in model_names
-        }
-        ie._set_version(expected=exp_version)
-
+        ie.init_extractor(
+            trained_models={
+                mn: IEModel.from_folder(os.path.join(models_fd, mn))
+                for mn in model_names
+            },
+            expected_version=exp_version
+        )
         return ie
 
     def _save_metadata(self, dst: "Path") -> None:
@@ -184,7 +258,7 @@ class InfoExtractor:
         extractor_fd: "PathToFolder",
         replace: bool = True
     ) -> None:
-        assert self.models_are_trained
+        assert self.models_are_trained, "Non-trained `InfoExtractor` cannot be saved"
 
         self._folder_save_logic(extractor_fd, replace)
 
@@ -205,10 +279,12 @@ class InfoExtractor:
         val_datasets: dict["FullModelType", Path]
     ) -> None:
         """Train all models one after the other."""
-        assert self.models_are_init and not self.models_are_trained
+        assert not self.models_are_trained
+
         self._check_datasets(label_ref_paths)
         self._check_datasets(train_datasets)
         self._check_datasets(val_datasets)
+
         print(50 * "-")
         for mt, model in self._models.items():
             print(f"Training {mt} model...")
