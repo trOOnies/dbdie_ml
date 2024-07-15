@@ -17,9 +17,7 @@ SnippetCoords = tuple[int, int, int, int]  # Best estimation (1920x1080): from 2
 # SnippetInfo = tuple
 EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 
-Boxes = Union[list[SnippetCoords], dict[str, list[SnippetCoords]]]
-CropSettingsKey = Literal["src", "dst", "crops"]
-CropSettings = dict[CropSettingsKey, Union[str, Boxes]]
+Boxes = list[SnippetCoords] | dict[str, list[SnippetCoords]]
 
 
 @dataclass
@@ -47,6 +45,13 @@ class SnippetProcessor:
 
     def predict(self, snippet: SnippetCoords)-> SnippetInfo:
         return self.model.predict(snippet)
+
+
+@dataclass
+class CropSettings:
+    src: PathToFolder
+    dst: PathToFolder
+    crops: dict[FullModelType, list[SnippetWindow] | list[SnippetCoords]]
 
 
 AllSnippetCoords = dict[PlayerId, SnippetCoords]
