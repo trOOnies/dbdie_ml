@@ -1,7 +1,5 @@
-from typing import TYPE_CHECKING, Any, Literal, Union
+from typing import Literal
 from dataclasses import dataclass
-if TYPE_CHECKING:
-    from PIL import Image
 
 PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal["character", "perks", "item", "addons", "offering", "status", "points"]
@@ -19,6 +17,8 @@ EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 
 Boxes = list[SnippetCoords] | dict[str, list[SnippetCoords]]
 
+CropType = Literal["surv", "killer", "surv_player", "killer_player"]
+
 
 @dataclass
 class SnippetInfo:
@@ -29,22 +29,6 @@ class SnippetInfo:
     offering_id: int
     status_id: int
     points: int
-
-
-@dataclass
-class SnippetDetector:
-    model: Any
-
-    def predict(self, img: "Image")-> list[SnippetCoords]:
-        return self.model.predict(img)
-
-
-@dataclass
-class SnippetProcessor:
-    model: Any
-
-    def predict(self, snippet: SnippetCoords)-> SnippetInfo:
-        return self.model.predict(snippet)
 
 
 @dataclass

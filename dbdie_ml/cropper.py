@@ -1,6 +1,6 @@
 from __future__ import annotations
 import os
-from typing import TYPE_CHECKING, Optional, Literal
+from typing import TYPE_CHECKING, Optional
 from shutil import move
 from copy import deepcopy
 from PIL import Image
@@ -13,9 +13,9 @@ from crop_settings import (
     CROPPED_IMG_FD
 )
 if TYPE_CHECKING:
-    from dbdie_ml.classes import Filename, PathToFolder, Boxes, CropSettings
+    from dbdie_ml.classes import Filename, CropType, CropSettings
 
-CS_DICT = {
+CS_DICT: dict["CropType", "CropSettings"] = {
     "surv": IMG_SURV_CS,
     "killer": IMG_KILLER_CS,
     "surv_player": PLAYER_SURV_CS,
@@ -33,10 +33,7 @@ class Cropper:
     # * Instantiate
 
     @classmethod
-    def from_type(
-        cls,
-        t: Literal["surv", "killer", "surv_player", "killer_player"]
-    ) -> Cropper:
+    def from_type(cls, t: "CropType") -> Cropper:
         """Loads a certain type of DBDIE Cropper"""
         cpp = Cropper(settings=CS_DICT[t])
         return cpp
@@ -72,29 +69,34 @@ class Cropper:
 
     # * Cropping
 
-    @staticmethod
     def crop_image(
-        src_fd: "PathToFolder",
-        dst_fd: "PathToFolder",
+        self,
+        full_model_type: str,
         filename: "Filename",
-        boxes: "Boxes",
         offset: Optional[int]
     ) -> None:
-        src = os.path.join(src_fd, filename)
+        src = os.path.join(self.settings.src, filename)
         plain = filename[:-4]
 
         img = Image.open(src)
         img = img.convert("RGB")
 
+        boxes = deepcopy(self.settings.crops[full_model_type])
         if isinstance(boxes, list):
             using_boxes = boxes
         else:
             using_boxes = boxes["killer" if plain.endswith("_4") else "surv"]
 
         o = offset if isinstance(offset, int) else 0
+        dst_fd = os.path.join(
+            self.settings.dst,
+            full_model_type,
+        )
         for i, box in enumerate(using_boxes):
             cropped = img.crop(box)
-            cropped.save(os.path.join(dst_fd, f"{plain}_{i+o}.jpg"))
+            cropped.save(
+                os.path.join(dst_fd, f"{plain}_{i+o}.jpg")
+            )
 
     def _crop_process(
         self,
@@ -106,10 +108,8 @@ class Cropper:
         with tqdm(total=len(src_filenames), desc=full_model_type) as pbar:
             for f in src_filenames:
                 self.crop_image(
-                    self.settings.src,
-                    os.path.join(self.settings.dst, full_model_type),
+                    full_model_type,
                     filename=f,
-                    boxes=self.settings.crops[full_model_type],
                     offset=offset
                 )
                 pbar.update(1)
@@ -144,7 +144,7 @@ class Cropper:
                 if f not in self.umi
             ]
 
-    def run_crop(
+    def run(
         self,
         crop_only: Optional[list[str]],
         offset: Optional[int] = None,
@@ -190,3 +190,60 @@ class Cropper:
                 os.path.join(CROPPED_IMG_FD, f)
             )
         print("Images moved")
+
+
+class CropperSwarm:
+    """Chain of `Croppers` that can be run in sequence."""
+    def __init__(
+        self,
+        croppers: list[Cropper | list[Cropper]]
+    ) -> None:
+        assert all(
+            isinstance(cpp, Cropper) or all(isinstance(cpp_i, Cropper) for cpp_i in cpp)
+            for cpp in croppers
+        )
+        self.croppers = croppers
+
+    # * Instantiate
+
+    @classmethod
+    def from_types(
+        cls,
+        ts: list["CropType" | list["CropType"]]
+    ) -> CropperSwarm:
+        """Loads certain types of DBDIE Croppers"""
+        assert all(
+            isinstance(t, str) or all(isinstance(t_i, str) for t_i in t)
+            for t in ts
+        )
+
+        ts_flattened = [
+            (t if isinstance(t, list) else [t])
+            for t in ts
+        ]
+        ts_flattened = sum(ts_flattened, [])
+        assert len(ts_flattened) == len(set(ts_flattened))
+
+        cppsw = CropperSwarm(
+            [
+                (
+                    Cropper.from_type(t)
+                    if isinstance(t, str)
+                    else [Cropper.from_type(t_i) for t_i in t]
+                )
+                for t in ts
+            ]
+        )
+        return cppsw
+
+    # * Cropping
+
+    def run(self, crop_only: list[str] | None) -> None:
+        """Run all `Croppers` in their preset order"""
+        for cpp in self.croppers:
+            if isinstance(cpp, Cropper):
+                cpp.run(crop_only)
+            else:
+                # TODO: Could be parallelized
+                for cpp_i in cpp:
+                    cpp_i.run(crop_only)
