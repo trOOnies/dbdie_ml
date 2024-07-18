@@ -3,8 +3,8 @@ from dbdie_ml.classes import CropSettings
 CROPS_FD = "data/crops"
 CROPPED_IMG_FD = "data/img/cropped"
 
-# TODO: Add name
 IMG_SURV_CS = CropSettings(
+    name="surv",
     src="data/img/pending",
     dst=CROPS_FD,
     crops={
@@ -15,6 +15,7 @@ IMG_SURV_CS = CropSettings(
     }
 )
 IMG_KILLER_CS = CropSettings(
+    name="killer",
     src="data/img/pending",
     dst=CROPS_FD,
     crops={
@@ -23,6 +24,7 @@ IMG_KILLER_CS = CropSettings(
 )
 
 PLAYER_SURV_CS = CropSettings(
+    name="surv_player",
     src="data/crops/player__surv",
     dst=CROPS_FD,
     crops={
@@ -43,6 +45,7 @@ PLAYER_SURV_CS = CropSettings(
     }
 )
 PLAYER_KILLER_CS = CropSettings(
+    name="killer_player",
     src="data/crops/player__killer",
     dst=CROPS_FD,
     crops={

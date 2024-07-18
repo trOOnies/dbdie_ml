@@ -23,6 +23,7 @@ CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 
 @dataclass
 class SnippetInfo:
+    """Integer-encoded DBD information of a player snippet"""
     character_id: int
     perks_ids: tuple[int, int, int, int]
     item_id: int
@@ -34,6 +35,8 @@ class SnippetInfo:
 
 @dataclass
 class CropSettings:
+    """Settings for the cropping of a full screenshot or a previously cropped snippet"""
+    name: str
     src: PathToFolder
     dst: PathToFolder
     crops: dict[FullModelType, Union[list[SnippetWindow], list[SnippetCoords]]]

@@ -258,6 +258,7 @@ class InfoExtractor:
         extractor_fd: "PathToFolder",
         replace: bool = True
     ) -> None:
+        """Save all necessary objects of the `InfoExtractor` and all its `IEModels`"""
         assert self.models_are_trained, "Non-trained `InfoExtractor` cannot be saved"
 
         self._folder_save_logic(extractor_fd, replace)
@@ -297,6 +298,7 @@ class InfoExtractor:
         print("All models have been trained.")
 
     def flush(self) -> None:
+        """Reset `InfoExtractor` to pre-init state."""
         model_names = (mn for mn in self._models)
         for mn in model_names:
             self._models[mn].flush()
@@ -329,18 +331,16 @@ class InfoExtractor:
             for mt, model in self._models.items()
         }
 
-    def convert_names(
-        self,
+    @staticmethod
+    def _match_preds_types(
         preds: Union["ndarray", dict["FullModelType", "ndarray"]],
-        on: Optional[Union["FullModelType", list["FullModelType"]]] = None
-    ) -> Union[list[str], dict["FullModelType", list[str]]]:
-        assert self.models_are_trained
-
+        on: Optional[Union["FullModelType", list["FullModelType"]]]
+    ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
         preds_is_dict = isinstance(preds, dict)
         if preds_is_dict:
             preds_ = {deepcopy(k): p for k, p in preds.items()}
             if on is None:
-                on_ = list(preds_is_dict.keys())
+                on_ = list(preds_.keys())
             elif isinstance(on, list):
                 on_ = deepcopy(on)
             else:  # Modeltype
@@ -350,6 +350,27 @@ class InfoExtractor:
             preds_ = {deepcopy(on): preds}
             on_ = [deepcopy(on)]
 
+        return preds_, on_
+
+    def convert_names(
+        self,
+        preds: Union["ndarray", dict["FullModelType", "ndarray"]],
+        on: Optional[Union["FullModelType", list["FullModelType"]]] = None
+    ) -> Union[list[str], dict["FullModelType", list[str]]]:
+        """Convert model int predictions to named predictions.
+        
+        preds (Union[...]): Integer predictions to convert
+        - ndarray: A certain model type preds
+        - dict[FullModelType, ndarray]: Preds from different model types
+
+        on (Union[...]): Work 'on' certain model types
+        - FullModelType: Select a model type (only mode allowed when `preds` is a ndarray)
+        - list[FullModelType]: Select many model types
+        - None: Select all provided model types in `preds`
+        """
+        assert self.models_are_trained
+
+        preds_, on_ = self._match_preds_types(preds, on)
         names = {
             k: self._models[k].convert_names(preds_[k])
             for k in on_

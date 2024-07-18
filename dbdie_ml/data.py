@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 
 def get_total_classes(selected_fd: str) -> int:
+    """Calculate total classes from the corresponding `label_ref.csv`"""
     class_df = pd.read_csv(
         os.path.join(
             os.environ["DBDIE_MAIN_FD"],
@@ -24,6 +25,7 @@ def get_total_classes(selected_fd: str) -> int:
 
 
 class DatasetClass(Dataset):
+    """DBDIE implementation of torch's `Dataset`"""
     def __init__(
         self,
         full_model_type: "FullModelType",

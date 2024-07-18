@@ -16,10 +16,13 @@ if TYPE_CHECKING:
     from dbdie_ml.classes import Filename, CropType, CropSettings
 
 CS_DICT: dict["CropType", "CropSettings"] = {
-    "surv": IMG_SURV_CS,
-    "killer": IMG_KILLER_CS,
-    "surv_player": PLAYER_SURV_CS,
-    "killer_player": PLAYER_KILLER_CS,
+    cs.name: cs
+    for cs in [
+        IMG_SURV_CS,
+        IMG_KILLER_CS,
+        PLAYER_SURV_CS,
+        PLAYER_KILLER_CS
+    ]
 }
 
 
@@ -37,7 +40,7 @@ class Cropper:
             "dst='{}', ".format(self.settings.get_rel_path("dst")) +
             "crops=[{}]".format(','.join([k for k in self.settings.crops.keys()]))
         )
-        return f"Cropper({s})"
+        return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:
         for k, vs in self.settings.crops.items():
@@ -91,6 +94,7 @@ class Cropper:
         filename: "Filename",
         offset: Optional[int]
     ) -> None:
+        """Crop image according to `boxes` and save the results in JPGs"""
         src = os.path.join(self.settings.src, filename)
         plain = filename[:-4]
 
@@ -200,6 +204,7 @@ class Cropper:
     # * Moving images
 
     def move_images(self) -> None:
+        """Move movable images to the 'cropped' folder"""
         for f in self.movable_imgs:
             move(
                 os.path.join(CS_DICT["surv"].src, f),  # hardcoded for now

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 
 class EarlyStopper:
+    """In charge of the early-stopping in the training process"""
     def __init__(self, patience=1, min_delta=0.0):
         self.patience = patience
         self.min_delta = min_delta
@@ -137,6 +138,7 @@ class IEModel:
         ])
 
     def init_model(self) -> None:
+        """Initialize model to allow it to be trained"""
         assert not self.model_is_init, "IEModel can't be reinitialized before being flushed first"
 
         os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
@@ -159,6 +161,7 @@ class IEModel:
         self._transform = self._get_transform()
 
     def get_summary(self) -> None:
+        """Get underlying model summary"""
         assert self.model_is_init
 
         summary(
@@ -220,6 +223,7 @@ class IEModel:
         # save(self._model.state_dict(), dst)
 
     def save(self, model_fd: "PathToFolder") -> None:
+        """Save all necessary objects of the `IEModel`"""
         print("Saving model...", end=" ")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
@@ -232,6 +236,7 @@ class IEModel:
         print("Model saved.")
 
     def flush(self) -> None:
+        """Reset `IEModel` to pre-init state."""
         # TODO: Reinit a flushed model
         if not self.model_is_init:
             return
@@ -385,13 +390,15 @@ class IEModel:
         else:
             return self._predict_process(dataset, loader)
 
-    def convert_names(self, labels: np.ndarray) -> list[str]:
-        assert isinstance(labels[0], (np.ushort, int))
+    def convert_names(self, preds: np.ndarray) -> list[str]:
+        """Convert integer predictions to named predictions"""
+        assert isinstance(preds[0], (np.ushort, int))
         assert self.model_is_trained, "IEModel is not trained"
-        return [self.label_ref[lbl] for lbl in labels]
+        return [self.label_ref[lbl] for lbl in preds]
 
     @staticmethod
     def save_preds(preds: np.ndarray, dst: "Path") -> None:
+        """Save predictions to the `dst` path"""
         print("Saving preds...", end=" ")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
