@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from shutil import rmtree
 from dbdie_ml.classes import SnippetInfo, Path, PathToFolder
 from dbdie_ml.models import IEModel
-from dbdie_ml.db import to_player
+# from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -77,9 +77,9 @@ class InfoExtractor:
         else:
             return all(m.model_is_trained for m in self._models.values())
 
-    @staticmethod
-    def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
-        return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
+    # @staticmethod
+    # def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
+    #     return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
 
     # * Base
 

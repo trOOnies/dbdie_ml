@@ -1,4 +1,5 @@
-from typing import Literal
+import os
+from typing import Literal, Union
 from dataclasses import dataclass
 
 PlayerId = Literal[0, 1, 2, 3, 4]
@@ -15,7 +16,7 @@ SnippetCoords = tuple[int, int, int, int]  # Best estimation (1920x1080): from 2
 # SnippetInfo = tuple
 EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 
-Boxes = list[SnippetCoords] | dict[str, list[SnippetCoords]]
+Boxes = Union[list[SnippetCoords], dict[str, list[SnippetCoords]]]
 
 CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 
@@ -35,7 +36,21 @@ class SnippetInfo:
 class CropSettings:
     src: PathToFolder
     dst: PathToFolder
-    crops: dict[FullModelType, list[SnippetWindow] | list[SnippetCoords]]
+    crops: dict[FullModelType, Union[list[SnippetWindow], list[SnippetCoords]]]
+    are_absolute_paths: bool = False
+
+    def make_abs_paths(self) -> None:
+        if not self.are_absolute_paths:
+            self.src = os.path.join(os.environ["DBDIE_MAIN_FD"], self.src)
+            self.dst = os.path.join(os.environ["DBDIE_MAIN_FD"], self.dst)
+            self.are_absolute_paths = True
+
+    def get_rel_path(self, fd: Literal["src", "dst"]) -> PathToFolder:
+        assert fd in {"src", "dst"}
+        if self.are_absolute_paths:
+            return os.path.relpath(getattr(self, fd), os.environ["DBDIE_MAIN_FD"])
+        else:
+            return getattr(self, fd)
 
 
 AllSnippetCoords = dict[PlayerId, SnippetCoords]

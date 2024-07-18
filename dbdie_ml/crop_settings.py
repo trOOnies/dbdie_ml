@@ -1,8 +1,9 @@
-from classes import CropSettings
+from dbdie_ml.classes import CropSettings
 
 CROPS_FD = "data/crops"
 CROPPED_IMG_FD = "data/img/cropped"
 
+# TODO: Add name
 IMG_SURV_CS = CropSettings(
     src="data/img/pending",
     dst=CROPS_FD,

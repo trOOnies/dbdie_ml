@@ -5,7 +5,7 @@ from shutil import move
 from copy import deepcopy
 from PIL import Image
 from tqdm import tqdm
-from crop_settings import (
+from dbdie_ml.crop_settings import (
     IMG_SURV_CS,
     IMG_KILLER_CS,
     PLAYER_SURV_CS,
@@ -26,9 +26,24 @@ CS_DICT: dict["CropType", "CropSettings"] = {
 class Cropper:
     """Class that crops images in order to have crops model-ready."""
     def __init__(self, settings: "CropSettings") -> None:
-        assert os.path.isdir(self.settings["src"])
-        assert os.path.isdir(self.settings["dst"])
+        settings.make_abs_paths()
+        assert os.path.isdir(settings.src)
+        assert os.path.isdir(settings.dst)
         self.settings = settings
+
+    def __repr__(self) -> str:
+        s = (
+            "src='{}', ".format(self.settings.get_rel_path("src")) +
+            "dst='{}', ".format(self.settings.get_rel_path("dst")) +
+            "crops=[{}]".format(','.join([k for k in self.settings.crops.keys()]))
+        )
+        return f"Cropper({s})"
+
+    def print_crops(self) -> None:
+        for k, vs in self.settings.crops.items():
+            print(k)
+            for v in vs:
+                print(f"- {v}")
 
     # * Instantiate
 
@@ -46,8 +61,9 @@ class Cropper:
         when comparing src to dst.
         """
         fs = os.listdir(CS_DICT["surv"].src)  # hardcoded for now
+        cropped_fd = os.path.join(os.environ["DBDIE_MAIN_FD"], CROPPED_IMG_FD)
         list_is_movable = [
-            not os.path.exists(os.path.join(CROPPED_IMG_FD, f))
+            not os.path.exists(os.path.join(cropped_fd, f))
             for f in fs
         ]
 
@@ -187,7 +203,7 @@ class Cropper:
         for f in self.movable_imgs:
             move(
                 os.path.join(CS_DICT["surv"].src, f),  # hardcoded for now
-                os.path.join(CROPPED_IMG_FD, f)
+                os.path.join(os.environ["DBDIE_MAIN_FD"], CROPPED_IMG_FD, f)
             )
         print("Images moved")
 
@@ -205,6 +221,12 @@ class CropperSwarm:
         self.croppers = croppers
 
     # * Instantiate
+
+    def print_croppers(self) -> None:
+        print("CROPPER SWARM:", str(self))
+        print("CROPPERS:")
+        for cpp in self.croppers:
+            print(f"- {cpp}")
 
     @classmethod
     def from_types(
