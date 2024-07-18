@@ -8,9 +8,18 @@ It is very much a WIP repo. I write it whenever I'm feeling inspired, thus its d
 
 ## Classes
 
+- `Cropper`: Crops images or image snippets according to its settings. Used to avoid hardcoding settings in the code.
+- `CropperSwarm`: Chain of `Croppers` that can be run in sequence.
 - `InfoExtractor`: Extracts information of an image using multiple `IEModels`.
 - `IEModel`: ML model for the extraction of a particular information type, such as perks, addons, etc.
 - `MatchOut`: Extracted match information.
+
+## Open configuration
+
+If you just want to know how do I crop the endcard screenshot and the Pytorch architectures I use, check out the following files:
+
+- dbdie_ml/crop_settings.py
+- dbdie_ml/models/custom.py
 
 ## License
 
