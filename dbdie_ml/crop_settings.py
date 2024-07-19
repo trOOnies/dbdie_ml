@@ -7,6 +7,7 @@ IMG_SURV_CS = CropSettings(
     name="surv",
     src="data/img/pending",
     dst=CROPS_FD,
+    img_size=(1920, 1080),
     crops={
         "player__surv": [
             (67, 257 + j * 117, 897, 257 + (j+1) * 117)
@@ -18,6 +19,7 @@ IMG_KILLER_CS = CropSettings(
     name="killer",
     src="data/img/pending",
     dst=CROPS_FD,
+    img_size=(1920, 1080),
     crops={
         "player__killer": [(66, 716, 896, 716 + 117)]
     }
@@ -27,6 +29,7 @@ PLAYER_SURV_CS = CropSettings(
     name="surv_player",
     src="data/crops/player__surv",
     dst=CROPS_FD,
+    img_size=(830, 117),
     crops={
         "addons__surv": [
             (483 + j * 41, 58, 483 + (j+1) * 41, 99)
@@ -48,6 +51,7 @@ PLAYER_KILLER_CS = CropSettings(
     name="killer_player",
     src="data/crops/player__killer",
     dst=CROPS_FD,
+    img_size=(830, 117),
     crops={
         "addons__killer": [
             (483 + j * 41, 67, 483 + (j+1) * 41, 108)

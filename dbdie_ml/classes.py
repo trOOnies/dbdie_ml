@@ -11,6 +11,8 @@ Filename = str
 PathToFolder = str
 Path = str
 
+Width = int
+Height = int
 SnippetWindow = tuple[int, int, int, int]  # Best estimation (1920x1080): (67,217) to (1015,897)
 SnippetCoords = tuple[int, int, int, int]  # Best estimation (1920x1080): from 257 to 842 in intervals of 117
 # SnippetInfo = tuple
@@ -39,6 +41,7 @@ class CropSettings:
     name: str
     src: PathToFolder
     dst: PathToFolder
+    img_size: tuple[Width, Height] 
     crops: dict[FullModelType, Union[list[SnippetWindow], list[SnippetCoords]]]
     are_absolute_paths: bool = False
 

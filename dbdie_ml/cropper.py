@@ -13,7 +13,8 @@ from dbdie_ml.crop_settings import (
     CROPPED_IMG_FD
 )
 if TYPE_CHECKING:
-    from dbdie_ml.classes import Filename, CropType, CropSettings
+    from PIL.Image import Image as PILImage
+    from dbdie_ml.classes import Filename, Path, CropType, CropSettings, FullModelType
 
 CS_DICT: dict["CropType", "CropSettings"] = {
     cs.name: cs
@@ -35,10 +36,14 @@ class Cropper:
         self.settings = settings
 
     def __repr__(self) -> str:
+        """Cropper('data\crops\player__surv' -> 'data\crops', image_size=(830, 117), 8 crops)"""
         s = (
-            "src='{}', ".format(self.settings.get_rel_path("src")) +
-            "dst='{}', ".format(self.settings.get_rel_path("dst")) +
-            "crops=[{}]".format(','.join([k for k in self.settings.crops.keys()]))
+            "'{src}' -> '{dst}', ".format(
+                src=self.settings.get_rel_path("src"),
+                dst=self.settings.get_rel_path("dst")
+            ) +
+            f"img_size={self.settings.img_size}, " +
+            f"{len(self.settings.crops)} crops"
         )
         return f"Cropper('{self.settings.name}', {s})"
 
@@ -90,7 +95,30 @@ class Cropper:
 
     def crop_image(
         self,
-        full_model_type: str,
+        img: "PILImage",
+        full_model_type: "FullModelType",
+        convert_to_rgb: bool = False
+    ) -> list["PILImage"]:
+        """Crop a single image without taking into account 'src' or 'dst' settings"""
+        boxes = deepcopy(self.settings.crops[full_model_type])
+        if convert_to_rgb:
+            img = img.convert("RGB")
+        return [img.crop(box) for box in boxes]
+
+    def crop_image_from_path(
+        self,
+        path: "Path",
+        full_model_type: "FullModelType"
+    ) -> list["PILImage"]:
+        """Crop a single image without taking into account 'src' or 'dst' settings"""
+        boxes = deepcopy(self.settings.crops[full_model_type])
+        img = Image.open(path)
+        img = img.convert("RGB")
+        return [img.crop(box) for box in boxes]
+
+    def crop_src_image(
+        self,
+        full_model_type: "FullModelType",
         filename: "Filename",
         offset: Optional[int]
     ) -> None:
@@ -102,17 +130,13 @@ class Cropper:
         img = img.convert("RGB")
 
         boxes = deepcopy(self.settings.crops[full_model_type])
-        if isinstance(boxes, list):
-            using_boxes = boxes
-        else:
-            using_boxes = boxes["killer" if plain.endswith("_4") else "surv"]
 
         o = offset if isinstance(offset, int) else 0
         dst_fd = os.path.join(
             self.settings.dst,
             full_model_type,
         )
-        for i, box in enumerate(using_boxes):
+        for i, box in enumerate(boxes):
             cropped = img.crop(box)
             cropped.save(
                 os.path.join(dst_fd, f"{plain}_{i+o}.jpg")
@@ -120,14 +144,14 @@ class Cropper:
 
     def _crop_process(
         self,
-        full_model_type: str,
+        full_model_type: "FullModelType",
         src_filenames: list["Filename"],
         offset: Optional[int]
     ) -> None:
-        # TODO: Make a separate graph that initializes the crop folder and the rest if needed
         with tqdm(total=len(src_filenames), desc=full_model_type) as pbar:
             for f in src_filenames:
-                self.crop_image(
+                # TODO: Maybe aim to load the image just once?
+                self.crop_src_image(
                     full_model_type,
                     filename=f,
                     offset=offset
@@ -264,6 +288,57 @@ class CropperSwarm:
         return cppsw
 
     # * Cropping
+
+    def crop_image(
+        self,
+        img: "PILImage",
+        full_model_type: "FullModelType",
+        convert_to_rgb: bool = False
+    ) -> list["PILImage" | list["PILImage"]]:
+        """Crop a single image without taking into account 'src' or 'dst' settings"""
+        return [
+            (
+                cpp.crop_image(
+                    img=img,
+                    full_model_type=full_model_type,
+                    convert_to_rgb=convert_to_rgb
+                )
+                if isinstance(cpp, Cropper)
+                else [
+                    cpp_i.crop_image(
+                        img=img,
+                        full_model_type=full_model_type,
+                        convert_to_rgb=convert_to_rgb
+                    )
+                    for cpp_i in cpp
+                ]
+            )
+            for cpp in self.croppers
+        ]
+
+    def crop_image_from_path(
+        self,
+        path: "Path",
+        full_model_type: "FullModelType"
+    ) -> list["PILImage" | list["PILImage"]]:
+        """Crop a single image without taking into account 'src' or 'dst' settings"""
+        return [
+            (
+                cpp.crop_image_from_path(
+                    path=path,
+                    full_model_type=full_model_type
+                )
+                if isinstance(cpp, Cropper)
+                else [
+                    cpp_i.crop_image_from_path(
+                        path=path,
+                        full_model_type=full_model_type
+                    )
+                    for cpp_i in cpp
+                ]
+            )
+            for cpp in self.croppers
+        ]
 
     def run(self, crop_only: list[str] | None) -> None:
         """Run all `Croppers` in their preset order"""
