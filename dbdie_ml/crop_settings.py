@@ -1,11 +1,9 @@
+from dbdie_ml.paths import CROPS_FD, CROP_PENDING_IMG_FD
 from dbdie_ml.classes import CropSettings
-
-CROPS_FD = "data/crops"
-CROPPED_IMG_FD = "data/img/cropped"
 
 IMG_SURV_CS = CropSettings(
     name="surv",
-    src="data/img/pending",
+    src=CROP_PENDING_IMG_FD,
     dst=CROPS_FD,
     img_size=(1920, 1080),
     crops={
@@ -17,12 +15,13 @@ IMG_SURV_CS = CropSettings(
 )
 IMG_KILLER_CS = CropSettings(
     name="killer",
-    src="data/img/pending",
+    src=CROP_PENDING_IMG_FD,
     dst=CROPS_FD,
     img_size=(1920, 1080),
     crops={
         "player__killer": [(66, 716, 896, 716 + 117)]
-    }
+    },
+    offset=4,
 )
 
 PLAYER_SURV_CS = CropSettings(
@@ -45,7 +44,7 @@ PLAYER_SURV_CS = CropSettings(
         "points": [(580, 54, 750, 104)],
         "prestige": [(0, 0, 117, 116)],
         "status": [(124, 5, 155, 46)]
-    }
+    },
 )
 PLAYER_KILLER_CS = CropSettings(
     name="killer_player",
@@ -67,5 +66,6 @@ PLAYER_KILLER_CS = CropSettings(
         "points": [(582, 64, 752, 114)],
         "prestige": [(0, 9, 117, 125)],
         "status": [(124, 10, 155, 51)]
-    }
+    },
+    offset=4,
 )

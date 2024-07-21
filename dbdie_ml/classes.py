@@ -41,8 +41,9 @@ class CropSettings:
     name: str
     src: PathToFolder
     dst: PathToFolder
-    img_size: tuple[Width, Height] 
+    img_size: tuple[Width, Height]
     crops: dict[FullModelType, Union[list[SnippetWindow], list[SnippetCoords]]]
+    offset: int = 0
     are_absolute_paths: bool = False
 
     def make_abs_paths(self) -> None:
