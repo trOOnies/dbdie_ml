@@ -8,6 +8,7 @@ from dbdie_ml.crop_settings import (
     PLAYER_SURV_CS,
     PLAYER_KILLER_CS
 )
+from dbdie_ml.utils import pls
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
     from dbdie_ml.classes import (
@@ -33,6 +34,9 @@ class Cropper:
         assert os.path.isdir(settings.dst)
         self.settings = settings
 
+    def __len__(self) -> int:
+        return len(self.settings.crops)
+
     def __repr__(self) -> str:
         """Cropper('data\crops\player__surv' -> 'data\crops', image_size=(830, 117), 8 crops)"""
         s = (
@@ -40,9 +44,10 @@ class Cropper:
                 src=self.settings.get_rel_path("src"),
                 dst=self.settings.get_rel_path("dst")
             ) +
-            f"img_size={self.settings.img_size}, " +
-            f"{len(self.settings.crops)} crops"
+            f"img_size={self.settings.img_size}, "
         )
+        crops_len = len(self)
+        s += pls("crop", crops_len)
         return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:

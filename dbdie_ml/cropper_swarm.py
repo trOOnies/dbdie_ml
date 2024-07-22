@@ -5,6 +5,7 @@ from copy import deepcopy
 from PIL import Image
 from dbdie_ml.cropper import Cropper
 from dbdie_ml.movable_report import MovableReport
+from dbdie_ml.utils import pls
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
     from dbdie_ml.classes import CropType
@@ -29,13 +30,38 @@ class CropperSwarm:
         ]
         self._movable_report = None
 
-    # * Instantiate
+    def __len__(self) -> int:
+        return len(self.croppers)
 
-    def print_croppers(self) -> None:
+    def __repr__(self) -> str:
+        """CropperSwarm(3 levels, 6 croppers)"""
+        cps_levels = len(self)
+        cps_croppers = sum(
+            len(cpp_list)
+            for cpa in self.cropper_alignments
+            for cpp_list in cpa.values()
+        )
+        s = (
+            pls("level", cps_levels) + ", " +
+            pls("cropper", cps_croppers)
+        )
+        return f"CropperSwarm({s})"
+
+    def print_croppers(self, verbose: bool = False) -> None:
         print("CROPPER SWARM:", str(self))
         print("CROPPERS:")
-        for cpp in self.croppers:
-            print(f"- {cpp}")
+        if verbose:
+            for cpp in self.croppers:
+                print(f"- {cpp}")
+        else:
+            for cpp in self.croppers:
+                if isinstance(cpp, list):
+                    s = [f"Cropper('{cpp_i.settings.name}')" for cpp_i in cpp]
+                    print(f"- [{', '.join(s)}]")
+                else:
+                    print(f"- Cropper('{cpp.settings.name}')")
+
+    # * Instantiate
 
     @classmethod
     def from_types(
