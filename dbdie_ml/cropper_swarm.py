@@ -26,6 +26,7 @@ class CropperSwarm:
         self.cropper_alignments: list[CropperAlignments] = [
             self._group_cropper_list(cpp) for cpp in croppers
         ]
+        self._croppers_flat = [cpp for cpa in self.cropper_alignments for cpp_list in cpa.values() for cpp in cpp_list]
         self._movable_report = None
 
     def __len__(self) -> int:
@@ -34,11 +35,7 @@ class CropperSwarm:
     def __repr__(self) -> str:
         """CropperSwarm(3 levels, 6 croppers)"""
         cps_levels = len(self)
-        cps_croppers = sum(
-            len(cpp_list)
-            for cpa in self.cropper_alignments
-            for cpp_list in cpa.values()
-        )
+        cps_croppers = len(self._croppers_flat)
         s = pls("level", cps_levels) + ", " + pls("cropper", cps_croppers)
         return f"CropperSwarm({s})"
 
@@ -55,6 +52,13 @@ class CropperSwarm:
                     print(f"- [{', '.join(s)}]")
                 else:
                     print(f"- Cropper('{cpp.settings.name}')")
+
+    def get_all_fmts(self) -> list:
+        return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
+
+    @property
+    def cropper_flat_names(self) -> list:
+        return [cpp.name for cpp in self._croppers_flat]
 
     # * Instantiate
 
@@ -97,18 +101,21 @@ class CropperSwarm:
 
     # * Cropping
 
-    def _apply_cropper(self, cpp: Cropper, img: "PILImage", src_filename: str) -> None:
+    @staticmethod
+    def _apply_cropper(cpp: Cropper, img: "PILImage", src_filename: str) -> None:
         """Make all the `Cropper` crops for a single in-memory image,
         and save them in the settings 'dst' folder,
         inside the corresponding subfolder
         """
+        # TODO: full_model_types?
+
         plain = src_filename[:-4]
         o = cpp.settings.offset
 
-        for full_model_type in self.full_model_types:
-            boxes = deepcopy(self.settings.crops[full_model_type])
+        for full_model_type in cpp.full_model_types:
+            boxes = deepcopy(cpp.settings.crops[full_model_type])
             dst_fd = os.path.join(
-                self.settings.dst,
+                cpp.settings.dst,
                 full_model_type,
             )
             for i, box in enumerate(boxes):
@@ -126,23 +133,40 @@ class CropperSwarm:
             self._apply_cropper(cpp, img, f)
             del img
 
-    def run_in_sequence(self) -> None:
+    def _filter_use_croppers(self, use_croppers: list[str] | None) -> list[str]:
+        if use_croppers is not None:
+            assert all(
+                name in self.cropper_flat_names
+                for name in use_croppers
+            )
+            return deepcopy(use_croppers)
+        else:
+            return deepcopy(self.cropper_flat_names)
+
+    def run_in_sequence(self, move: bool = True, use_croppers: list[str] | None = None) -> None:
         """[OLD] Run all `Croppers` in their preset order"""
+        cpp_to_use = self._filter_use_croppers(use_croppers)
+
         self._movable_report = MovableReport()
         for cpp in self.croppers:
             if isinstance(cpp, list):
                 # TODO: Could be parallelized
                 for cpp_i in cpp:
-                    self._run_cropper(cpp_i)
+                    if cpp_i.name in cpp_to_use:
+                        self._run_cropper(cpp_i)
             else:  # type: Cropper
-                self._run_cropper(cpp)
+                if cpp.name in cpp_to_use:
+                    self._run_cropper(cpp)
 
-        self.move_images()
+        if move:
+            self.move_images()
         self._movable_report = None
 
-    def run(self) -> None:
+    def run(self, move: bool = True, use_croppers: list[str] | None = None) -> None:
         """[NEW] Run all `Croppers` iterating on images first"""
         # TODO: Implement again the 'crop_only' parameter
+        cpp_to_use = self._filter_use_croppers(use_croppers)
+
         self._movable_report = MovableReport()
         for cpa in self.cropper_alignments:
             # TODO: Different alignments but at-same-level could be parallelized
@@ -152,10 +176,12 @@ class CropperSwarm:
                     img = Image.open(os.path.join(src, f))
                     img = img.convert("RGB")
                     for cpp in croppers:
-                        self._apply_cropper(cpp, img, f)
+                        if cpp.name in cpp_to_use:
+                            self._apply_cropper(cpp, img, f)
                     del img
 
-        self.move_images()
+        if move:
+            self.move_images()
         self._movable_report = None
 
     # * Moving

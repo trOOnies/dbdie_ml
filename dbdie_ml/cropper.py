@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
+from copy import deepcopy
 from PIL import Image
 from dbdie_ml.crop_settings import (
     IMG_SURV_CS,
@@ -51,6 +52,10 @@ class Cropper:
                 print(f"- {v}")
 
     @property
+    def name(self) -> str:
+        return self.settings.name
+
+    @property
     def full_model_types(self) -> list["FullModelType"]:
         return list(self.settings.crops.keys())
 
@@ -64,24 +69,43 @@ class Cropper:
 
     # * Cropping
 
-    # TODO: Implement again 1 FullModelType apply function
+    def _filter_fmts(
+        self, full_model_types: "FullModelType" | list["FullModelType"] | None
+    ) -> list["FullModelType"]:
+        # TODO: Maybe centralize str list none func as utils?
+        if full_model_types is None:
+            return list(self.settings.crops.keys())
+        elif isinstance(full_model_types, str):
+            assert full_model_types in self.settings.crops
+            return [full_model_types]
+        else:  # list
+            assert full_model_types
+            assert all(fmt in self.settings.crops for fmt in full_model_types)
+            return deepcopy(full_model_types)
 
     def apply(
-        self, img: "PILImage", convert_to_rgb: bool = False
+        self,
+        img: "PILImage",
+        convert_to_rgb: bool = False,
+        full_model_types: "FullModelType" | list["FullModelType"] | None = None,
     ) -> dict["FullModelType", list["PILImage"]]:
         """Make and return all the `Cropper` crops for a single in-memory image"""
+        fmts = self._filter_fmts(full_model_types)
         if convert_to_rgb:
             img = img.convert("RGB")
         return {
-            full_mt: [img.crop(box) for box in boxes]
-            for full_mt, boxes in self.settings.crops.items()
+            fmt: [img.crop(box) for box in self.settings.crops[fmt]] for fmt in fmts
         }
 
-    def apply_from_path(self, path: "Path") -> dict["FullModelType", list["PILImage"]]:
+    def apply_from_path(
+        self,
+        path: "Path",
+        full_model_types: "FullModelType" | list["FullModelType"] | None = None,
+    ) -> dict["FullModelType", list["PILImage"]]:
         """Make and return all the `Cropper` crops for a single in-memory image"""
+        fmts = self._filter_fmts(full_model_types)
         img = Image.open(path)
         img = img.convert("RGB")
         return {
-            full_mt: [img.crop(box) for box in boxes]
-            for full_mt, boxes in self.settings.crops.items()
+            fmt: [img.crop(box) for box in self.settings.crops[fmt]] for fmt in fmts
         }
