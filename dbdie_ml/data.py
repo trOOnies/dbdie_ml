@@ -3,6 +3,7 @@ import pandas as pd
 from typing import TYPE_CHECKING, Optional
 from PIL import Image
 from torch.utils.data import Dataset
+
 if TYPE_CHECKING:
     from numpy import int64 as np_int64
     from torch import Tensor
@@ -17,7 +18,7 @@ def get_total_classes(selected_fd: str) -> int:
             os.environ["DBDIE_MAIN_FD"],
             "data/labels/labels",
             selected_fd,
-            "label_ref.csv"
+            "label_ref.csv",
         )
     )
     assert (class_df.label_id == class_df.index).all()
@@ -26,11 +27,12 @@ def get_total_classes(selected_fd: str) -> int:
 
 class DatasetClass(Dataset):
     """DBDIE implementation of torch's `Dataset`"""
+
     def __init__(
         self,
         full_model_type: "FullModelType",
         csv_path: str,
-        transform: Optional["Compose"] = None
+        transform: Optional["Compose"] = None,
     ) -> None:
         self.full_model_type = full_model_type
         self.labels = pd.read_csv(csv_path, usecols=["name", "label_id"])
@@ -45,7 +47,7 @@ class DatasetClass(Dataset):
                 os.environ["DBDIE_MAIN_FD"],
                 "data/crops",
                 self.full_model_type,
-                self.labels.name.iat[idx]
+                self.labels.name.iat[idx],
             )
         )
         label = self.labels.label_id.iat[idx]

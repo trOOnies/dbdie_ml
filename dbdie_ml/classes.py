@@ -3,7 +3,9 @@ from typing import Literal, Union
 from dataclasses import dataclass
 
 PlayerId = Literal[0, 1, 2, 3, 4]
-ModelType = Literal["character", "perks", "item", "addons", "offering", "status", "points"]
+ModelType = Literal[
+    "character", "perks", "item", "addons", "offering", "status", "points"
+]
 FullModelType = str  # i.e. character__killer
 Probability = float  # 0.0 a 1.0
 
@@ -13,8 +15,12 @@ Path = str
 
 Width = int
 Height = int
-SnippetWindow = tuple[int, int, int, int]  # Best estimation (1920x1080): (67,217) to (1015,897)
-SnippetCoords = tuple[int, int, int, int]  # Best estimation (1920x1080): from 257 to 842 in intervals of 117
+SnippetWindow = tuple[
+    int, int, int, int
+]  # Best estimation (1920x1080): (67,217) to (1015,897)
+SnippetCoords = tuple[
+    int, int, int, int
+]  # Best estimation (1920x1080): from 257 to 842 in intervals of 117
 # SnippetInfo = tuple
 EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 
@@ -26,6 +32,7 @@ CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 @dataclass
 class SnippetInfo:
     """Integer-encoded DBD information of a player snippet"""
+
     character_id: int
     perks_ids: tuple[int, int, int, int]
     item_id: int
@@ -38,6 +45,7 @@ class SnippetInfo:
 @dataclass
 class CropSettings:
     """Settings for the cropping of a full screenshot or a previously cropped snippet"""
+
     name: str
     src: PathToFolder
     dst: PathToFolder

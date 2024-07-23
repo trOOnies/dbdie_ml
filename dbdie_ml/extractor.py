@@ -7,11 +7,18 @@ from typing import TYPE_CHECKING, Optional, Union
 from shutil import rmtree
 from dbdie_ml.classes import SnippetInfo, Path, PathToFolder
 from dbdie_ml.models import IEModel
+
 # from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
+
 if TYPE_CHECKING:
     from numpy import ndarray
-    from dbdie_ml.classes import AllSnippetCoords, AllSnippetInfo, SnippetCoords, FullModelType
+    from dbdie_ml.classes import (
+        AllSnippetCoords,
+        AllSnippetInfo,
+        SnippetCoords,
+        FullModelType,
+    )
     from dbdie_ml.schemas import PlayerOut
 
 TYPES_TO_ID_NAMES = {
@@ -21,7 +28,7 @@ TYPES_TO_ID_NAMES = {
     "addons": "addons_ids",
     "offering": "offering_id",
     "status": "status_id",
-    "points": "points"
+    "points": "points",
 }
 
 
@@ -57,7 +64,7 @@ class InfoExtractor:
     def __repr__(self) -> str:
         """InfoExtractor('my_info_extractor', version='7.5.0')"""
         vals = {"version": self.version if self.models_are_init else "not_initialized"}
-        vals = ', '.join([f"{k}='{v}'" for k, v in vals.items()])
+        vals = ", ".join([f"{k}='{v}'" for k, v in vals.items()])
         if self.name is not None:
             vals = f"'{self.name}', " + vals
         return f"InfoExtractor({vals})"
@@ -92,22 +99,27 @@ class InfoExtractor:
         version = list(version)[0]
 
         if expected is not None:
-            assert version == expected, f"Seen version ({version}) is different from expected version ({expected})"
+            assert (
+                version == expected
+            ), f"Seen version ({version}) is different from expected version ({expected})"
 
         self.version = version
 
     def init_extractor(
         self,
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
-        expected_version: Optional[str] = None
+        expected_version: Optional[str] = None,
     ) -> None:
         """Initialize the `InfoExtractor` and its `IEModels`.
         Can be provided with already trained models.
         """
-        assert not self.models_are_init, "InfoExtractor can't be reinitialized before being flushed first"
+        assert (
+            not self.models_are_init
+        ), "InfoExtractor can't be reinitialized before being flushed first"
 
         if trained_models is None:
             from dbdie_ml.models.custom import PerkModel, CharacterModel
+
             TYPES_TO_MODELS = {
                 "character": CharacterModel,
                 "perks": PerkModel,
@@ -119,9 +131,9 @@ class InfoExtractor:
                 "perks__surv": False,
             }
             self._models = {
-                mt: TYPES_TO_MODELS[mt[:mt.index("__")]](
+                mt: TYPES_TO_MODELS[mt[: mt.index("__")]](
                     name=f"{self.name}__m{i}" if self.name is not None else None,
-                    is_for_killer=ifk
+                    is_for_killer=ifk,
                 )
                 for i, (mt, ifk) in enumerate(models.items())
             }
@@ -138,13 +150,10 @@ class InfoExtractor:
             mn: str(model)[8:-1]  # "IEModel(" and ")"
             for mn, model in self._models.items()
         }
-        printable_info = {
-            mn: s.split(", ")
-            for mn, s in printable_info.items()
-        }
+        printable_info = {mn: s.split(", ") for mn, s in printable_info.items()}
         printable_info = {
             mn: {
-                v[:v.index("=")]: v[v.index("=") + 2:-1]
+                v[: v.index("=")]: v[v.index("=") + 2 : -1]
                 for v in vs
                 if v.find("=") > -1
             }
@@ -158,7 +167,8 @@ class InfoExtractor:
                         if self._models[mn].name is not None
                         else "UNNAMED"
                     )
-                } | d
+                }
+                | d
             )
             for mn, d in printable_info.items()
         }
@@ -187,13 +197,16 @@ class InfoExtractor:
             metadata = yaml.safe_load(f)
 
         model_names = set(metadata["models"])
-        assert len(model_names) == len(metadata["models"]), "Duplicated model names in the metadata YAML file"
+        assert len(model_names) == len(
+            metadata["models"]
+        ), "Duplicated model names in the metadata YAML file"
         del metadata["models"]
 
         models_fd = os.path.join(extractor_fd, "models")
 
         assert model_names == set(
-            fd for fd in os.listdir(models_fd)
+            fd
+            for fd in os.listdir(models_fd)
             if os.path.isdir(os.path.join(models_fd, fd))
         ), "The model subfolders do not match the metadata YAML file"
         model_names = list(model_names)
@@ -207,25 +220,18 @@ class InfoExtractor:
                 mn: IEModel.from_folder(os.path.join(models_fd, mn))
                 for mn in model_names
             },
-            expected_version=exp_version
+            expected_version=exp_version,
         )
         return ie
 
     def _save_metadata(self, dst: "Path") -> None:
         assert dst.endswith(".yaml")
-        metadata = {
-            k: getattr(self, k)
-            for k in ["name", "version"]
-        }
+        metadata = {k: getattr(self, k) for k in ["name", "version"]}
         metadata["models"] = list(self._models.keys())
         with open(dst, "w") as f:
             yaml.dump(metadata, f)
 
-    def _folder_save_logic(
-        self,
-        extractor_fd: str,
-        replace: bool
-    ) -> None:
+    def _folder_save_logic(self, extractor_fd: str, replace: bool) -> None:
         """Logic for the creation of the saving folder and subfolders."""
         if replace:
             if os.path.isdir(extractor_fd):
@@ -253,11 +259,7 @@ class InfoExtractor:
                         if not os.path.isdir(path):
                             os.mkdir(path)
 
-    def save(
-        self,
-        extractor_fd: "PathToFolder",
-        replace: bool = True
-    ) -> None:
+    def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
         """Save all necessary objects of the `InfoExtractor` and all its `IEModels`"""
         assert self.models_are_trained, "Non-trained `InfoExtractor` cannot be saved"
 
@@ -277,7 +279,7 @@ class InfoExtractor:
         self,
         label_ref_paths: dict["FullModelType", Path],
         train_datasets: dict["FullModelType", Path],
-        val_datasets: dict["FullModelType", Path]
+        val_datasets: dict["FullModelType", Path],
     ) -> None:
         """Train all models one after the other."""
         assert not self.models_are_trained
@@ -292,7 +294,7 @@ class InfoExtractor:
             model.train(
                 label_ref_path=label_ref_paths[mt],
                 train_dataset_path=train_datasets[mt],
-                val_dataset_path=val_datasets[mt]
+                val_dataset_path=val_datasets[mt],
             )
             print(50 * "-")
         print("All models have been trained.")
@@ -308,21 +310,15 @@ class InfoExtractor:
 
     def predict_on_snippet(self, s: "SnippetCoords") -> SnippetInfo:
         preds = {
-            TYPES_TO_ID_NAMES[k]: model.predict(s)
-            for k, model in self._models.items()
+            TYPES_TO_ID_NAMES[k]: model.predict(s) for k, model in self._models.items()
         }
         return SnippetInfo(**preds)
 
     def predict(self, snippets: "AllSnippetCoords") -> "AllSnippetInfo":
-        return {
-            i: self.predict_on_snippet(s)
-            for i, s in snippets.items()
-        }
+        return {i: self.predict_on_snippet(s) for i, s in snippets.items()}
 
     def predict_batch(
-        self,
-        datasets: dict["FullModelType", Path],
-        probas: bool = False
+        self, datasets: dict["FullModelType", Path], probas: bool = False
     ) -> dict["FullModelType", "ndarray"]:
         assert self.models_are_trained
         self._check_datasets(datasets)
@@ -334,7 +330,7 @@ class InfoExtractor:
     @staticmethod
     def _match_preds_types(
         preds: Union["ndarray", dict["FullModelType", "ndarray"]],
-        on: Optional[Union["FullModelType", list["FullModelType"]]]
+        on: Optional[Union["FullModelType", list["FullModelType"]]],
     ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
         preds_is_dict = isinstance(preds, dict)
         if preds_is_dict:
@@ -346,7 +342,9 @@ class InfoExtractor:
             else:  # Modeltype
                 on_ = [deepcopy(on)]
         else:
-            assert isinstance(on, str), "'on' must be a FullModelType if 'preds' is not a dict."
+            assert isinstance(
+                on, str
+            ), "'on' must be a FullModelType if 'preds' is not a dict."
             preds_ = {deepcopy(on): preds}
             on_ = [deepcopy(on)]
 
@@ -355,10 +353,10 @@ class InfoExtractor:
     def convert_names(
         self,
         preds: Union["ndarray", dict["FullModelType", "ndarray"]],
-        on: Optional[Union["FullModelType", list["FullModelType"]]] = None
+        on: Optional[Union["FullModelType", list["FullModelType"]]] = None,
     ) -> Union[list[str], dict["FullModelType", list[str]]]:
         """Convert model int predictions to named predictions.
-        
+
         preds (Union[...]): Integer predictions to convert
         - ndarray: A certain model type preds
         - dict[FullModelType, ndarray]: Preds from different model types
@@ -371,10 +369,7 @@ class InfoExtractor:
         assert self.models_are_trained
 
         preds_, on_ = self._match_preds_types(preds, on)
-        names = {
-            k: self._models[k].convert_names(preds_[k])
-            for k in on_
-        }
+        names = {k: self._models[k].convert_names(preds_[k]) for k in on_}
         if isinstance(on, str):
             return names[list(names.keys())[0]]  # list
         else:
@@ -383,7 +378,4 @@ class InfoExtractor:
     # * Match
 
     def form_match(self, players: list["PlayerOut"]) -> MatchOut:
-        return MatchOut(
-            version=self.version,
-            players=players
-        )
+        return MatchOut(version=self.version, players=players)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dotenv import load_dotenv
+
 load_dotenv("../.env", override=True)
 
 import os
@@ -20,6 +21,7 @@ from torchvision import transforms
 from torchsummary import summary
 from torch.nn import CrossEntropyLoss
 from dbdie_ml.data import DatasetClass, get_total_classes
+
 if TYPE_CHECKING:
     from torch.nn import Sequential
     from torch.optim import Optimizer
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
 
 class EarlyStopper:
     """In charge of the early-stopping in the training process"""
+
     def __init__(self, patience=1, min_delta=0.0):
         self.patience = patience
         self.min_delta = min_delta
@@ -41,7 +44,7 @@ class EarlyStopper:
             self.counter = 0
         elif (self.min_validation_loss + self.min_delta) < validation_loss:
             self.counter += 1
-            return (self.counter >= self.patience)
+            return self.counter >= self.patience
         return False
 
 
@@ -80,7 +83,7 @@ class IEModel:
         version: str,
         norm_means: list[float],
         norm_std: list[float],
-        name: Optional[str] = None
+        name: Optional[str] = None,
     ) -> None:
         self.name = name
         self._model = model
@@ -115,7 +118,7 @@ class IEModel:
             "classes": self.total_classes,
             "trained": self.model_is_trained,
         }
-        vals = ', '.join([f"{k}='{v}'" for k, v in vals.items()])
+        vals = ", ".join([f"{k}='{v}'" for k, v in vals.items()])
         if self.name is not None:
             vals = f"'{self.name}', " + vals
         return f"IEModel({vals})"
@@ -132,21 +135,25 @@ class IEModel:
 
     def _get_transform(self) -> transforms.Compose:
         """Define any image transformations here"""
-        return transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=self._norm_means, std=self._norm_std)
-        ])
+        return transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=self._norm_means, std=self._norm_std),
+            ]
+        )
 
     def init_model(self) -> None:
         """Initialize model to allow it to be trained"""
-        assert not self.model_is_init, "IEModel can't be reinitialized before being flushed first"
+        assert (
+            not self.model_is_init
+        ), "IEModel can't be reinitialized before being flushed first"
 
-        os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
         assert cuda_is_available()
         self._device = get_device("cuda")
 
-        config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+        config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
         with open(config_path) as f:
             self._cfg = yaml.safe_load(f)
 
@@ -166,14 +173,20 @@ class IEModel:
 
         summary(
             self._model,
-            (3, self.image_size[0], self.image_size[1]),  # The number of channels is 3 (RGB)
+            (
+                3,
+                self.image_size[0],
+                self.image_size[1],
+            ),  # The number of channels is 3 (RGB)
             batch_size=self._cfg["batch_size"],
-            device="cuda"
+            device="cuda",
         )
 
         print("MEMORY")
-        print("- Free: {:,.2} GiB\n- Total: {:,.2} GiB".format(
-            *[v / (2**30) for v in mem_get_info(self._device)])
+        print(
+            "- Free: {:,.2} GiB\n- Total: {:,.2} GiB".format(
+                *[v / (2**30) for v in mem_get_info(self._device)]
+            )
         )
         print(64 * "-")
 
@@ -207,12 +220,7 @@ class IEModel:
             for k in ["name", "model_type", "is_for_killer", "version"]
         }
         metadata["image_size"] = list(self.image_size)
-        metadata.update(
-            {
-                k: getattr(self, f"_{k}")
-                for k in ["norm_means", "norm_std"]
-            }
-        )
+        metadata.update({k: getattr(self, f"_{k}") for k in ["norm_means", "norm_std"]})
         with open(dst, "w") as f:
             yaml.dump(metadata, f)
 
@@ -247,15 +255,19 @@ class IEModel:
     # * Training
 
     def _load_process(
-        self,
-        train_ds_path: "Path",
-        val_ds_path: "Path"
+        self, train_ds_path: "Path", val_ds_path: "Path"
     ) -> tuple[DataLoader, DataLoader]:
         print("Loading data...", end=" ")
-        train_dataset = DatasetClass(self.selected_fd, train_ds_path, transform=self._transform)
-        val_dataset = DatasetClass(self.selected_fd, val_ds_path, transform=self._transform)
+        train_dataset = DatasetClass(
+            self.selected_fd, train_ds_path, transform=self._transform
+        )
+        val_dataset = DatasetClass(
+            self.selected_fd, val_ds_path, transform=self._transform
+        )
 
-        train_loader = DataLoader(train_dataset, batch_size=self._cfg["batch_size"], shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=self._cfg["batch_size"], shuffle=True
+        )
         val_loader = DataLoader(val_dataset, batch_size=self._cfg["batch_size"])
 
         print("Data loaded.")
@@ -266,20 +278,16 @@ class IEModel:
 
     def _load_label_ref(self, path: "Path") -> None:
         self.label_ref = pd.read_csv(
-            path,
-            usecols=["label_id", "name"],
-            dtype={"label_id": int, "name": str}
+            path, usecols=["label_id", "name"], dtype={"label_id": int, "name": str}
         )
         assert self.label_ref.label_id.min() == 0
         assert self.label_ref.label_id.max() + 1 == self.label_ref.shape[0]
         assert self.label_ref.label_id.nunique() == self.label_ref.shape[0]
-        self.label_ref = {row["label_id"]: row["name"] for _, row in self.label_ref.iterrows()}
+        self.label_ref = {
+            row["label_id"]: row["name"] for _, row in self.label_ref.iterrows()
+        }
 
-    def _train_process(
-        self,
-        train_loader: DataLoader,
-        val_loader: DataLoader
-    ) -> None:
+    def _train_process(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
         print("Training initialized...")
         epochs_clen = len(str(self._cfg["epochs"]))
         for epoch in range(1, self._cfg["epochs"] + 1):
@@ -313,7 +321,7 @@ class IEModel:
                 print(
                     f"- Epoch [{epoch:>{epochs_clen}}/{self._cfg['epochs']}]",
                     f"Loss: {loss.item():.4f}",
-                    f"Val Acc: {val_acc_pp:.2f}%"
+                    f"Val Acc: {val_acc_pp:.2f}%",
                 )
                 if self._estop.early_stop(100.0 - val_acc_pp):
                     break
@@ -325,23 +333,23 @@ class IEModel:
         self,
         label_ref_path: "Path",
         train_dataset_path: "Path",
-        val_dataset_path: "Path"
+        val_dataset_path: "Path",
     ) -> None:
         """Trains the `IEModel`"""
         # TODO: Add training scores as attributes once trained
         assert self.model_is_init, "IEModel is not initialized"
-        assert not self.model_is_trained, "IEModel cannot be retrained without being flushed first"
+        assert (
+            not self.model_is_trained
+        ), "IEModel cannot be retrained without being flushed first"
         self._load_label_ref(label_ref_path)
-        train_loader, val_loader = self._load_process(train_dataset_path, val_dataset_path)
+        train_loader, val_loader = self._load_process(
+            train_dataset_path, val_dataset_path
+        )
         self._train_process(train_loader, val_loader)
 
     # * Prediction
 
-    def _predict_process(
-        self,
-        dataset: DatasetClass,
-        loader: DataLoader
-    ) -> np.ndarray:
+    def _predict_process(self, dataset: DatasetClass, loader: DataLoader) -> np.ndarray:
         all_preds = np.zeros(len(dataset), dtype=np.ushort)
         i = 0
         with no_grad():
@@ -351,14 +359,12 @@ class IEModel:
 
                 outputs = self._model(images)
                 _, predicted = torch_max(outputs.data, 1)
-                all_preds[i:i+labels_len] = predicted.cpu().numpy()
+                all_preds[i : i + labels_len] = predicted.cpu().numpy()
                 i += labels_len
         return all_preds
 
     def _predict_probas_process(
-        self,
-        dataset: DatasetClass,
-        loader: DataLoader
+        self, dataset: DatasetClass, loader: DataLoader
     ) -> np.ndarray:
         all_preds = np.zeros((len(dataset), self.total_classes), dtype=float)
         i = 0
@@ -369,20 +375,18 @@ class IEModel:
 
                 outputs = self._model(images)
                 outputs = F.softmax(outputs, dim=1)
-                all_preds[i:i+labels_len, :] = outputs.cpu().numpy()
+                all_preds[i : i + labels_len, :] = outputs.cpu().numpy()
                 i += labels_len
         return all_preds
 
-    def predict_batch(
-        self,
-        dataset_path: "Path",
-        probas: bool = False
-    ) -> np.ndarray:
+    def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
         """Returns: preds or probas"""
         assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
-        dataset = DatasetClass(self.selected_fd, dataset_path, transform=self._transform)
+        dataset = DatasetClass(
+            self.selected_fd, dataset_path, transform=self._transform
+        )
         loader = DataLoader(dataset, batch_size=self._cfg["batch_size"])
 
         if probas:

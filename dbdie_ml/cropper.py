@@ -6,28 +6,22 @@ from dbdie_ml.crop_settings import (
     IMG_SURV_CS,
     IMG_KILLER_CS,
     PLAYER_SURV_CS,
-    PLAYER_KILLER_CS
+    PLAYER_KILLER_CS,
 )
 from dbdie_ml.utils import pls
+
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import (
-        CropType, CropSettings, FullModelType, Path
-    )
+    from dbdie_ml.classes import CropType, CropSettings, FullModelType, Path
 
 CS_DICT: dict["CropType", "CropSettings"] = {
-    cs.name: cs
-    for cs in [
-        IMG_SURV_CS,
-        IMG_KILLER_CS,
-        PLAYER_SURV_CS,
-        PLAYER_KILLER_CS
-    ]
+    cs.name: cs for cs in [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]
 }
 
 
 class Cropper:
     """Class that crops images in order to have crops model-ready."""
+
     def __init__(self, settings: "CropSettings") -> None:
         settings.make_abs_paths()
         assert os.path.isdir(settings.src)
@@ -42,9 +36,9 @@ class Cropper:
         s = (
             "'{src}' -> '{dst}', ".format(
                 src=self.settings.get_rel_path("src"),
-                dst=self.settings.get_rel_path("dst")
-            ) +
-            f"img_size={self.settings.img_size}, "
+                dst=self.settings.get_rel_path("dst"),
+            )
+            + f"img_size={self.settings.img_size}, "
         )
         crops_len = len(self)
         s += pls("crop", crops_len)
@@ -73,9 +67,7 @@ class Cropper:
     # TODO: Implement again 1 FullModelType apply function
 
     def apply(
-        self,
-        img: "PILImage",
-        convert_to_rgb: bool = False
+        self, img: "PILImage", convert_to_rgb: bool = False
     ) -> dict["FullModelType", list["PILImage"]]:
         """Make and return all the `Cropper` crops for a single in-memory image"""
         if convert_to_rgb:

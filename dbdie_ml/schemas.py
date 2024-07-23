@@ -143,17 +143,18 @@ class PlayerOut(BaseModel):
             )
         else:
             return all(
-                a.type_id == ADDONS_IDS["none"] or (
-                    a.type_id in ADDONS_IDS["base"]
-                    and a.type_id == self.item.type_id
-                ) or a.type_id != ADDONS_IDS["killer"]
+                a.type_id == ADDONS_IDS["none"]
+                or (a.type_id in ADDONS_IDS["base"] and a.type_id == self.item.type_id)
+                or a.type_id != ADDONS_IDS["killer"]
                 for a in self.addons
             )
 
     def _check_status_consistency(self) -> bool:
         if self.status.character_id == ALL_CHARS_IDS["all"]:
             return True
-        elif (self.status.character_id == ALL_CHARS_IDS["surv"]) == (not self.is_killer):
+        elif (self.status.character_id == ALL_CHARS_IDS["surv"]) == (
+            not self.is_killer
+        ):
             return True
         elif (self.status.character_id == ALL_CHARS_IDS["killer"]) == self.is_killer:
             return True
@@ -175,5 +176,9 @@ class MatchOut(BaseModel):
 
     def check_consistency(self) -> None:
         self.is_consistent = all(not pl.character.is_killer for pl in self.players[:4])
-        self.is_consistent = self.is_consistent and (self.players[4].character.is_killer)
-        self.is_consistent = self.is_consistent and all(pl.is_consistent for pl in self.players)
+        self.is_consistent = self.is_consistent and (
+            self.players[4].character.is_killer
+        )
+        self.is_consistent = self.is_consistent and all(
+            pl.is_consistent for pl in self.players
+        )

@@ -6,6 +6,7 @@ from PIL import Image
 from dbdie_ml.cropper import Cropper
 from dbdie_ml.movable_report import MovableReport
 from dbdie_ml.utils import pls
+
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
     from dbdie_ml.classes import CropType
@@ -15,18 +16,15 @@ CropperAlignments = dict[str, list[Cropper]]
 
 class CropperSwarm:
     """Chain of `Croppers` that can be run in sequence."""
-    def __init__(
-        self,
-        croppers: list[Cropper | list[Cropper]]
-    ) -> None:
+
+    def __init__(self, croppers: list[Cropper | list[Cropper]]) -> None:
         assert all(
             isinstance(cpp, Cropper) or all(isinstance(cpp_i, Cropper) for cpp_i in cpp)
             for cpp in croppers
         )
         self.croppers = croppers
         self.cropper_alignments: list[CropperAlignments] = [
-            self._group_cropper_list(cpp)
-            for cpp in croppers
+            self._group_cropper_list(cpp) for cpp in croppers
         ]
         self._movable_report = None
 
@@ -41,10 +39,7 @@ class CropperSwarm:
             for cpa in self.cropper_alignments
             for cpp_list in cpa.values()
         )
-        s = (
-            pls("level", cps_levels) + ", " +
-            pls("cropper", cps_croppers)
-        )
+        s = pls("level", cps_levels) + ", " + pls("cropper", cps_croppers)
         return f"CropperSwarm({s})"
 
     def print_croppers(self, verbose: bool = False) -> None:
@@ -64,20 +59,13 @@ class CropperSwarm:
     # * Instantiate
 
     @classmethod
-    def from_types(
-        cls,
-        ts: list["CropType" | list["CropType"]]
-    ) -> CropperSwarm:
+    def from_types(cls, ts: list["CropType" | list["CropType"]]) -> CropperSwarm:
         """Loads certain types of DBDIE Croppers"""
         assert all(
-            isinstance(t, str) or all(isinstance(t_i, str) for t_i in t)
-            for t in ts
+            isinstance(t, str) or all(isinstance(t_i, str) for t_i in t) for t in ts
         )
 
-        ts_flattened = [
-            (t if isinstance(t, list) else [t])
-            for t in ts
-        ]
+        ts_flattened = [(t if isinstance(t, list) else [t]) for t in ts]
         ts_flattened = sum(ts_flattened, [])
         assert len(ts_flattened) == len(set(ts_flattened))
 
@@ -96,9 +84,7 @@ class CropperSwarm:
     # * Process Croppers
 
     @staticmethod
-    def _group_cropper_list(
-        croppers: Cropper | list[Cropper]
-    ) -> CropperAlignments:
+    def _group_cropper_list(croppers: Cropper | list[Cropper]) -> CropperAlignments:
         """Group a list of Croppers using the source folders they point to"""
         if isinstance(croppers, list):
             unique_srcs = set(cpp.settings.src for cpp in croppers)
@@ -111,12 +97,7 @@ class CropperSwarm:
 
     # * Cropping
 
-    def _apply_cropper(
-        self,
-        cpp: Cropper,
-        img: "PILImage",
-        src_filename: str
-    ) -> None:
+    def _apply_cropper(self, cpp: Cropper, img: "PILImage", src_filename: str) -> None:
         """Make all the `Cropper` crops for a single in-memory image,
         and save them in the settings 'dst' folder,
         inside the corresponding subfolder
@@ -132,9 +113,7 @@ class CropperSwarm:
             )
             for i, box in enumerate(boxes):
                 cropped = img.crop(box)
-                cropped.save(
-                    os.path.join(dst_fd, f"{plain}_{i+o}.jpg")
-                )
+                cropped.save(os.path.join(dst_fd, f"{plain}_{i+o}.jpg"))
                 del cropped
 
     def _run_cropper(self, cpp: Cropper) -> None:
