@@ -5,7 +5,7 @@ from copy import deepcopy
 from PIL import Image
 from dbdie_ml.cropper import Cropper
 from dbdie_ml.movable_report import MovableReport
-from dbdie_ml.utils import pls
+from dbdie_ml.utils import pls, filter_mulitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
@@ -26,7 +26,12 @@ class CropperSwarm:
         self.cropper_alignments: list[CropperAlignments] = [
             self._group_cropper_list(cpp) for cpp in croppers
         ]
-        self._croppers_flat = [cpp for cpa in self.cropper_alignments for cpp_list in cpa.values() for cpp in cpp_list]
+        self._croppers_flat = [
+            cpp
+            for cpa in self.cropper_alignments
+            for cpp_list in cpa.values()
+            for cpp in cpp_list
+        ]
         self._movable_report = None
 
     def __len__(self) -> int:
@@ -133,17 +138,17 @@ class CropperSwarm:
             self._apply_cropper(cpp, img, f)
             del img
 
-    def _filter_use_croppers(self, use_croppers: list[str] | None) -> list[str]:
-        if use_croppers is not None:
-            assert all(
-                name in self.cropper_flat_names
-                for name in use_croppers
-            )
-            return deepcopy(use_croppers)
-        else:
-            return deepcopy(self.cropper_flat_names)
+    def _filter_use_croppers(self, use_croppers: str | list[str] | None) -> list[str]:
+        possible_values = self.cropper_flat_names
+        return filter_mulitype(
+            use_croppers,
+            default=possible_values,
+            possible_values=possible_values,
+        )
 
-    def run_in_sequence(self, move: bool = True, use_croppers: list[str] | None = None) -> None:
+    def run_in_sequence(
+        self, move: bool = True, use_croppers: list[str] | None = None
+    ) -> None:
         """[OLD] Run all `Croppers` in their preset order"""
         cpp_to_use = self._filter_use_croppers(use_croppers)
 
@@ -164,7 +169,7 @@ class CropperSwarm:
 
     def run(self, move: bool = True, use_croppers: list[str] | None = None) -> None:
         """[NEW] Run all `Croppers` iterating on images first"""
-        # TODO: Implement again the 'crop_only' parameter
+        # TODO: Implement 'use_crops'
         cpp_to_use = self._filter_use_croppers(use_croppers)
 
         self._movable_report = MovableReport()

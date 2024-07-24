@@ -9,7 +9,7 @@ from dbdie_ml.crop_settings import (
     PLAYER_SURV_CS,
     PLAYER_KILLER_CS,
 )
-from dbdie_ml.utils import pls
+from dbdie_ml.utils import pls, filter_mulitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
@@ -72,16 +72,12 @@ class Cropper:
     def _filter_fmts(
         self, full_model_types: "FullModelType" | list["FullModelType"] | None
     ) -> list["FullModelType"]:
-        # TODO: Maybe centralize str list none func as utils?
-        if full_model_types is None:
-            return list(self.settings.crops.keys())
-        elif isinstance(full_model_types, str):
-            assert full_model_types in self.settings.crops
-            return [full_model_types]
-        else:  # list
-            assert full_model_types
-            assert all(fmt in self.settings.crops for fmt in full_model_types)
-            return deepcopy(full_model_types)
+        possible_values = self.full_model_types
+        return filter_mulitype(
+            full_model_types,
+            default=possible_values,
+            possible_values=possible_values,
+        )
 
     def apply(
         self,
