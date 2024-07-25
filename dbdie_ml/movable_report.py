@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 from shutil import move
-from dbdie_ml.paths import CROPPED_IMG_FD, CROP_PENDING_IMG_FD
+from dbdie_ml.paths import absp, CROPPED_IMG_FD, CROP_PENDING_IMG_FD
 
 if TYPE_CHECKING:
     from dbdie_ml.classes import Filename, PathToFolder
@@ -10,7 +10,16 @@ MAX_PRINT_LEN = 10
 
 
 class MovableReport:
-    """Images' filenames according to movable status"""
+    """. # ! Not intended to be used outside of this library's code
+
+    Images' filenames according to movable status.
+    Used in the `CropperSwarm` code.
+
+    Take into account the `obsolete` attribute.
+    It's assumed that if `MovableReport.move_images()` is used,
+    the `mvi` and `umvi` lists become stale. You should instantiate
+    a new `MovableReport` instead.
+    """
 
     def __init__(self):
         self.mvi, self.umvi = self._calculate_umvis()
@@ -24,8 +33,8 @@ class MovableReport:
         images that can't be moved because of duplicated filenames
         when comparing src to dst.
         """
-        cropped_fd = os.path.join(os.environ["DBDIE_MAIN_FD"], CROPPED_IMG_FD)
-        fs = os.listdir(os.environ["DBDIE_MAIN_FD"], CROP_PENDING_IMG_FD)
+        cropped_fd = absp(CROPPED_IMG_FD)
+        fs = os.listdir(absp(CROP_PENDING_IMG_FD))
         list_is_movable = [not os.path.exists(os.path.join(cropped_fd, f)) for f in fs]
 
         umvi = [f for f, movable in zip(fs, list_is_movable) if not movable]
@@ -62,8 +71,8 @@ class MovableReport:
         assert not self.obsolete
         for f in self.mvi:
             move(
-                os.path.join(os.environ["DBDIE_MAIN_FD"], CROP_PENDING_IMG_FD, f),
-                os.path.join(os.environ["DBDIE_MAIN_FD"], CROPPED_IMG_FD, f),
+                absp(os.path.join(CROP_PENDING_IMG_FD, f)),
+                absp(os.path.join(CROPPED_IMG_FD, f)),
             )
         self.obsolete = True
         print("Images moved")

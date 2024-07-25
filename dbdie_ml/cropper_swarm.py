@@ -9,13 +9,40 @@ from dbdie_ml.utils import pls, filter_mulitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import CropType
+    from dbdie_ml.classes import PathToFolder, CropType
 
-CropperAlignments = dict[str, list[Cropper]]
+CropperAlignments = dict["PathToFolder", list[Cropper]]
 
 
 class CropperSwarm:
-    """Chain of `Croppers` that can be run in sequence."""
+    """Chain of `Croppers` that can be run in sequence.
+    This input sequence will be respected, so it's best to design
+    it based on crop dependencies.
+
+    Instantiation:
+    >>> cps = CropperSwarm.from_types(
+            [
+                ["surv", "killer"],
+                "surv_player",
+                "killer_player",
+            ]
+        )
+    or
+    >>> cps = CropperSwarm(
+        [
+            [Cropper.from_type("surv"), Cropper.from_type("killer")],
+            Cropper.from_type("surv_player"),
+            Cropper.from_type("killer_player"),
+        ]
+    )
+
+    Usage:
+    >>> cps.print_croppers()
+    >>> cps.run()  # ! doesn't return output, processes folder images in the background
+
+    Nota: the `CropperSwarm` constructs in the background
+    a list of `CropperAlignments`. See `_make_cropper_alignments()` for more information.
+    """
 
     def __init__(self, croppers: list[Cropper | list[Cropper]]) -> None:
         assert all(
@@ -24,7 +51,7 @@ class CropperSwarm:
         )
         self.croppers = croppers
         self.cropper_alignments: list[CropperAlignments] = [
-            self._group_cropper_list(cpp) for cpp in croppers
+            self._make_cropper_alignments(cpp) for cpp in croppers
         ]
         self._croppers_flat = [
             cpp
@@ -93,8 +120,16 @@ class CropperSwarm:
     # * Process Croppers
 
     @staticmethod
-    def _group_cropper_list(croppers: Cropper | list[Cropper]) -> CropperAlignments:
-        """Group a list of Croppers using the source folders they point to"""
+    def _make_cropper_alignments(
+        croppers: Cropper | list[Cropper],
+    ) -> CropperAlignments:
+        """Group a list of Croppers into `CropperAlignments`.
+
+        A `CropperAlignments` dict maps folders to many `Croppers`.
+        In short, it's a way to take advantage of same-level `Croppers`
+        that share a source folder, so that the amount of times an image is loaded
+        is minimized.
+        """
         if isinstance(croppers, list):
             unique_srcs = set(cpp.settings.src for cpp in croppers)
             return {

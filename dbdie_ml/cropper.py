@@ -21,7 +21,18 @@ CS_DICT: dict["CropType", "CropSettings"] = {
 
 
 class Cropper:
-    """Class that crops images in order to have crops model-ready."""
+    """Class that crops images in order to have crops model-ready.
+
+    Instantiation:
+    >>> cpp = Cropper.from_type("surv")
+    or
+    >>> cpp = Cropper(CropSettings(...))
+
+    Usage:
+    >>> cpp.print_crops()
+    >>> ans = cpp.apply_from_path("/path/to/img.png")  # * returns output
+    >>> ans["player__surv"][3].show()  # shows the 4th surv player snippet
+    """
 
     def __init__(self, settings: "CropSettings") -> None:
         settings.make_abs_paths()

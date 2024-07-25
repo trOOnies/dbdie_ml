@@ -45,12 +45,16 @@ class InfoExtractor:
         models_are_trained (bool)
 
     Usage:
-    >>> ie = InfoExtractor()
-    >>> # ie._models = {"perks__surv": my_model, ...}  # only for super-users
+    >>> ie = InfoExtractor(name="my_info_extractor")
+    >>> # ie._models = {"perks__surv": my_model, ...}  # ! only for super-users
     >>> ie.init_extractor()  # this uses all standard models
     >>> ie.train(...)
-    >>> ie.save(...)
+    >>> ie.save("/path/to/extractor/folder")
     >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
+
+    Load previously trained `InfoExtractor`:
+    >>> ie = InfoExtractor.from_folder("/path/to/extractor/folder")
+    >>> new_preds_dict = ie.predict_batch({"perks": "/path/to/other/dataset.csv", ...})
     """
 
     def __init__(self, name: Optional[str] = None) -> None:

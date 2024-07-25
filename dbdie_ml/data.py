@@ -3,6 +3,7 @@ import pandas as pd
 from typing import TYPE_CHECKING, Optional
 from PIL import Image
 from torch.utils.data import Dataset
+from dbdie_ml.paths import absp
 
 if TYPE_CHECKING:
     from numpy import int64 as np_int64
@@ -14,11 +15,12 @@ if TYPE_CHECKING:
 def get_total_classes(selected_fd: str) -> int:
     """Calculate total classes from the corresponding `label_ref.csv`"""
     class_df = pd.read_csv(
-        os.path.join(
-            os.environ["DBDIE_MAIN_FD"],
-            "data/labels/labels",
-            selected_fd,
-            "label_ref.csv",
+        absp(
+            os.path.join(
+                "data/labels/labels",
+                selected_fd,
+                "label_ref.csv",
+            )
         )
     )
     assert (class_df.label_id == class_df.index).all()
@@ -43,11 +45,12 @@ class DatasetClass(Dataset):
 
     def __getitem__(self, idx: int) -> tuple["Tensor", "np_int64"]:
         image = Image.open(
-            os.path.join(
-                os.environ["DBDIE_MAIN_FD"],
-                "data/crops",
-                self.full_model_type,
-                self.labels.name.iat[idx],
+            absp(
+                os.path.join(
+                    "data/crops",
+                    self.full_model_type,
+                    self.labels.name.iat[idx],
+                )
             )
         )
         label = self.labels.label_id.iat[idx]

@@ -1,6 +1,7 @@
 import os
 from typing import Literal, Union
 from dataclasses import dataclass
+from dbdie_ml.paths import absp
 
 PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal[
@@ -11,6 +12,7 @@ Probability = float  # 0.0 a 1.0
 
 Filename = str
 PathToFolder = str
+RelPath = str
 Path = str
 
 Width = int
@@ -56,8 +58,8 @@ class CropSettings:
 
     def make_abs_paths(self) -> None:
         if not self.are_absolute_paths:
-            self.src = os.path.join(os.environ["DBDIE_MAIN_FD"], self.src)
-            self.dst = os.path.join(os.environ["DBDIE_MAIN_FD"], self.dst)
+            self.src = absp(self.src)
+            self.dst = absp(self.dst)
             self.are_absolute_paths = True
 
     def get_rel_path(self, fd: Literal["src", "dst"]) -> PathToFolder:

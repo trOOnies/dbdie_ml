@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dotenv import load_dotenv
 
-load_dotenv("../.env", override=True)
+load_dotenv("../.env", override=True)  # TODO: check if still needed
 
 import os
 import yaml
@@ -72,6 +72,10 @@ class IEModel:
     >>> names = model.convert_names(preds)
     >>> model.save_preds(preds, "/path/to/preds.txt")
     >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
+
+    Load previously trained `IEModel`:
+    >>> model = IEModel.from_folder("/path/to/model/folder")
+    >>> new_preds = model.predict_batch("/path/to/other/dataset.csv")
     """
 
     def __init__(
