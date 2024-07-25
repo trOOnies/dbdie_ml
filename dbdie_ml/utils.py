@@ -7,7 +7,7 @@ def pls(item: str, length: int) -> str:
     return f"{length} {item}{'s' if length > 1 else ''}"
 
 
-def filter_mulitype(
+def filter_multitype(
     items: Any | list[Any] | None,
     default: list[Any],
     possible_values: list[Any] | set[Any] | None = None,

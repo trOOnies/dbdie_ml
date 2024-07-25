@@ -5,11 +5,11 @@ from copy import deepcopy
 from PIL import Image
 from dbdie_ml.cropper import Cropper
 from dbdie_ml.movable_report import MovableReport
-from dbdie_ml.utils import pls, filter_mulitype
+from dbdie_ml.utils import pls, filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import PathToFolder, CropType
+    from dbdie_ml.classes import Filename, PathToFolder, CropType, FullModelType
 
 CropperAlignments = dict["PathToFolder", list[Cropper]]
 
@@ -53,13 +53,15 @@ class CropperSwarm:
         self.cropper_alignments: list[CropperAlignments] = [
             self._make_cropper_alignments(cpp) for cpp in croppers
         ]
+        self._movable_report = None
+
         self._croppers_flat = [
             cpp
             for cpa in self.cropper_alignments
             for cpp_list in cpa.values()
             for cpp in cpp_list
         ]
-        self._movable_report = None
+        self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
     def __len__(self) -> int:
         return len(self.croppers)
@@ -87,10 +89,6 @@ class CropperSwarm:
 
     def get_all_fmts(self) -> list:
         return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
-
-    @property
-    def cropper_flat_names(self) -> list:
-        return [cpp.name for cpp in self._croppers_flat]
 
     # * Instantiate
 
@@ -142,21 +140,26 @@ class CropperSwarm:
     # * Cropping
 
     @staticmethod
-    def _apply_cropper(cpp: Cropper, img: "PILImage", src_filename: str) -> None:
+    def _apply_cropper(
+        cpp: Cropper,
+        img: "PILImage",
+        src_filename: "Filename",
+        full_model_types: str | list[str] | None = None,
+    ) -> None:
         """Make all the `Cropper` crops for a single in-memory image,
         and save them in the settings 'dst' folder,
         inside the corresponding subfolder
         """
-        # TODO: full_model_types?
+        fmts = cpp._filter_fmts(full_model_types)
 
         plain = src_filename[:-4]
         o = cpp.settings.offset
 
-        for full_model_type in cpp.full_model_types:
-            boxes = deepcopy(cpp.settings.crops[full_model_type])
+        for fmt in fmts:
+            boxes = deepcopy(cpp.settings.crops[fmt])
             dst_fd = os.path.join(
                 cpp.settings.dst,
-                full_model_type,
+                fmt,
             )
             for i, box in enumerate(boxes):
                 cropped = img.crop(box)
@@ -175,7 +178,7 @@ class CropperSwarm:
 
     def _filter_use_croppers(self, use_croppers: str | list[str] | None) -> list[str]:
         possible_values = self.cropper_flat_names
-        return filter_mulitype(
+        return filter_multitype(
             use_croppers,
             default=possible_values,
             possible_values=possible_values,
@@ -202,23 +205,81 @@ class CropperSwarm:
             self.move_images()
         self._movable_report = None
 
-    def run(self, move: bool = True, use_croppers: list[str] | None = None) -> None:
-        """[NEW] Run all `Croppers` iterating on images first"""
-        # TODO: Implement 'use_crops'
-        cpp_to_use = self._filter_use_croppers(use_croppers)
+    def _cropper_fmts_nand(
+        use_croppers: list[str] | None,
+        use_fmts: list["FullModelType"] | None,
+    ) -> None:
+        c_none = use_croppers is None
+        f_none = use_fmts is None
+
+        cond = c_none or f_none
+        assert cond, "'use_croppers' and 'use_fmts' cannot be used at the same time"
+
+        if not c_none:
+            assert isinstance(use_croppers, list) and use_croppers
+        elif not f_none:
+            assert isinstance(use_fmts, list) and use_fmts
+
+    def run(
+        self,
+        move: bool = True,
+        use_croppers: list[str] | None = None,
+        use_fmts: list["FullModelType"] | None = None,
+    ) -> None:
+        """[NEW] Run all `Croppers` iterating on images first.
+
+        move: Whether to move the source images at the end of the cropping.
+            Note: The `MovableReport` still avoid creating crops
+            of duplicate source images.
+
+        Filter options (cannot be used at the same time):
+        - use_croppers: Filter cropping using `Cropper` names (level=`Cropper`).
+        - use_fmt: Filter cropping using `FullModelTypes` names (level=crop type).
+        """
+        self._cropper_fmts_nand(use_croppers, use_fmts)
 
         self._movable_report = MovableReport()
-        for cpa in self.cropper_alignments:
-            # TODO: Different alignments but at-same-level could be parallelized
-            for src, croppers in cpa.items():
-                fs = self._movable_report.load_and_filter(src)
-                for f in fs:
-                    img = Image.open(os.path.join(src, f))
-                    img = img.convert("RGB")
-                    for cpp in croppers:
-                        if cpp.name in cpp_to_use:
-                            self._apply_cropper(cpp, img, f)
-                    del img
+
+        if use_fmts is not None:
+            # Filter using FullModelTypes
+            for cpa in self.cropper_alignments:
+                # TODO: Different alignments but at-same-level could be parallelized
+                for src, croppers in cpa.items():
+                    fs = self._movable_report.load_and_filter(src)
+                    for f in fs:
+                        img = Image.open(os.path.join(src, f))
+                        img = img.convert("RGB")
+                        for cpp in croppers:
+                            found_fmts = [
+                                fmt
+                                for fmt in use_fmts
+                                if fmt in cpp.full_model_types_set
+                            ]
+                            if found_fmts:
+                                self._apply_cropper(
+                                    cpp,
+                                    img,
+                                    src_filename=f,
+                                    full_model_types=found_fmts,
+                                )
+                        del img
+        else:
+            # Filter using Croppers (if applies)
+
+            # This will use the full list of Croppers if use_croppers is None
+            cpp_to_use = self._filter_use_croppers(use_croppers)
+
+            for cpa in self.cropper_alignments:
+                # TODO: Different alignments but at-same-level could be parallelized
+                for src, croppers in cpa.items():
+                    fs = self._movable_report.load_and_filter(src)
+                    for f in fs:
+                        img = Image.open(os.path.join(src, f))
+                        img = img.convert("RGB")
+                        for cpp in croppers:
+                            if cpp.name in cpp_to_use:
+                                self._apply_cropper(cpp, img, src_filename=f)
+                        del img
 
         if move:
             self.move_images()

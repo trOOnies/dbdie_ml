@@ -9,7 +9,7 @@ from dbdie_ml.crop_settings import (
     PLAYER_SURV_CS,
     PLAYER_KILLER_CS,
 )
-from dbdie_ml.utils import pls, filter_mulitype
+from dbdie_ml.utils import pls, filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
@@ -39,6 +39,10 @@ class Cropper:
         assert os.path.isdir(settings.src)
         assert os.path.isdir(settings.dst)
         self.settings = settings
+        self.name = self.settings.name
+
+        self.full_model_types = list(self.settings.crops.keys())
+        self.full_model_types_set = set(self.full_model_types)
 
     def __len__(self) -> int:
         return len(self.settings.crops)
@@ -62,14 +66,6 @@ class Cropper:
             for v in vs:
                 print(f"- {v}")
 
-    @property
-    def name(self) -> str:
-        return self.settings.name
-
-    @property
-    def full_model_types(self) -> list["FullModelType"]:
-        return list(self.settings.crops.keys())
-
     # * Instantiate
 
     @classmethod
@@ -84,7 +80,7 @@ class Cropper:
         self, full_model_types: "FullModelType" | list["FullModelType"] | None
     ) -> list["FullModelType"]:
         possible_values = self.full_model_types
-        return filter_mulitype(
+        return filter_multitype(
             full_model_types,
             default=possible_values,
             possible_values=possible_values,

@@ -99,6 +99,8 @@ class IEModel:
         self._norm_means = norm_means
         self._norm_std = norm_std
 
+        self.selected_fd = f"{self.model_type}__{'killer' if self.is_for_killer else 'surv'}"
+
         self._set_empty_placeholders()
 
     def _set_empty_placeholders(self) -> None:
@@ -130,10 +132,6 @@ class IEModel:
     @property
     def model_is_init(self) -> bool:
         return self._optimizer is not None
-
-    @property
-    def selected_fd(self) -> str:
-        return f"{self.model_type}__{'killer' if self.is_for_killer else 'surv'}"
 
     # * Base
 
