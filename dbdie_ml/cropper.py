@@ -61,6 +61,7 @@ class Cropper:
         return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:
+        """Print all crop boxes from the `Cropper` settings"""
         for k, vs in self.settings.crops.items():
             print(k)
             for v in vs:

@@ -63,6 +63,8 @@ class CropperSwarm:
         ]
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
+    # * Dunders and presentation
+
     def __len__(self) -> int:
         return len(self.croppers)
 
@@ -88,6 +90,7 @@ class CropperSwarm:
                     print(f"- Cropper('{cpp.settings.name}')")
 
     def get_all_fmts(self) -> list:
+        """Get all `FullModelTypes` present in its `Croppers`"""
         return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
 
     # * Instantiate
@@ -115,8 +118,6 @@ class CropperSwarm:
         )
         return cppsw
 
-    # * Process Croppers
-
     @staticmethod
     def _make_cropper_alignments(
         croppers: Cropper | list[Cropper],
@@ -137,7 +138,15 @@ class CropperSwarm:
         else:
             return {croppers.settings.src: [croppers]}
 
-    # * Cropping
+    # * Cropping helpers
+
+    def _filter_use_croppers(self, use_croppers: str | list[str] | None) -> list[str]:
+        possible_values = self.cropper_flat_names
+        return filter_multitype(
+            use_croppers,
+            default=possible_values,
+            possible_values=possible_values,
+        )
 
     @staticmethod
     def _apply_cropper(
@@ -166,6 +175,8 @@ class CropperSwarm:
                 cropped.save(os.path.join(dst_fd, f"{plain}_{i+o}.jpg"))
                 del cropped
 
+    # * Cropping (in sequence)
+
     def _run_cropper(self, cpp: Cropper) -> None:
         """Run a single `Cropper`"""
         src = cpp.settings.src
@@ -175,14 +186,6 @@ class CropperSwarm:
             img = img.convert("RGB")
             self._apply_cropper(cpp, img, f)
             del img
-
-    def _filter_use_croppers(self, use_croppers: str | list[str] | None) -> list[str]:
-        possible_values = self.cropper_flat_names
-        return filter_multitype(
-            use_croppers,
-            default=possible_values,
-            possible_values=possible_values,
-        )
 
     def run_in_sequence(
         self, move: bool = True, use_croppers: list[str] | None = None
@@ -205,6 +208,8 @@ class CropperSwarm:
             self.move_images()
         self._movable_report = None
 
+    # * Cropping (using CropperAlignments)
+
     def _cropper_fmts_nand(
         use_croppers: list[str] | None,
         use_fmts: list["FullModelType"] | None,
@@ -219,6 +224,42 @@ class CropperSwarm:
             assert isinstance(use_croppers, list) and use_croppers
         elif not f_none:
             assert isinstance(use_fmts, list) and use_fmts
+
+    def _run_using_fmts(self, use_fmts: list["FullModelType"]) -> None:
+        """Run filtering on `FullModelTypes`"""
+        for cpa in self.cropper_alignments:
+            # TODO: Different alignments but at-same-level could be parallelized
+            for src, croppers in cpa.items():
+                fs = self._movable_report.load_and_filter(src)
+                for f in fs:
+                    img = Image.open(os.path.join(src, f))
+                    img = img.convert("RGB")
+                    for cpp in croppers:
+                        found_fmts = [
+                            fmt for fmt in use_fmts if fmt in cpp.full_model_types_set
+                        ]
+                        if found_fmts:
+                            self._apply_cropper(
+                                cpp,
+                                img,
+                                src_filename=f,
+                                full_model_types=found_fmts,
+                            )
+                    del img
+
+    def _run_using_cropper_names(self, use_croppers: list[str]) -> None:
+        """Run filtering on `Cropper` names"""
+        for cpa in self.cropper_alignments:
+            # TODO: Different alignments but at-same-level could be parallelized
+            for src, croppers in cpa.items():
+                fs = self._movable_report.load_and_filter(src)
+                for f in fs:
+                    img = Image.open(os.path.join(src, f))
+                    img = img.convert("RGB")
+                    for cpp in croppers:
+                        if cpp.name in use_croppers:
+                            self._apply_cropper(cpp, img, src_filename=f)
+                    del img
 
     def run(
         self,
@@ -241,45 +282,11 @@ class CropperSwarm:
         self._movable_report = MovableReport()
 
         if use_fmts is not None:
-            # Filter using FullModelTypes
-            for cpa in self.cropper_alignments:
-                # TODO: Different alignments but at-same-level could be parallelized
-                for src, croppers in cpa.items():
-                    fs = self._movable_report.load_and_filter(src)
-                    for f in fs:
-                        img = Image.open(os.path.join(src, f))
-                        img = img.convert("RGB")
-                        for cpp in croppers:
-                            found_fmts = [
-                                fmt
-                                for fmt in use_fmts
-                                if fmt in cpp.full_model_types_set
-                            ]
-                            if found_fmts:
-                                self._apply_cropper(
-                                    cpp,
-                                    img,
-                                    src_filename=f,
-                                    full_model_types=found_fmts,
-                                )
-                        del img
+            self._run_using_fmts(use_fmts)
         else:
-            # Filter using Croppers (if applies)
-
             # This will use the full list of Croppers if use_croppers is None
             cpp_to_use = self._filter_use_croppers(use_croppers)
-
-            for cpa in self.cropper_alignments:
-                # TODO: Different alignments but at-same-level could be parallelized
-                for src, croppers in cpa.items():
-                    fs = self._movable_report.load_and_filter(src)
-                    for f in fs:
-                        img = Image.open(os.path.join(src, f))
-                        img = img.convert("RGB")
-                        for cpp in croppers:
-                            if cpp.name in cpp_to_use:
-                                self._apply_cropper(cpp, img, src_filename=f)
-                        del img
+            self._run_using_cropper_names(cpp_to_use)
 
         if move:
             self.move_images()
