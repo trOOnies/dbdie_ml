@@ -20,13 +20,14 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchsummary import summary
 from torch.nn import CrossEntropyLoss
+from dbdie_ml.classes import DBDVersionRange
 from dbdie_ml.data import DatasetClass, get_total_classes
 
 if TYPE_CHECKING:
     from torch.nn import Sequential
     from torch.optim import Optimizer
     from torch.nn.modules.loss import _Loss
-    from dbdie_ml.classes import PathToFolder, Path, ModelType
+    from dbdie_ml.classes import PathToFolder, Path, ModelType, Width, Height
 
 
 class EarlyStopper:
@@ -56,8 +57,8 @@ class IEModel:
         model_type (ModelType)
         is_for_killer (bool)
         image_size (tuple[int, int])
-        version (str): DBD version, preferably the minimum version
-            used for the training process.
+        version_range (DBDVersionRange): DBD game version range for which
+            the model works.
         norm_means (list[float]): 3 floats for the torch `Compose`.
         norm_std (list[float]): Idem norm_means.
         name (str | None): Model name.
@@ -83,8 +84,8 @@ class IEModel:
         model: "Sequential",
         model_type: "ModelType",
         is_for_killer: bool,
-        image_size: tuple[int, int],
-        version: str,
+        image_size: tuple["Width", "Height"],
+        version_range: DBDVersionRange,
         norm_means: list[float],
         norm_std: list[float],
         name: Optional[str] = None,
@@ -94,7 +95,7 @@ class IEModel:
         self.model_type = model_type
         self.is_for_killer = is_for_killer
         self.image_size = image_size
-        self.version = version
+        self.version_range = version_range  # TODO: Implement
 
         self._norm_means = norm_means
         self._norm_std = norm_std

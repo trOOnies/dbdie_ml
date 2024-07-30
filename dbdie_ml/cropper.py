@@ -1,7 +1,6 @@
 from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
-from copy import deepcopy
 from PIL import Image
 from dbdie_ml.crop_settings import (
     IMG_SURV_CS,
@@ -48,12 +47,13 @@ class Cropper:
         return len(self.settings.crops)
 
     def __repr__(self) -> str:
-        """Cropper('data\crops\player__surv' -> 'data\crops', image_size=(830, 117), 8 crops)"""
+        """Cropper('data/crops/player__surv' -> 'data/crops', version='7.5.0', image_size=(830, 117), 8 crops)"""
         s = (
             "'{src}' -> '{dst}', ".format(
                 src=self.settings.get_rel_path("src"),
                 dst=self.settings.get_rel_path("dst"),
             )
+            + f"version='{self.settings.version_range}', "
             + f"img_size={self.settings.img_size}, "
         )
         crops_len = len(self)

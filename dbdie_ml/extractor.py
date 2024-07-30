@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         AllSnippetInfo,
         SnippetCoords,
         FullModelType,
+        DBDVersionRange,
     )
     from dbdie_ml.schemas import PlayerOut
 
@@ -39,7 +40,7 @@ class InfoExtractor:
         name (str | None): Name of the `InfoExtractor`.
 
     Attrs:
-        version (str | None): Inferred from its models.
+        version_range (DBDVersionRange | None): Inferred from its models.
         model_types (list[FullModelType] | None)
         models_are_init (bool)
         models_are_trained (bool)
@@ -63,12 +64,11 @@ class InfoExtractor:
 
     def _set_empty_placeholders(self) -> None:
         self._models: Optional[dict["FullModelType", IEModel]] = None
-        self.version: Optional[str] = None
+        self.version_range: Optional["DBDVersionRange"] = None
 
     def __repr__(self) -> str:
         """InfoExtractor('my_info_extractor', version='7.5.0')"""
-        vals = {"version": self.version if self.models_are_init else "not_initialized"}
-        vals = ", ".join([f"{k}='{v}'" for k, v in vals.items()])
+        vals = f"version='{self.version_range}'"
         if self.name is not None:
             vals = f"'{self.name}', " + vals
         return f"InfoExtractor({vals})"
@@ -94,25 +94,25 @@ class InfoExtractor:
 
     # * Base
 
-    def _set_version(self, expected: Optional[str] = None) -> None:
+    def _set_version_range(self, expected: Optional["DBDVersionRange"] = None) -> None:
         assert all(model.selected_fd == mt for mt, model in self._models.items())
 
-        version = {model.version for model in self._models.values()}
-        assert len(version) == 1, "All model versions must match"
+        vrs = [model.version_range for model in self._models.values()]
+        version_range = vrs[0]
 
-        version = list(version)[0]
+        assert all(vr == version_range for vr in vrs), "All model versions must match"
 
         if expected is not None:
             assert (
-                version == expected
-            ), f"Seen version ({version}) is different from expected version ({expected})"
+                version_range == expected
+            ), f"Seen version ('{version_range}') is different from expected version ('{expected}')"
 
-        self.version = version
+        self.version_range = version_range
 
     def init_extractor(
         self,
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
-        expected_version: Optional[str] = None,
+        expected_version_range: Optional["DBDVersionRange"] = None,
     ) -> None:
         """Initialize the `InfoExtractor` and its `IEModels`.
         Can be provided with already trained models.
@@ -144,7 +144,7 @@ class InfoExtractor:
         else:
             self._models = trained_models
 
-        self._set_version(expected=expected_version)
+        self._set_version_range(expected=expected_version_range)
         if trained_models is None:
             for model in self._models.values():
                 model.init_model()
@@ -215,8 +215,8 @@ class InfoExtractor:
         ), "The model subfolders do not match the metadata YAML file"
         model_names = list(model_names)
 
-        exp_version = metadata["version"]
-        del metadata["version"]
+        exp_version_range = metadata["version-range"]
+        del metadata["version-range"]
 
         ie = InfoExtractor(**metadata)
         ie.init_extractor(
@@ -224,13 +224,13 @@ class InfoExtractor:
                 mn: IEModel.from_folder(os.path.join(models_fd, mn))
                 for mn in model_names
             },
-            expected_version=exp_version,
+            expected_version_range=exp_version_range,
         )
         return ie
 
     def _save_metadata(self, dst: "Path") -> None:
         assert dst.endswith(".yaml")
-        metadata = {k: getattr(self, k) for k in ["name", "version"]}
+        metadata = {k: getattr(self, k) for k in ["name", "version_range"]}
         metadata["models"] = list(self._models.keys())
         with open(dst, "w") as f:
             yaml.dump(metadata, f)
@@ -374,12 +374,10 @@ class InfoExtractor:
 
         preds_, on_ = self._match_preds_types(preds, on)
         names = {k: self._models[k].convert_names(preds_[k]) for k in on_}
-        if isinstance(on, str):
-            return names[list(names.keys())[0]]  # list
-        else:
-            return names  # dict
+        return names[list(names.keys())[0]] if isinstance(on, str) else names
 
     # * Match
 
     def form_match(self, players: list["PlayerOut"]) -> MatchOut:
-        return MatchOut(version=self.version, players=players)
+        # TODO: version or version range?
+        return MatchOut(version=self.version_range, players=players)

@@ -1,10 +1,11 @@
 from dbdie_ml.paths import CROPS_MAIN_FD_RP, CROP_PENDING_IMG_FD_RP
-from dbdie_ml.classes import CropSettings
+from dbdie_ml.classes import CropSettings, DBDVersionRange
 
 IMG_SURV_CS = CropSettings(
     name="surv",
     src=CROP_PENDING_IMG_FD_RP,
     dst=CROPS_MAIN_FD_RP,
+    version_range=DBDVersionRange("7.5.0"),
     img_size=(1920, 1080),
     crops={
         "player__surv": [
@@ -17,6 +18,7 @@ IMG_KILLER_CS = CropSettings(
     name="killer",
     src=CROP_PENDING_IMG_FD_RP,
     dst=CROPS_MAIN_FD_RP,
+    version_range=DBDVersionRange("7.5.0"),
     img_size=(1920, 1080),
     crops={"player__killer": [(66, 716, 896, 716 + 117)]},
     offset=4,
@@ -24,8 +26,9 @@ IMG_KILLER_CS = CropSettings(
 
 PLAYER_SURV_CS = CropSettings(
     name="surv_player",
-    src="data/crops/player__surv",
+    src=f"{CROPS_MAIN_FD_RP}/player__surv",
     dst=CROPS_MAIN_FD_RP,
+    version_range=DBDVersionRange("7.5.0"),
     img_size=(830, 117),
     crops={
         "addons__surv": [(483 + j * 41, 58, 483 + (j + 1) * 41, 99) for j in range(2)],
@@ -40,8 +43,9 @@ PLAYER_SURV_CS = CropSettings(
 )
 PLAYER_KILLER_CS = CropSettings(
     name="killer_player",
-    src="data/crops/player__killer",
+    src=f"{CROPS_MAIN_FD_RP}/player__killer",
     dst=CROPS_MAIN_FD_RP,
+    version_range=DBDVersionRange("7.5.0"),
     img_size=(830, 117),
     crops={
         "addons__killer": [

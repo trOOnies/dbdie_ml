@@ -49,11 +49,11 @@ class CropperSwarm:
             isinstance(cpp, Cropper) or all(isinstance(cpp_i, Cropper) for cpp_i in cpp)
             for cpp in croppers
         )
+
         self.croppers = croppers
         self.cropper_alignments: list[CropperAlignments] = [
             self._make_cropper_alignments(cpp) for cpp in croppers
         ]
-        self._movable_report = None
 
         self._croppers_flat = [
             cpp
@@ -61,7 +61,14 @@ class CropperSwarm:
             for cpp_list in cpa.values()
             for cpp in cpp_list
         ]
+        self.version_range = croppers[0].settings.version_range
+        assert all(
+            cpp.settings.version_range == self.version
+            for cpp in self._croppers_flat
+        ), "All croppers version ranges must exactly coincide"
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
+
+        self._movable_report = None
 
     # * Dunders and presentation
 
@@ -69,10 +76,14 @@ class CropperSwarm:
         return len(self.croppers)
 
     def __repr__(self) -> str:
-        """CropperSwarm(3 levels, 6 croppers)"""
+        """CropperSwarm('7.5.0', 3 levels, 6 croppers)"""
         cps_levels = len(self)
         cps_croppers = len(self._croppers_flat)
-        s = pls("level", cps_levels) + ", " + pls("cropper", cps_croppers)
+        s = ", ".join([
+            f"'{self.version_range}'",
+            pls("level", cps_levels),
+            pls("cropper", cps_croppers),
+        ])
         return f"CropperSwarm({s})"
 
     def print_croppers(self, verbose: bool = False) -> None:
@@ -84,10 +95,10 @@ class CropperSwarm:
         else:
             for cpp in self.croppers:
                 if isinstance(cpp, list):
-                    s = [f"Cropper('{cpp_i.settings.name}')" for cpp_i in cpp]
-                    print(f"- [{', '.join(s)}]")
+                    s = [f"'{cpp_i.settings.name}'" for cpp_i in cpp]
+                    print(f"- {s}")
                 else:
-                    print(f"- Cropper('{cpp.settings.name}')")
+                    print(f"- '{cpp.settings.name}'")
 
     def get_all_fmts(self) -> list:
         """Get all `FullModelTypes` present in its `Croppers`"""
