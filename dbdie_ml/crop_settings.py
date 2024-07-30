@@ -1,10 +1,10 @@
-from dbdie_ml.paths import CROPS_FD, CROP_PENDING_IMG_FD
+from dbdie_ml.paths import CROPS_MAIN_FD_RP, CROP_PENDING_IMG_FD_RP
 from dbdie_ml.classes import CropSettings
 
 IMG_SURV_CS = CropSettings(
     name="surv",
-    src=CROP_PENDING_IMG_FD,
-    dst=CROPS_FD,
+    src=CROP_PENDING_IMG_FD_RP,
+    dst=CROPS_MAIN_FD_RP,
     img_size=(1920, 1080),
     crops={
         "player__surv": [
@@ -15,8 +15,8 @@ IMG_SURV_CS = CropSettings(
 )
 IMG_KILLER_CS = CropSettings(
     name="killer",
-    src=CROP_PENDING_IMG_FD,
-    dst=CROPS_FD,
+    src=CROP_PENDING_IMG_FD_RP,
+    dst=CROPS_MAIN_FD_RP,
     img_size=(1920, 1080),
     crops={"player__killer": [(66, 716, 896, 716 + 117)]},
     offset=4,
@@ -25,7 +25,7 @@ IMG_KILLER_CS = CropSettings(
 PLAYER_SURV_CS = CropSettings(
     name="surv_player",
     src="data/crops/player__surv",
-    dst=CROPS_FD,
+    dst=CROPS_MAIN_FD_RP,
     img_size=(830, 117),
     crops={
         "addons__surv": [(483 + j * 41, 58, 483 + (j + 1) * 41, 99) for j in range(2)],
@@ -41,7 +41,7 @@ PLAYER_SURV_CS = CropSettings(
 PLAYER_KILLER_CS = CropSettings(
     name="killer_player",
     src="data/crops/player__killer",
-    dst=CROPS_FD,
+    dst=CROPS_MAIN_FD_RP,
     img_size=(830, 117),
     crops={
         "addons__killer": [

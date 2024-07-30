@@ -1,7 +1,7 @@
 import os
 from typing import TYPE_CHECKING
 from shutil import move
-from dbdie_ml.paths import absp, CROPPED_IMG_FD, CROP_PENDING_IMG_FD
+from dbdie_ml.paths import absp, CROPPED_IMG_FD_RP, CROP_PENDING_IMG_FD_RP
 
 if TYPE_CHECKING:
     from dbdie_ml.classes import Filename, PathToFolder
@@ -33,8 +33,8 @@ class MovableReport:
         images that can't be moved because of duplicated filenames
         when comparing src to dst.
         """
-        cropped_fd = absp(CROPPED_IMG_FD)
-        fs = os.listdir(absp(CROP_PENDING_IMG_FD))
+        cropped_fd = absp(CROPPED_IMG_FD_RP)
+        fs = os.listdir(absp(CROP_PENDING_IMG_FD_RP))
         list_is_movable = [not os.path.exists(os.path.join(cropped_fd, f)) for f in fs]
 
         umvi = [f for f, movable in zip(fs, list_is_movable) if not movable]
@@ -63,7 +63,7 @@ class MovableReport:
         """
         assert not self.obsolete
         fs = os.listdir(src)
-        sfx_cut = 4 if (src == CROP_PENDING_IMG_FD) else 6
+        sfx_cut = 4 if (src == CROP_PENDING_IMG_FD_RP) else 6
         return [f for f in fs if f[:-sfx_cut] not in self.umvi_plain_set]
 
     def move_images(self) -> None:
@@ -71,8 +71,8 @@ class MovableReport:
         assert not self.obsolete
         for f in self.mvi:
             move(
-                absp(os.path.join(CROP_PENDING_IMG_FD, f)),
-                absp(os.path.join(CROPPED_IMG_FD, f)),
+                absp(os.path.join(CROP_PENDING_IMG_FD_RP, f)),
+                absp(os.path.join(CROPPED_IMG_FD_RP, f)),
             )
         self.obsolete = True
         print("Images moved")
