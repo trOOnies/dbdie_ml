@@ -1,33 +1,39 @@
 from __future__ import annotations
+
 from dotenv import load_dotenv
+
+from dbdie_ml.options import MODEL_TYPES
 
 load_dotenv("../.env", override=True)  # TODO: check if still needed
 
-import os
-import yaml
 import json
+import os
+from typing import TYPE_CHECKING, Any, Optional
+
 import numpy as np
 import pandas as pd
-from typing import TYPE_CHECKING, Optional, Any
-from torch import no_grad, load, save
+import torch.nn.functional as F
+import yaml
+from torch import load, no_grad, save
 from torch import max as torch_max
-from torch.cuda import mem_get_info
 from torch.cuda import device as get_device
 from torch.cuda import is_available as cuda_is_available
-import torch.nn.functional as F
+from torch.cuda import mem_get_info
+from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from torchsummary import summary
-from torch.nn import CrossEntropyLoss
+from torchvision import transforms
+
 from dbdie_ml.classes import DBDVersionRange
 from dbdie_ml.data import DatasetClass, get_total_classes
 
 if TYPE_CHECKING:
     from torch.nn import Sequential
-    from torch.optim import Optimizer
     from torch.nn.modules.loss import _Loss
-    from dbdie_ml.classes import PathToFolder, Path, ModelType, Width, Height
+    from torch.optim import Optimizer
+
+    from dbdie_ml.classes import Height, ModelType, Path, PathToFolder, Width
 
 
 class EarlyStopper:
@@ -90,6 +96,8 @@ class IEModel:
         norm_std: list[float],
         name: Optional[str] = None,
     ) -> None:
+        assert model_type in MODEL_TYPES.ALL
+
         self.name = name
         self._model = model
         self.model_type = model_type
@@ -114,7 +122,7 @@ class IEModel:
         self._optimizer: Optional[Optimizer] = None
         self._criterion: Optional[_Loss] = None
         self._estop: Optional[EarlyStopper] = None
-        self._cfg: dict[str, Any] = None
+        self._cfg: Optional[dict[str, Any]] = None
 
         self.label_ref: Optional[dict[int, str]] = None
         self.model_is_trained = False
@@ -123,7 +131,7 @@ class IEModel:
         vals = {
             "type": self.model_type,
             "for_killer": self.is_for_killer,
-            "version": self.version,
+            "version": self.version_range,
             "classes": self.total_classes,
             "trained": self.model_is_trained,
         }
@@ -282,14 +290,14 @@ class IEModel:
         return train_loader, val_loader
 
     def _load_label_ref(self, path: "Path") -> None:
-        self.label_ref = pd.read_csv(
+        label_ref = pd.read_csv(
             path, usecols=["label_id", "name"], dtype={"label_id": int, "name": str}
         )
-        assert self.label_ref.label_id.min() == 0
-        assert self.label_ref.label_id.max() + 1 == self.label_ref.shape[0]
-        assert self.label_ref.label_id.nunique() == self.label_ref.shape[0]
+        assert label_ref.label_id.min() == 0
+        assert label_ref.label_id.max() + 1 == label_ref.shape[0]
+        assert label_ref.label_id.nunique() == label_ref.shape[0]
         self.label_ref = {
-            row["label_id"]: row["name"] for _, row in self.label_ref.iterrows()
+            row["label_id"]: row["name"] for _, row in label_ref.iterrows()
         }
 
     def _train_process(self, train_loader: DataLoader, val_loader: DataLoader) -> None:

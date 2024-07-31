@@ -1,8 +1,10 @@
 from typing import Optional
-from torch.nn import Sequential, Conv2d, ReLU, MaxPool2d, Flatten, Linear
+
+from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
+
 from dbdie_ml.classes import DBDVersionRange
-from dbdie_ml.models import IEModel
 from dbdie_ml.data import get_total_classes
+from dbdie_ml.models import IEModel
 
 
 class PerkModel(IEModel):
@@ -31,7 +33,7 @@ class PerkModel(IEModel):
             model_type="perks",
             is_for_killer=is_for_killer,
             image_size=(55, 56),
-            version=DBDVersionRange("7.5.0"),
+            version_range=DBDVersionRange("7.5.0"),
             norm_means=[0.485, 0.456, 0.406],
             norm_std=[0.229, 0.224, 0.225],
         )
@@ -66,7 +68,7 @@ class CharacterModel(IEModel):
             model_type="character",
             is_for_killer=is_for_killer,
             image_size=(476, 33),
-            version=DBDVersionRange("7.5.0"),
+            version_range=DBDVersionRange("7.5.0"),
             # Update normalization means and stds if necessary
             norm_means=[0.485, 0.456, 0.406],
             norm_std=[0.229, 0.224, 0.225],
@@ -94,7 +96,7 @@ class Status(IEModel):
             model_type="status",
             is_for_killer=is_for_killer,
             image_size=(31, 41),
-            version=DBDVersionRange("7.5.0"),
+            version_range=DBDVersionRange("7.5.0"),
             norm_means=[0.485, 0.456, 0.406],
             norm_std=[0.229, 0.224, 0.225],
         )

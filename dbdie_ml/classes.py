@@ -1,14 +1,15 @@
 import os
-from typing import Literal
 from dataclasses import dataclass
+from typing import Literal
+
 from dbdie_ml.paths import absp
 
 PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal[
     "character", "perks", "item", "addons", "offering", "status", "points"
-]  # TODO: add options pyfile
+]
 FullModelType = str  # i.e. character__killer
-Probability = float  # 0.0 a 1.0
+Probability = float  # 0.0 to 1.0
 
 Filename = str
 PathToFolder = str
@@ -50,8 +51,12 @@ class DBDVersionRange:
 
     def __post_init__(self):
         self.bounded = self.max_id is not None
-        self._id = DBDVersion(*self.id.split("."))
-        self._max_id = DBDVersion(*self.max_id.split(".")) if self.bounded else None
+        self._id = DBDVersion(*[int(v) for v in self.id.split(".")])
+        self._max_id = (
+            DBDVersion(*[int(v) for v in self.max_id.split(".")])
+            if self.bounded
+            else None
+        )
 
     def __contains__(self, v: DBDVersion) -> bool:
         return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
@@ -65,7 +70,11 @@ class DBDVersionRange:
                 return False
             if not (self.bounded or other.bounded):
                 return True
-            return (self._max_id == other._max_id) if (self.bounded == other.bounded) else False
+            return (
+                (self._max_id == other._max_id)
+                if (self.bounded == other.bounded)
+                else False
+            )
         return False
 
 
@@ -86,26 +95,31 @@ class SnippetInfo:
 class CropSettings:
     """Settings for the cropping of a full screenshot or a previously cropped snippet"""
 
-    # TODO: Omit the crop folder in settings implementation
-    name: str
-    src: PathToFolder
-    dst: PathToFolder
+    name: CropType
+    src_fd_rp: RelPath
+    dst_fd_rp: RelPath
     version_range: DBDVersionRange
     img_size: tuple[Width, Height]
     crops: dict[FullModelType, list[SnippetWindow] | list[SnippetCoords]]
     offset: int = 0
-    are_absolute_paths: bool = False
+    src: PathToFolder = ""
+    dst: PathToFolder = ""
 
-    def make_abs_paths(self) -> None:
-        if not self.are_absolute_paths:
-            self.src = absp(self.src)
-            self.dst = absp(self.dst)
-            self.are_absolute_paths = True
+    def __post_init__(self):
+        self._setup_folder("src")
+        self._setup_folder("dst")
 
-    def get_rel_path(self, fd: Literal["src", "dst"]) -> PathToFolder:
+    def _setup_folder(self, fd: Literal["src", "dst"]) -> None:
+        """Initial processing of folder's attributes."""
         assert fd in {"src", "dst"}
-        rp = getattr(self, fd)
-        return os.path.relpath(rp, os.environ["DBDIE_MAIN_FD"]) if self.are_absolute_paths else rp
+
+        rp = fd if fd.startswith("data/") else f"data/{fd}"
+        rp = rp[:-1] if rp.endswith("/") else rp
+        path = absp(rp)
+        assert os.path.isdir(path)
+
+        setattr(self, f"{fd}_fd_rp", rp)
+        setattr(self, fd, path)
 
 
 AllSnippetCoords = dict[PlayerId, SnippetCoords]

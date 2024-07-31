@@ -21,3 +21,7 @@ LABELS_REF_FD_RP = f"{LABELS_MAIN_FD_RP}/label_ref"
 
 def absp(rel_path: "RelPath") -> "Path":
     return os.path.join(os.environ["DBDIE_MAIN_FD"], rel_path)
+
+
+def relp(abs_path: "Path") -> "RelPath":
+    return os.path.relpath(abs_path, os.environ["DBDIE_MAIN_FD"])

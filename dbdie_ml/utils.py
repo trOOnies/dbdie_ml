@@ -18,7 +18,7 @@ def filter_multitype(
     elif isinstance(items, str):
         if possible_values is not None:
             assert items in possible_values
-        return [items]
+        return [deepcopy(items)]
     elif isinstance(items, list):
         assert items
         if possible_values is not None:

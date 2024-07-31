@@ -34,9 +34,6 @@ class Cropper:
     """
 
     def __init__(self, settings: "CropSettings") -> None:
-        settings.make_abs_paths()
-        assert os.path.isdir(settings.src)
-        assert os.path.isdir(settings.dst)
         self.settings = settings
         self.name = self.settings.name
 
@@ -47,17 +44,18 @@ class Cropper:
         return len(self.settings.crops)
 
     def __repr__(self) -> str:
-        """Cropper('data/crops/player__surv' -> 'data/crops', version='7.5.0', image_size=(830, 117), 8 crops)"""
-        s = (
-            "'{src}' -> '{dst}', ".format(
-                src=self.settings.get_rel_path("src"),
-                dst=self.settings.get_rel_path("dst"),
-            )
-            + f"version='{self.settings.version_range}', "
-            + f"img_size={self.settings.img_size}, "
+        """Cropper('surv_player', 'crops/player__surv' -> 'crops/...', version='>=7.5.0', image_size=(830, 117), 8 crops)"""
+        s = ", ".join(
+            [
+                "'{src}' -> '{dst}'".format(
+                    src=self.settings.src_fd_rp[5:],
+                    dst=self.settings.dst_fd_rp[5:] + "/...",
+                ),
+                f"version='{self.settings.version_range}'",
+                f"img_size={self.settings.img_size}",
+                pls("crop", len(self)),
+            ]
         )
-        crops_len = len(self)
-        s += pls("crop", crops_len)
         return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:

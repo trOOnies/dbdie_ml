@@ -3,15 +3,16 @@ import os
 from typing import TYPE_CHECKING
 from copy import deepcopy
 from PIL import Image
+from dbdie_ml.paths import absp
 from dbdie_ml.cropper import Cropper
 from dbdie_ml.movable_report import MovableReport
 from dbdie_ml.utils import pls, filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import Filename, PathToFolder, CropType, FullModelType
+    from dbdie_ml.classes import Filename, RelPath, CropType, FullModelType
 
-CropperAlignments = dict["PathToFolder", list[Cropper]]
+CropperAlignments = dict["RelPath", list[Cropper]]
 
 
 class CropperSwarm:
@@ -48,7 +49,7 @@ class CropperSwarm:
         assert all(
             isinstance(cpp, Cropper) or all(isinstance(cpp_i, Cropper) for cpp_i in cpp)
             for cpp in croppers
-        )
+        ), "'croppers' list can only have Croppers and/or lists of Croppers."
 
         self.croppers = croppers
         self.cropper_alignments: list[CropperAlignments] = [
@@ -61,7 +62,7 @@ class CropperSwarm:
             for cpp_list in cpa.values()
             for cpp in cpp_list
         ]
-        self.version_range = croppers[0].settings.version_range
+        self.version_range = self._croppers_flat[0].settings.version_range
         assert all(
             cpp.settings.version_range == self.version
             for cpp in self._croppers_flat
@@ -76,7 +77,7 @@ class CropperSwarm:
         return len(self.croppers)
 
     def __repr__(self) -> str:
-        """CropperSwarm('7.5.0', 3 levels, 6 croppers)"""
+        """CropperSwarm('>=7.5.0', 3 levels, 6 croppers)"""
         cps_levels = len(self)
         cps_croppers = len(self._croppers_flat)
         s = ", ".join([
@@ -141,13 +142,13 @@ class CropperSwarm:
         is minimized.
         """
         if isinstance(croppers, list):
-            unique_srcs = set(cpp.settings.src for cpp in croppers)
+            unique_srcs = set(cpp.settings.src_fd_rp for cpp in croppers)
             return {
-                k: [cpp for cpp in croppers if cpp.settings.src == k]
+                k: [cpp for cpp in croppers if cpp.settings.src_fd_rp == k]
                 for k in unique_srcs
             }
         else:
-            return {croppers.settings.src: [croppers]}
+            return {croppers.settings.src_fd_rp: [croppers]}
 
     # * Cropping helpers
 
@@ -177,10 +178,7 @@ class CropperSwarm:
 
         for fmt in fmts:
             boxes = deepcopy(cpp.settings.crops[fmt])
-            dst_fd = os.path.join(
-                cpp.settings.dst,
-                fmt,
-            )
+            dst_fd = os.path.join(cpp.settings.dst, fmt)
             for i, box in enumerate(boxes):
                 cropped = img.crop(box)
                 cropped.save(os.path.join(dst_fd, f"{plain}_{i+o}.jpg"))
@@ -240,7 +238,8 @@ class CropperSwarm:
         """Run filtering on `FullModelTypes`"""
         for cpa in self.cropper_alignments:
             # TODO: Different alignments but at-same-level could be parallelized
-            for src, croppers in cpa.items():
+            for src_rp, croppers in cpa.items():
+                src = absp(src_rp)
                 fs = self._movable_report.load_and_filter(src)
                 for f in fs:
                     img = Image.open(os.path.join(src, f))
@@ -262,7 +261,8 @@ class CropperSwarm:
         """Run filtering on `Cropper` names"""
         for cpa in self.cropper_alignments:
             # TODO: Different alignments but at-same-level could be parallelized
-            for src, croppers in cpa.items():
+            for src_rp, croppers in cpa.items():
+                src = absp(src_rp)
                 fs = self._movable_report.load_and_filter(src)
                 for f in fs:
                     img = Image.open(os.path.join(src, f))
