@@ -35,9 +35,9 @@ CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 @dataclass(eq=True, order=True)
 class DBDVersion:
     """DBD game version as named by BHVR (M.m.p)"""
-    major: int
-    minor: int
-    patch: int
+    major: str
+    minor: str
+    patch: str
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
@@ -51,9 +51,9 @@ class DBDVersionRange:
 
     def __post_init__(self):
         self.bounded = self.max_id is not None
-        self._id = DBDVersion(*[int(v) for v in self.id.split(".")])
+        self._id = DBDVersion(*[v for v in self.id.split(".")])
         self._max_id = (
-            DBDVersion(*[int(v) for v in self.max_id.split(".")])
+            DBDVersion(*[v for v in self.max_id.split(".")])
             if self.bounded
             else None
         )
