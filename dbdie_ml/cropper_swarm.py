@@ -64,8 +64,7 @@ class CropperSwarm:
         ]
         self.version_range = self._croppers_flat[0].settings.version_range
         assert all(
-            cpp.settings.version_range == self.version
-            for cpp in self._croppers_flat
+            cpp.settings.version_range == self.version for cpp in self._croppers_flat
         ), "All croppers version ranges must exactly coincide"
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
@@ -80,11 +79,13 @@ class CropperSwarm:
         """CropperSwarm('>=7.5.0', 3 levels, 6 croppers)"""
         cps_levels = len(self)
         cps_croppers = len(self._croppers_flat)
-        s = ", ".join([
-            f"'{self.version_range}'",
-            pls("level", cps_levels),
-            pls("cropper", cps_croppers),
-        ])
+        s = ", ".join(
+            [
+                f"'{self.version_range}'",
+                pls("level", cps_levels),
+                pls("cropper", cps_croppers),
+            ]
+        )
         return f"CropperSwarm({s})"
 
     def print_croppers(self, verbose: bool = False) -> None:

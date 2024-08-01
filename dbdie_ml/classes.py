@@ -35,6 +35,7 @@ CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 @dataclass(eq=True, order=True)
 class DBDVersion:
     """DBD game version as named by BHVR (M.m.p)"""
+
     major: str
     minor: str
     patch: str
@@ -46,6 +47,7 @@ class DBDVersion:
 @dataclass
 class DBDVersionRange:
     """DBD game version range, first inclusive last exclusive."""
+
     id: str
     max_id: str | None = None
 
@@ -53,9 +55,7 @@ class DBDVersionRange:
         self.bounded = self.max_id is not None
         self._id = DBDVersion(*[v for v in self.id.split(".")])
         self._max_id = (
-            DBDVersion(*[v for v in self.max_id.split(".")])
-            if self.bounded
-            else None
+            DBDVersion(*[v for v in self.max_id.split(".")]) if self.bounded else None
         )
 
     def __contains__(self, v: DBDVersion) -> bool:

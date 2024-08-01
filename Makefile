@@ -12,18 +12,10 @@ venv:
 		python3 -m venv .venv;\
 	fi;
 
-.PHONY: activate
-activate:
-	source .venv/bin/activate
-
 .PHONY: fmt
 fmt:
-	black .
+	ruff format
 
 .PHONY: install
 install:
-	pip install -r requirements.txt
-
-.PHONY: build
-build:
-	python -m build
+	python3 -m pip install -r requirements.txt
