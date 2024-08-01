@@ -4,7 +4,7 @@ from copy import deepcopy
 
 def pls(item: str, length: int) -> str:
     """Plural letter 's' friendly count"""
-    return f"{length} {item}{'s' if length > 1 else ''}"
+    return f"{length} {item}{'s' if length != 1 else ''}"
 
 
 def filter_multitype(
