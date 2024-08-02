@@ -11,11 +11,22 @@ venv:
 	else\
 		python3 -m venv .venv;\
 	fi;
+	@./.venv/bin/pip install -U pip
+	@echo
+	@echo "${COLOUR_GREEN}Use the command: source .venv/bin/activate${COLOUR_GREEN}"
+
+.PHONY: install
+install:
+	python3 -m pip install -r requirements.txt
 
 .PHONY: fmt
 fmt:
 	ruff format
 
-.PHONY: install
-install:
-	python3 -m pip install -r requirements.txt
+.PHONY: lint
+lint:
+	ruff check --output-format=concise
+
+.PHONY: test
+test:
+	python3 -m pytest --cov=dbdie_ml
