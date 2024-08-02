@@ -39,5 +39,8 @@ dynamic = ["version"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 
+[tool.coverage.run]
+omit = ["dbdie_ml/constants.py", "dbdie_ml/options/*.py"]
+
 [project.scripts]
 my-script = "dbdie_ml.module:function"

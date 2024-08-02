@@ -18,6 +18,7 @@ Path = str
 
 Width = int
 Height = int
+ImgSize = tuple[Width, Height]
 SnippetWindow = tuple[
     int, int, int, int
 ]  # Best estimation (1920x1080): (67,217) to (1015,897)
@@ -99,7 +100,7 @@ class CropSettings:
     src_fd_rp: RelPath
     dst_fd_rp: RelPath
     version_range: DBDVersionRange
-    img_size: tuple[Width, Height]
+    img_size: ImgSize
     crops: dict[FullModelType, list[SnippetWindow] | list[SnippetCoords]]
     offset: int = 0
     src: PathToFolder = ""
@@ -113,10 +114,10 @@ class CropSettings:
         """Initial processing of folder's attributes."""
         assert fd in {"src", "dst"}
 
-        rp = (
-            getattr(self, fd) if fd.startswith("data/") else f"data/{getattr(self, fd)}"
-        )
+        rp = getattr(self, f"{fd}_fd_rp")
+        rp = rp if rp.startswith("data/") else f"data/{rp}"
         rp = rp[:-1] if rp.endswith("/") else rp
+
         path = absp(rp)
         print(path)
         assert os.path.isdir(path)

@@ -37,7 +37,7 @@ class Cropper:
 
     def __repr__(self) -> str:
         """Cropper('surv_player', 'crops/player__surv' -> 'crops/...',
-        version='>=7.5.0', image_size=(830, 117), 8 crops)
+        version='>=7.5.0', img_size=(830, 117), 8 crops)
         """
         s = ", ".join(
             [

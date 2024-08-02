@@ -1,4 +1,5 @@
 from dbdie_ml.classes import CropSettings, DBDVersionRange
+from dbdie_ml.constants import DEFAULT_DBDVR, DEFAULT_SCREENSHOT_SIZE
 from dbdie_ml.options import CROP_TYPES
 from dbdie_ml.paths import CROP_PENDING_IMG_FD_RP, CROPS_MAIN_FD_RP
 
@@ -6,21 +7,21 @@ IMG_SURV_CS = CropSettings(
     name=CROP_TYPES.SURV,
     src_fd_rp=CROP_PENDING_IMG_FD_RP,
     dst_fd_rp=CROPS_MAIN_FD_RP,
-    version_range=DBDVersionRange("7.5.0"),
-    img_size=(1920, 1080),
+    version_range=DBDVersionRange(*DEFAULT_DBDVR),
+    img_size=DEFAULT_SCREENSHOT_SIZE,
     crops={
         "player__surv": [
             (67, 257 + j * 117, 897, 257 + (j + 1) * 117) for j in range(3)
         ]
         + [(67, 257 + 3 * 117 + 1, 897, 257 + (3 + 1) * 117 + 1)]
-    },
+    },  # TODO: Check automatically all same FMT crops are the same size
 )
 IMG_KILLER_CS = CropSettings(
     name=CROP_TYPES.KILLER,
     src_fd_rp=CROP_PENDING_IMG_FD_RP,
     dst_fd_rp=CROPS_MAIN_FD_RP,
-    version_range=DBDVersionRange("7.5.0"),
-    img_size=(1920, 1080),
+    version_range=DBDVersionRange(*DEFAULT_DBDVR),
+    img_size=DEFAULT_SCREENSHOT_SIZE,
     crops={"player__killer": [(66, 716, 896, 716 + 117)]},
     offset=4,
 )
@@ -29,8 +30,8 @@ PLAYER_SURV_CS = CropSettings(
     name=CROP_TYPES.SURV_PLAYER,
     src_fd_rp=f"{CROPS_MAIN_FD_RP}/player__surv",
     dst_fd_rp=CROPS_MAIN_FD_RP,
-    version_range=DBDVersionRange("7.5.0"),
-    img_size=(830, 117),
+    version_range=DBDVersionRange(*DEFAULT_DBDVR),
+    img_size=(830, 117),  # TODO: Add func that extracts another CS's crop size
     crops={
         "addons__surv": [(483 + j * 41, 58, 483 + (j + 1) * 41, 99) for j in range(2)],
         "character__surv": [(124, 5, 600, 38)],
@@ -46,7 +47,7 @@ PLAYER_KILLER_CS = CropSettings(
     name=CROP_TYPES.KILLER_PLAYER,
     src_fd_rp=f"{CROPS_MAIN_FD_RP}/player__killer",
     dst_fd_rp=CROPS_MAIN_FD_RP,
-    version_range=DBDVersionRange("7.5.0"),
+    version_range=DBDVersionRange(*DEFAULT_DBDVR),
     img_size=(830, 117),
     crops={
         "addons__killer": [
