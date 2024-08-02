@@ -10,6 +10,7 @@ from dbdie_ml.models import IEModel
 
 # from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
+from dbdie_ml.utils import filter_multitype
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -339,16 +340,13 @@ class InfoExtractor:
         preds_is_dict = isinstance(preds, dict)
         if preds_is_dict:
             preds_ = {deepcopy(k): p for k, p in preds.items()}
-            if on is None:
-                on_ = list(preds_.keys())
-            elif isinstance(on, list):
-                on_ = deepcopy(on)
-            else:  # Modeltype
-                on_ = [deepcopy(on)]
+            on_ = filter_multitype(
+                on,
+                default=list(preds_.keys()),
+            )
         else:
-            assert isinstance(
-                on, str
-            ), "'on' must be a FullModelType if 'preds' is not a dict."
+            msg = "'on' must be a FullModelType if 'preds' is not a dict."
+            assert isinstance(on, str), msg
             preds_ = {deepcopy(on): preds}
             on_ = [deepcopy(on)]
 

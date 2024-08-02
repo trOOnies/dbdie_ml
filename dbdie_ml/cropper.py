@@ -1,22 +1,14 @@
 from __future__ import annotations
-import os
 from typing import TYPE_CHECKING
 from PIL import Image
-from dbdie_ml.crop_settings import (
-    IMG_SURV_CS,
-    IMG_KILLER_CS,
-    PLAYER_SURV_CS,
-    PLAYER_KILLER_CS,
-)
+from dbdie_ml.crop_settings import ALL_CS
 from dbdie_ml.utils import pls, filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
     from dbdie_ml.classes import CropType, CropSettings, FullModelType, Path
 
-CS_DICT: dict["CropType", "CropSettings"] = {
-    cs.name: cs for cs in [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]
-}
+CS_DICT: dict["CropType", "CropSettings"] = {cs.name: cs for cs in ALL_CS}
 
 
 class Cropper:
@@ -44,7 +36,9 @@ class Cropper:
         return len(self.settings.crops)
 
     def __repr__(self) -> str:
-        """Cropper('surv_player', 'crops/player__surv' -> 'crops/...', version='>=7.5.0', image_size=(830, 117), 8 crops)"""
+        """Cropper('surv_player', 'crops/player__surv' -> 'crops/...',
+        version='>=7.5.0', image_size=(830, 117), 8 crops)
+        """
         s = ", ".join(
             [
                 "'{src}' -> '{dst}'".format(

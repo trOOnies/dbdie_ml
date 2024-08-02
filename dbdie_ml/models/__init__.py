@@ -1,1 +1,1 @@
-from dbdie_ml.models.models import IEModel
+from dbdie_ml.models.models import IEModel  # noqa

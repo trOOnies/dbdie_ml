@@ -58,9 +58,6 @@ class DBDVersionRange:
             DBDVersion(*[v for v in self.max_id.split(".")]) if self.bounded else None
         )
 
-    def __contains__(self, v: DBDVersion) -> bool:
-        return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
-
     def __str__(self) -> str:
         return f">={self._id},<{self._max_id}" if self.bounded else f">={self._id}"
 
@@ -76,6 +73,9 @@ class DBDVersionRange:
                 else False
             )
         return False
+
+    def __contains__(self, v: DBDVersion) -> bool:
+        return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
 
 
 @dataclass
@@ -113,9 +113,12 @@ class CropSettings:
         """Initial processing of folder's attributes."""
         assert fd in {"src", "dst"}
 
-        rp = fd if fd.startswith("data/") else f"data/{fd}"
+        rp = (
+            getattr(self, fd) if fd.startswith("data/") else f"data/{getattr(self, fd)}"
+        )
         rp = rp[:-1] if rp.endswith("/") else rp
         path = absp(rp)
+        print(path)
         assert os.path.isdir(path)
 
         setattr(self, f"{fd}_fd_rp", rp)

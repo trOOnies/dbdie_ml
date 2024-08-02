@@ -1,11 +1,4 @@
 from __future__ import annotations
-
-from dotenv import load_dotenv
-
-from dbdie_ml.options import MODEL_TYPES
-
-load_dotenv("../.env", override=True)  # TODO: check if still needed
-
 import json
 import os
 from typing import TYPE_CHECKING, Any, Optional
@@ -27,6 +20,7 @@ from torchvision import transforms
 
 from dbdie_ml.classes import DBDVersionRange
 from dbdie_ml.data import DatasetClass, get_total_classes
+from dbdie_ml.options import MODEL_TYPES
 
 if TYPE_CHECKING:
     from torch.nn import Sequential

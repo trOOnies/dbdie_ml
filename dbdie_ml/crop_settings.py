@@ -64,3 +64,5 @@ PLAYER_KILLER_CS = CropSettings(
     },
     offset=4,
 )
+
+ALL_CS = [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]

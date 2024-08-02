@@ -3,7 +3,7 @@ import pandas as pd
 from typing import TYPE_CHECKING, Optional
 from PIL import Image
 from torch.utils.data import Dataset
-from dbdie_ml.paths import absp
+from dbdie_ml.paths import absp, CROPS_MAIN_FD_RP, LABELS_FD_RP
 
 if TYPE_CHECKING:
     from numpy import int64 as np_int64
@@ -12,12 +12,12 @@ if TYPE_CHECKING:
     from dbdie_ml.classes import FullModelType
 
 
-def get_total_classes(selected_fd: str) -> int:
+def get_total_classes(selected_fd: "FullModelType") -> int:
     """Calculate total classes from the corresponding `label_ref.csv`"""
     class_df = pd.read_csv(
         absp(
             os.path.join(
-                "data/labels/labels",
+                LABELS_FD_RP,
                 selected_fd,
                 "label_ref.csv",
             )
@@ -47,7 +47,7 @@ class DatasetClass(Dataset):
         image = Image.open(
             absp(
                 os.path.join(
-                    "data/crops",
+                    CROPS_MAIN_FD_RP,
                     self.full_model_type,
                     self.labels.name.iat[idx],
                 )

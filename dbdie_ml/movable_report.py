@@ -41,7 +41,7 @@ class MovableReport:
         umvi = [f for f, movable in zip(fs, list_is_movable) if not movable]
         if umvi:
             cond = len(umvi) <= MAX_PRINT_LEN
-            msg = f"These images won't be moved bc of duplicated filenames: "
+            msg = "These images won't be moved bc of duplicated filenames: "
             msg += str(umvi) if cond else str(umvi[:MAX_PRINT_LEN])
             if not cond:
                 msg = f"{msg[:-1]}, ...]"
