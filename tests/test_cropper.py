@@ -4,6 +4,7 @@ from dbdie_ml.options import CROP_TYPES, SURV_FMT
 from dbdie_ml.crop_settings import ALL_CS
 from dbdie_ml.cropper import Cropper
 
+
 @fixture
 def mock_cropper():
     return Cropper.from_type(CROP_TYPES.SURV_PLAYER)

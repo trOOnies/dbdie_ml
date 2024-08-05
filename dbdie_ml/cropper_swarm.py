@@ -64,7 +64,8 @@ class CropperSwarm:
         ]
         self.version_range = self._croppers_flat[0].settings.version_range
         assert all(
-            cpp.settings.version_range == self.version for cpp in self._croppers_flat
+            cpp.settings.version_range == self.version_range
+            for cpp in self._croppers_flat
         ), "All croppers version ranges must exactly coincide"
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
