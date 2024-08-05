@@ -19,6 +19,10 @@ venv:
 install:
 	python3 -m pip install -r requirements.txt
 
+.PHONY: folders
+folders:
+	python3 -m folder_structure
+
 .PHONY: fmt
 fmt:
 	ruff format

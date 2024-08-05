@@ -18,7 +18,8 @@ It is very much a WIP repo. I write it whenever I'm feeling inspired, thus its d
 
 ## Environment variables
 
-You must set an env var `DBDIE_MAIN_FD` that points to a folder with the following folder structure:
+You must set an env var `DBDIE_MAIN_FD` that points to a folder which will contain the DBDIE folder structure.
+You can create this structure using the `make folders` command.
 
 ```
 <DBDIE_MAIN_FD>
@@ -76,8 +77,6 @@ You must set an env var `DBDIE_MAIN_FD` that points to a folder with the followi
     │   └── (ex.) project_dbdie_character__killer-2024_07_10_22_25_03-cvat for images 1.1
     └── out
 ```
-
-Code's still in development, but there's a plan to make this folder structure automatically.
 
 ## Open configuration
 
