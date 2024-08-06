@@ -12,7 +12,45 @@ if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
     from dbdie_ml.classes import Filename, RelPath, CropType, FullModelType
 
-CropperAlignments = dict["RelPath", list[Cropper]]
+
+class CropperAlignments:
+    """Group a list of Croppers into `CropperAlignments`.
+
+    A `CropperAlignments` dict maps folders to many `Croppers`.
+    In short, it's a way to take advantage of same-level `Croppers`
+    that share a source folder, so that the amount of times an image is loaded
+    is minimized.
+    """
+    def __init__(
+        self,
+        croppers: Cropper | list[Cropper],
+    ):
+        """dict["RelPath", list[Cropper]]"""
+        if isinstance(croppers, list):
+            unique_srcs = set(cpp.settings.src_fd_rp for cpp in croppers)
+            self._data = {
+                k: [cpp for cpp in croppers if cpp.settings.src_fd_rp == k]
+                for k in unique_srcs
+            }
+        elif isinstance(croppers, Cropper):
+            self._data = {croppers.settings.src_fd_rp: [croppers]}
+        else:
+            raise TypeError
+
+    def keys(self):
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+    def __getitem__(self, key) -> list[Cropper]:
+        return self._data[key]
+
+    def show_mapping(self):
+        return {
+            k: [cp.name for cp in cp_list]
+            for k, cp_list in self._data.items()
+        }
 
 
 class CropperSwarm:
@@ -41,8 +79,8 @@ class CropperSwarm:
     >>> cps.print_croppers()
     >>> cps.run()  # ! doesn't return output, processes folder images in the background
 
-    Nota: the `CropperSwarm` constructs in the background
-    a list of `CropperAlignments`. See `_make_cropper_alignments()` for more information.
+    Nota: the `CropperSwarm` constructs in the background a list of `CropperAlignments`.
+    See `CropperAlignments` for more information.
     """
 
     def __init__(self, croppers: list[Cropper | list[Cropper]]) -> None:
@@ -52,9 +90,7 @@ class CropperSwarm:
         ), "'croppers' list can only have Croppers and/or lists of Croppers."
 
         self.croppers = croppers
-        self.cropper_alignments: list[CropperAlignments] = [
-            self._make_cropper_alignments(cpp) for cpp in croppers
-        ]
+        self.cropper_alignments = [CropperAlignments(cpp) for cpp in croppers]
 
         self._croppers_flat = [
             cpp
@@ -99,7 +135,7 @@ class CropperSwarm:
             for cpp in self.croppers:
                 if isinstance(cpp, list):
                     s = [f"'{cpp_i.settings.name}'" for cpp_i in cpp]
-                    print(f"- {s}")
+                    print(f"- [{', '.join(s)}]")
                 else:
                     print(f"- '{cpp.settings.name}'")
 
@@ -131,26 +167,6 @@ class CropperSwarm:
             ]
         )
         return cppsw
-
-    @staticmethod
-    def _make_cropper_alignments(
-        croppers: Cropper | list[Cropper],
-    ) -> CropperAlignments:
-        """Group a list of Croppers into `CropperAlignments`.
-
-        A `CropperAlignments` dict maps folders to many `Croppers`.
-        In short, it's a way to take advantage of same-level `Croppers`
-        that share a source folder, so that the amount of times an image is loaded
-        is minimized.
-        """
-        if isinstance(croppers, list):
-            unique_srcs = set(cpp.settings.src_fd_rp for cpp in croppers)
-            return {
-                k: [cpp for cpp in croppers if cpp.settings.src_fd_rp == k]
-                for k in unique_srcs
-            }
-        else:
-            return {croppers.settings.src_fd_rp: [croppers]}
 
     # * Cropping helpers
 
@@ -221,6 +237,7 @@ class CropperSwarm:
 
     # * Cropping (using CropperAlignments)
 
+    @staticmethod
     def _cropper_fmts_nand(
         use_croppers: list[str] | None,
         use_fmts: list["FullModelType"] | None,
