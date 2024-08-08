@@ -75,7 +75,7 @@ class CharacterModel(IEModel):
         )
 
 
-class Status(IEModel):
+class StatusModel(IEModel):
     """Recommended custom `IEModel` with a status-based non-trained `model`"""
 
     def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:

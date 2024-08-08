@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import torch.nn.functional as F
 import yaml
+from math import isclose
 from torch import load, no_grad, save
 from torch import max as torch_max
 from torch.cuda import device as get_device
@@ -34,19 +35,21 @@ class EarlyStopper:
     """In charge of the early-stopping in the training process"""
 
     def __init__(self, patience=1, min_delta=0.0):
+        assert min_delta >= 0.0
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = float("inf")
 
     def early_stop(self, validation_loss: float) -> bool:
-        if validation_loss < self.min_validation_loss:
+        val_diff = self.min_validation_loss - validation_loss
+        if val_diff > self.min_delta:
             self.min_validation_loss = validation_loss
             self.counter = 0
-        elif (self.min_validation_loss + self.min_delta) < validation_loss:
+            return False
+        else:
             self.counter += 1
             return self.counter >= self.patience
-        return False
 
 
 class IEModel:
@@ -121,7 +124,12 @@ class IEModel:
         self.label_ref: Optional[dict[int, str]] = None
         self.model_is_trained = False
 
+    @staticmethod
+    def str_like(v: Any) -> bool:
+        return not (isinstance(v, (int, bool, float)) or v is None)
+
     def __repr__(self) -> str:
+        """IEModel(...)"""
         vals = {
             "type": self.model_type,
             "for_killer": self.is_for_killer,
@@ -129,7 +137,12 @@ class IEModel:
             "classes": self.total_classes,
             "trained": self.model_is_trained,
         }
-        vals = ", ".join([f"{k}='{v}'" for k, v in vals.items()])
+        vals = ", ".join(
+            [
+                f"{k}='{v}'" if self.str_like(v) else f"{k}={v}"
+                for k, v in vals.items()
+            ]
+        )
         if self.name is not None:
             vals = f"'{self.name}', " + vals
         return f"IEModel({vals})"
@@ -168,7 +181,7 @@ class IEModel:
 
         self._optimizer = Adam(self._model.parameters(), lr=self._cfg["adam_lr"])
         self._criterion = CrossEntropyLoss()
-        self._estop = EarlyStopper(patience=3, min_delta=-0.01)
+        self._estop = EarlyStopper(patience=3, min_delta=0.01)
 
         self._model = self._model.cuda()
 
@@ -262,7 +275,9 @@ class IEModel:
     # * Training
 
     def _load_process(
-        self, train_ds_path: "Path", val_ds_path: "Path"
+        self,
+        train_ds_path: "Path",
+        val_ds_path: "Path",
     ) -> tuple[DataLoader, DataLoader]:
         print("Loading data...", end=" ")
         train_dataset = DatasetClass(
@@ -294,7 +309,11 @@ class IEModel:
             row["label_id"]: row["name"] for _, row in label_ref.iterrows()
         }
 
-    def _train_process(self, train_loader: DataLoader, val_loader: DataLoader) -> None:
+    def _train_process(
+        self,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+    ) -> None:
         print("Training initialized...")
         epochs_clen = len(str(self._cfg["epochs"]))
         for epoch in range(1, self._cfg["epochs"] + 1):
@@ -356,7 +375,11 @@ class IEModel:
 
     # * Prediction
 
-    def _predict_process(self, dataset: DatasetClass, loader: DataLoader) -> np.ndarray:
+    def _predict_process(
+        self,
+        dataset: DatasetClass,
+        loader: DataLoader,
+    ) -> np.ndarray:
         all_preds = np.zeros(len(dataset), dtype=np.ushort)
         i = 0
         with no_grad():
