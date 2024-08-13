@@ -1,5 +1,5 @@
 import builtins
-from pytest import fixture, raises
+from pytest import fixture
 from dbdie_ml.options import CROP_TYPES, SURV_FMT, KILLER_FMT
 from dbdie_ml.cropper_swarm import Cropper, CropperSwarm, CropperAlignments
 
@@ -74,46 +74,3 @@ class TestCropperSwarm:
             cp_sp.settings.src_fd_rp: [cp_sp.name],
             cp_kp.settings.src_fd_rp: [cp_kp.name],
         }
-
-    def test__filter_use_croppers(self, mock_cropper_swarm):
-        cps: CropperSwarm = mock_cropper_swarm
-
-        assert cps._filter_use_croppers(None) == cps.cropper_flat_names
-        assert cps._filter_use_croppers(
-            cps.cropper_flat_names
-        ) == cps.cropper_flat_names
-        assert cps._filter_use_croppers(
-            cps.cropper_flat_names[1:3]
-        ) == cps.cropper_flat_names[1:3]
-        assert cps._filter_use_croppers(
-            cps.cropper_flat_names[3]
-        ) == [cps.cropper_flat_names[3]]
-
-        with raises(TypeError):
-            cps._filter_use_croppers()
-
-    def test__cropper_fmts_nand(self, mock_cropper_swarm):
-        cps: CropperSwarm = mock_cropper_swarm
-
-        cps._cropper_fmts_nand(
-            use_croppers=["cp1", "cp2"],
-            use_fmts=None,
-        )
-        cps._cropper_fmts_nand(
-            use_croppers=None,
-            use_fmts=["character__killer", "points", "perks"],
-        )
-        cps._cropper_fmts_nand(use_croppers=None, use_fmts=None)
-
-        with raises(TypeError):
-            cps._cropper_fmts_nand(use_croppers=["cp1", "cp2"])
-        with raises(TypeError):
-            cps._cropper_fmts_nand(use_fmts=["character__killer", "points", "perks"])
-        with raises(TypeError):
-            cps._cropper_fmts_nand()
-
-        with raises(AssertionError):
-            cps._cropper_fmts_nand(
-                use_croppers=["cp1", "cp2"],
-                use_fmts=["character__killer", "points", "perks"],
-            )

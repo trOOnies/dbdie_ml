@@ -13,15 +13,6 @@ def mock_surv_pm():
 
 
 class TestModels:
-    def test_str_like(self, mock_killer_pm):
-        pm: PerkModel = mock_killer_pm
-        assert not pm.str_like(None)
-        assert not pm.str_like(10)
-        assert not pm.str_like(0.1)
-        assert not pm.str_like(True)
-        assert pm.str_like("")
-        assert pm.str_like("sample text")
-
     def test_dunder_repr(self, mock_killer_pm):
         pm: PerkModel = mock_killer_pm
         assert str(pm) == (

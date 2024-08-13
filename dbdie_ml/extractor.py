@@ -1,16 +1,19 @@
 from __future__ import annotations
 import os
 import yaml
-import pandas as pd
-from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Union
-from shutil import rmtree
 from dbdie_ml.classes import SnippetInfo, Path, PathToFolder
 from dbdie_ml.models import IEModel
 
 # from dbdie_ml.db import to_player
 from dbdie_ml.schemas import MatchOut
-from dbdie_ml.utils import filter_multitype
+from dbdie_ml.code.extractor import (
+    folder_save_logic,
+    get_printable_info,
+    get_version_range,
+    match_preds_types,
+)
+
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -95,21 +98,6 @@ class InfoExtractor:
 
     # * Base
 
-    def _set_version_range(self, expected: Optional["DBDVersionRange"] = None) -> None:
-        assert all(model.selected_fd == mt for mt, model in self._models.items())
-
-        vrs = [model.version_range for model in self._models.values()]
-        version_range = vrs[0]
-
-        assert all(vr == version_range for vr in vrs), "All model versions must match"
-
-        if expected is not None:
-            assert (
-                version_range == expected
-            ), f"Seen version ('{version_range}') is different from expected version ('{expected}')"
-
-        self.version_range = version_range
-
     def init_extractor(
         self,
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
@@ -145,53 +133,24 @@ class InfoExtractor:
         else:
             self._models = trained_models
 
-        self._set_version_range(expected=expected_version_range)
+        self.version_range = get_version_range(
+            self._models,
+            expected=expected_version_range,
+        )
         if trained_models is None:
             for model in self._models.values():
                 model.init_model()
-
-    def _get_printable_info(self) -> dict[str, dict[str, str]]:
-        printable_info = {
-            mn: str(model)[8:-1]  # "IEModel(" and ")"
-            for mn, model in self._models.items()
-        }
-        printable_info = {mn: s.split(", ") for mn, s in printable_info.items()}
-        printable_info = {
-            mn: {
-                v[: v.index("=")]: v[v.index("=") + 2 : -1]
-                for v in vs
-                if v.find("=") > -1
-            }
-            for mn, vs in printable_info.items()
-        }
-        printable_info = {
-            mn: (
-                {
-                    "name": (
-                        self._models[mn].name
-                        if self._models[mn].name is not None
-                        else "UNNAMED"
-                    )
-                }
-                | d
-            )
-            for mn, d in printable_info.items()
-        }
-        return printable_info
 
     def print_models(self) -> None:
         print("EXTRACTOR:", str(self))
         print("MODELS:", end="")
 
-        if not self.models_are_init:
-            print(" NONE")
-        else:
+        if self.models_are_init:
             print()
-            printable_info = self._get_printable_info()
-            printable_info = pd.DataFrame.from_dict(printable_info)
-            printable_info = printable_info.T
-            printable_info = printable_info.set_index("name", drop=True)
+            printable_info = get_printable_info(self._models)
             print(printable_info)
+        else:
+            print(" NONE")
 
     # * Loading and saving
 
@@ -236,40 +195,10 @@ class InfoExtractor:
         with open(dst, "w") as f:
             yaml.dump(metadata, f)
 
-    def _folder_save_logic(self, extractor_fd: str, replace: bool) -> None:
-        """Logic for the creation of the saving folder and subfolders."""
-        if replace:
-            if os.path.isdir(extractor_fd):
-                rmtree(extractor_fd)
-            os.mkdir(extractor_fd)
-            os.mkdir(os.path.join(extractor_fd, "models"))
-        else:
-            models_fd = os.path.join(extractor_fd, "models")
-
-            if not os.path.isdir(extractor_fd):
-                os.mkdir(extractor_fd)
-                os.mkdir(models_fd)
-                for mn in self._models:
-                    path = os.path.join(models_fd, mn)
-                    os.mkdir(path)
-            else:
-                if not os.path.isdir(models_fd):
-                    os.mkdir(models_fd)
-                    for mn in self._models:
-                        path = os.path.join(models_fd, mn)
-                        os.mkdir(path)
-                else:
-                    for mn in self._models:
-                        path = os.path.join(models_fd, mn)
-                        if not os.path.isdir(path):
-                            os.mkdir(path)
-
     def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
         """Save all necessary objects of the `InfoExtractor` and all its `IEModels`"""
         assert self.models_are_trained, "Non-trained `InfoExtractor` cannot be saved"
-
-        self._folder_save_logic(extractor_fd, replace)
-
+        folder_save_logic(self._models, extractor_fd, replace)
         self._save_metadata(os.path.join(extractor_fd, "metadata.yaml"))
         for mn, model in self._models.items():
             model.save(os.path.join(extractor_fd, "models", mn))
@@ -332,26 +261,6 @@ class InfoExtractor:
             for mt, model in self._models.items()
         }
 
-    @staticmethod
-    def _match_preds_types(
-        preds: Union["ndarray", dict["FullModelType", "ndarray"]],
-        on: Optional[Union["FullModelType", list["FullModelType"]]],
-    ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
-        preds_is_dict = isinstance(preds, dict)
-        if preds_is_dict:
-            preds_ = {deepcopy(k): p for k, p in preds.items()}
-            on_ = filter_multitype(
-                on,
-                default=list(preds_.keys()),
-            )
-        else:
-            msg = "'on' must be a FullModelType if 'preds' is not a dict."
-            assert isinstance(on, str), msg
-            preds_ = {deepcopy(on): preds}
-            on_ = [deepcopy(on)]
-
-        return preds_, on_
-
     def convert_names(
         self,
         preds: Union["ndarray", dict["FullModelType", "ndarray"]],
@@ -370,7 +279,7 @@ class InfoExtractor:
         """
         assert self.models_are_trained
 
-        preds_, on_ = self._match_preds_types(preds, on)
+        preds_, on_ = match_preds_types(preds, on)
         names = {k: self._models[k].convert_names(preds_[k]) for k in on_}
         return names[list(names.keys())[0]] if isinstance(on, str) else names
 

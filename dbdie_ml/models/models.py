@@ -1,15 +1,11 @@
 from __future__ import annotations
 import json
 import os
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-import pandas as pd
-import torch.nn.functional as F
 import yaml
-from math import isclose
-from torch import load, no_grad, save
-from torch import max as torch_max
+from torch import load, save
 from torch.cuda import device as get_device
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda import mem_get_info
@@ -17,39 +13,25 @@ from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchsummary import summary
-from torchvision import transforms
 
 from dbdie_ml.classes import DBDVersionRange
 from dbdie_ml.data import DatasetClass, get_total_classes
 from dbdie_ml.options import MODEL_TYPES
+from dbdie_ml.code.models import is_str_like, load_label_ref
+from dbdie_ml.code.training import (
+    EarlyStopper,
+    TrainingConfig,
+    get_transform,
+    load_process,
+    predict_probas_process,
+    predict_process,
+    train_process,
+)
 
 if TYPE_CHECKING:
     from torch.nn import Sequential
-    from torch.nn.modules.loss import _Loss
-    from torch.optim import Optimizer
 
     from dbdie_ml.classes import Height, ModelType, Path, PathToFolder, Width
-
-
-class EarlyStopper:
-    """In charge of the early-stopping in the training process"""
-
-    def __init__(self, patience=1, min_delta=0.0):
-        assert min_delta >= 0.0
-        self.patience = patience
-        self.min_delta = min_delta
-        self.counter = 0
-        self.min_validation_loss = float("inf")
-
-    def early_stop(self, validation_loss: float) -> bool:
-        val_diff = self.min_validation_loss - validation_loss
-        if val_diff > self.min_delta:
-            self.min_validation_loss = validation_loss
-            self.counter = 0
-            return False
-        else:
-            self.counter += 1
-            return self.counter >= self.patience
 
 
 class IEModel:
@@ -115,18 +97,10 @@ class IEModel:
         self.total_classes: Optional[int] = None
 
         self._device = None
-        self._transform: Optional[transforms.Compose] = None
-        self._optimizer: Optional[Optimizer] = None
-        self._criterion: Optional[_Loss] = None
-        self._estop: Optional[EarlyStopper] = None
-        self._cfg: Optional[dict[str, Any]] = None
+        self.cfg: Optional[TrainingConfig] = None
 
         self.label_ref: Optional[dict[int, str]] = None
         self.model_is_trained = False
-
-    @staticmethod
-    def str_like(v: Any) -> bool:
-        return not (isinstance(v, (int, bool, float)) or v is None)
 
     def __repr__(self) -> str:
         """IEModel(...)"""
@@ -139,7 +113,7 @@ class IEModel:
         }
         vals = ", ".join(
             [
-                f"{k}='{v}'" if self.str_like(v) else f"{k}={v}"
+                f"{k}='{v}'" if is_str_like(v) else f"{k}={v}"
                 for k, v in vals.items()
             ]
         )
@@ -149,18 +123,9 @@ class IEModel:
 
     @property
     def model_is_init(self) -> bool:
-        return self._optimizer is not None
+        return self.cfg is not None
 
     # * Base
-
-    def _get_transform(self) -> transforms.Compose:
-        """Define any image transformations here"""
-        return transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(mean=self._norm_means, std=self._norm_std),
-            ]
-        )
 
     def init_model(self) -> None:
         """Initialize model to allow it to be trained"""
@@ -173,19 +138,22 @@ class IEModel:
         assert cuda_is_available()
         self._device = get_device("cuda")
 
+        self.total_classes = get_total_classes(self.selected_fd)
+        self._model = self._model.cuda()
+
         config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
         with open(config_path) as f:
             self._cfg = yaml.safe_load(f)
 
-        self.total_classes = get_total_classes(self.selected_fd)
+        self.cfg = self.cfg | {
+            "optimizer": Adam(self._model.parameters(), lr=self._cfg["adam_lr"]),
+            "criterion": CrossEntropyLoss(),
+            "transform": get_transform(self._norm_means, self._norm_std),
+            "estop": EarlyStopper(patience=3, min_delta=0.01),
+        }
+        del self.cfg["adam_lr"]
 
-        self._optimizer = Adam(self._model.parameters(), lr=self._cfg["adam_lr"])
-        self._criterion = CrossEntropyLoss()
-        self._estop = EarlyStopper(patience=3, min_delta=0.01)
-
-        self._model = self._model.cuda()
-
-        self._transform = self._get_transform()
+        self.cfg = TrainingConfig(**self.cfg)
 
     def get_summary(self) -> None:
         """Get underlying model summary"""
@@ -198,7 +166,7 @@ class IEModel:
                 self.image_size[0],
                 self.image_size[1],
             ),  # The number of channels is 3 (RGB)
-            batch_size=self._cfg["batch_size"],
+            batch_size=self.cfg.batch_size,
             device="cuda",
         )
 
@@ -274,87 +242,6 @@ class IEModel:
 
     # * Training
 
-    def _load_process(
-        self,
-        train_ds_path: "Path",
-        val_ds_path: "Path",
-    ) -> tuple[DataLoader, DataLoader]:
-        print("Loading data...", end=" ")
-        train_dataset = DatasetClass(
-            self.selected_fd, train_ds_path, transform=self._transform
-        )
-        val_dataset = DatasetClass(
-            self.selected_fd, val_ds_path, transform=self._transform
-        )
-
-        train_loader = DataLoader(
-            train_dataset, batch_size=self._cfg["batch_size"], shuffle=True
-        )
-        val_loader = DataLoader(val_dataset, batch_size=self._cfg["batch_size"])
-
-        print("Data loaded.")
-        print("- Train datapoints:", len(train_dataset))
-        print("- Val datapoints:", len(val_dataset))
-
-        return train_loader, val_loader
-
-    def _load_label_ref(self, path: "Path") -> None:
-        label_ref = pd.read_csv(
-            path, usecols=["label_id", "name"], dtype={"label_id": int, "name": str}
-        )
-        assert label_ref.label_id.min() == 0
-        assert label_ref.label_id.max() + 1 == label_ref.shape[0]
-        assert label_ref.label_id.nunique() == label_ref.shape[0]
-        self.label_ref = {
-            row["label_id"]: row["name"] for _, row in label_ref.iterrows()
-        }
-
-    def _train_process(
-        self,
-        train_loader: DataLoader,
-        val_loader: DataLoader,
-    ) -> None:
-        print("Training initialized...")
-        epochs_clen = len(str(self._cfg["epochs"]))
-        for epoch in range(1, self._cfg["epochs"] + 1):
-            self._model.train()
-            for images, labels in train_loader:
-                images = images.cuda()
-                labels = labels.cuda()
-
-                outputs = self._model(images)
-                loss = self._criterion(outputs, labels)
-
-                self._optimizer.zero_grad()
-                loss.backward()
-                self._optimizer.step()
-
-            self._model.eval()
-            with no_grad():
-                correct = 0
-                total = 0
-                for images, labels in val_loader:
-                    images = images.cuda()
-                    labels = labels.cuda()
-
-                    outputs = self._model(images)
-                    _, predicted = torch_max(outputs.data, 1)
-
-                    total += labels.size(0)
-                    correct += (predicted == labels).sum().item()
-
-                val_acc_pp = 100.0 * correct / total
-                print(
-                    f"- Epoch [{epoch:>{epochs_clen}}/{self._cfg['epochs']}]",
-                    f"Loss: {loss.item():.4f}",
-                    f"Val Acc: {val_acc_pp:.2f}%",
-                )
-                if self._estop.early_stop(100.0 - val_acc_pp):
-                    break
-        print("Training complete.")
-        self.model_is_trained = True
-        self._model.eval()
-
     def train(
         self,
         label_ref_path: "Path",
@@ -367,62 +254,35 @@ class IEModel:
         assert (
             not self.model_is_trained
         ), "IEModel cannot be retrained without being flushed first"
-        self._load_label_ref(label_ref_path)
-        train_loader, val_loader = self._load_process(
-            train_dataset_path, val_dataset_path
+        self.label_ref = load_label_ref(label_ref_path)
+        train_loader, val_loader = load_process(
+            self.selected_fd,
+            train_dataset_path,
+            val_dataset_path,
+            cfg=self.cfg,
         )
-        self._train_process(train_loader, val_loader)
+        train_process(
+            self._model,
+            train_loader,
+            val_loader,
+            cfg=self.cfg,
+        )
+        self.model_is_trained = True
 
     # * Prediction
-
-    def _predict_process(
-        self,
-        dataset: DatasetClass,
-        loader: DataLoader,
-    ) -> np.ndarray:
-        all_preds = np.zeros(len(dataset), dtype=np.ushort)
-        i = 0
-        with no_grad():
-            for images, labels in loader:
-                labels_len = labels.size()[0]
-                images = images.cuda()
-
-                outputs = self._model(images)
-                _, predicted = torch_max(outputs.data, 1)
-                all_preds[i : i + labels_len] = predicted.cpu().numpy()
-                i += labels_len
-        return all_preds
-
-    def _predict_probas_process(
-        self, dataset: DatasetClass, loader: DataLoader
-    ) -> np.ndarray:
-        all_preds = np.zeros((len(dataset), self.total_classes), dtype=float)
-        i = 0
-        with no_grad():
-            for images, labels in loader:
-                labels_len = labels.size()[0]
-                images = images.cuda()
-
-                outputs = self._model(images)
-                outputs = F.softmax(outputs, dim=1)
-                all_preds[i : i + labels_len, :] = outputs.cpu().numpy()
-                i += labels_len
-        return all_preds
 
     def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
         """Returns: preds or probas"""
         assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
-        dataset = DatasetClass(
-            self.selected_fd, dataset_path, transform=self._transform
-        )
-        loader = DataLoader(dataset, batch_size=self._cfg["batch_size"])
+        dataset = DatasetClass(self.selected_fd, dataset_path, transform=self.cfg.transform)
+        loader = DataLoader(dataset, batch_size=self.batch_size)
 
         if probas:
-            return self._predict_probas_process(dataset, loader)
+            return predict_probas_process(self._model, dataset, loader, self.total_classes)
         else:
-            return self._predict_process(dataset, loader)
+            return predict_process(self._model, dataset, loader)
 
     def convert_names(self, preds: np.ndarray) -> list[str]:
         """Convert integer predictions to named predictions"""
