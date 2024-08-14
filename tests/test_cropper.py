@@ -26,7 +26,7 @@ class TestCropper:
 
     def test_print_crops(self, monkeypatch, mock_cropper):
         text = []
-        monkeypatch.setattr(builtins, 'print', lambda s: text.append(s))
+        monkeypatch.setattr(builtins, "print", lambda s: text.append(s))
 
         cpp: Cropper = mock_cropper
         try:
@@ -39,7 +39,7 @@ class TestCropper:
                 i += 1
 
                 len_vs = len(vs)
-                assert text[i:i+len(vs)] == [f"- {v}" for v in vs]
+                assert text[i : i + len(vs)] == [f"- {v}" for v in vs]
                 i += len_vs
         finally:
             text = []

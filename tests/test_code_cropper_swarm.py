@@ -7,14 +7,20 @@ class TestCodeCropperSwarm:
     def test_filter_use_croppers(self):
         cropper_flat_names = CROP_TYPES.ALL
         assert filter_use_croppers(cropper_flat_names, None) == cropper_flat_names
-        assert filter_use_croppers(
-            cropper_flat_names,
-            cropper_flat_names,
-        ) == cropper_flat_names
-        assert filter_use_croppers(
-            cropper_flat_names,
-            cropper_flat_names[1:3],
-        ) == cropper_flat_names[1:3]
+        assert (
+            filter_use_croppers(
+                cropper_flat_names,
+                cropper_flat_names,
+            )
+            == cropper_flat_names
+        )
+        assert (
+            filter_use_croppers(
+                cropper_flat_names,
+                cropper_flat_names[1:3],
+            )
+            == cropper_flat_names[1:3]
+        )
         assert filter_use_croppers(
             cropper_flat_names,
             cropper_flat_names[3],

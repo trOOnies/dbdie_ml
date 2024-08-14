@@ -14,7 +14,7 @@ IMG_SURV_CS = CropSettings(
             (67, 257 + j * 117, 897, 257 + (j + 1) * 117) for j in range(3)
         ]
         + [(67, 257 + 3 * 117 + 1, 897, 257 + (3 + 1) * 117 + 1)]
-    },  # TODO: Check automatically all same FMT crops are the same size
+    },
 )
 IMG_KILLER_CS = CropSettings(
     name=CROP_TYPES.KILLER,
@@ -31,7 +31,7 @@ PLAYER_SURV_CS = CropSettings(
     src_fd_rp=f"{CROPS_MAIN_FD_RP}/player__surv",
     dst_fd_rp=CROPS_MAIN_FD_RP,
     version_range=DBDVersionRange(*DEFAULT_DBDVR),
-    img_size=(830, 117),  # TODO: Add func that extracts another CS's crop size
+    img_size=IMG_SURV_CS.crop_sizes["player__surv"],
     crops={
         "addons__surv": [(483 + j * 41, 58, 483 + (j + 1) * 41, 99) for j in range(2)],
         "character__surv": [(124, 5, 600, 38)],
@@ -48,7 +48,7 @@ PLAYER_KILLER_CS = CropSettings(
     src_fd_rp=f"{CROPS_MAIN_FD_RP}/player__killer",
     dst_fd_rp=CROPS_MAIN_FD_RP,
     version_range=DBDVersionRange(*DEFAULT_DBDVR),
-    img_size=(830, 117),
+    img_size=IMG_KILLER_CS.crop_sizes["player__killer"],
     crops={
         "addons__killer": [
             (483 + j * 41, 67, 483 + (j + 1) * 41, 108) for j in range(2)

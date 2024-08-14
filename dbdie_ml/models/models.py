@@ -112,10 +112,7 @@ class IEModel:
             "trained": self.model_is_trained,
         }
         vals = ", ".join(
-            [
-                f"{k}='{v}'" if is_str_like(v) else f"{k}={v}"
-                for k, v in vals.items()
-            ]
+            [f"{k}='{v}'" if is_str_like(v) else f"{k}={v}" for k, v in vals.items()]
         )
         if self.name is not None:
             vals = f"'{self.name}', " + vals
@@ -276,11 +273,15 @@ class IEModel:
         assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
-        dataset = DatasetClass(self.selected_fd, dataset_path, transform=self.cfg.transform)
+        dataset = DatasetClass(
+            self.selected_fd, dataset_path, transform=self.cfg.transform
+        )
         loader = DataLoader(dataset, batch_size=self.batch_size)
 
         if probas:
-            return predict_probas_process(self._model, dataset, loader, self.total_classes)
+            return predict_probas_process(
+                self._model, dataset, loader, self.total_classes
+            )
         else:
             return predict_process(self._model, dataset, loader)
 

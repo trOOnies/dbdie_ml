@@ -23,6 +23,7 @@ class CropperAlignments:
     that share a source folder, so that the amount of times an image is loaded
     is minimized.
     """
+
     def __init__(
         self,
         croppers: Cropper | list[Cropper],
@@ -34,7 +35,9 @@ class CropperAlignments:
                 for k in unique_srcs
             }
         elif isinstance(croppers, Cropper):
-            self._data: dict["RelPath", list[Cropper]] = {croppers.settings.src_fd_rp: [croppers]}
+            self._data: dict["RelPath", list[Cropper]] = {
+                croppers.settings.src_fd_rp: [croppers]
+            }
         else:
             raise TypeError
 
@@ -48,10 +51,7 @@ class CropperAlignments:
         return self._data[key]
 
     def show_mapping(self):
-        return {
-            k: [cp.name for cp in cp_list]
-            for k, cp_list in self._data.items()
-        }
+        return {k: [cp.name for cp in cp_list] for k, cp_list in self._data.items()}
 
 
 class CropperSwarm:
@@ -219,7 +219,9 @@ class CropperSwarm:
         else:
             # This will use the full list of Croppers if use_croppers is None
             cpp_to_use = filter_use_croppers(self.cropper_flat_names, use_croppers)
-            run_using_cropper_names(self.cropper_alignments, self._movable_report, cpp_to_use)
+            run_using_cropper_names(
+                self.cropper_alignments, self._movable_report, cpp_to_use
+            )
 
         if move:
             self.move_images()

@@ -109,6 +109,7 @@ class CropSettings:
     def __post_init__(self):
         self._setup_folder("src")
         self._setup_folder("dst")
+        self._check_crop_sizes()
 
     def _setup_folder(self, fd: Literal["src", "dst"]) -> None:
         """Initial processing of folder's attributes."""
@@ -124,6 +125,25 @@ class CropSettings:
 
         setattr(self, f"{fd}_fd_rp", rp)
         setattr(self, fd, path)
+
+    def _check_crop_sizes(self):
+        assert all(
+            (coord >= 0) and (coord <= limit)
+            for crops in self.crops.values()
+            for crop in crops
+            for coord, limit in zip(crop, self.img_size)
+        )
+
+        self.crop_sizes = {
+            name: (crops[0][2] - crops[0][0], crops[0][3] - crops[0][1])
+            for name, crops in self.crops.items()
+        }
+        assert all((cs[0] > 0) and (cs[1] > 0) for cs in self.crop_sizes.values())
+        assert all(
+            (c[2] - c[0], c[3] - c[1]) == self.crop_sizes[name]
+            for name, crops in self.crops.items()
+            for c in crops
+        )
 
 
 AllSnippetCoords = dict[PlayerId, SnippetCoords]

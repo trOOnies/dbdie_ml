@@ -39,21 +39,13 @@ def get_printable_info(models: dict) -> pd.DataFrame:
     printable_info = {mn: s.split(", ") for mn, s in printable_info.items()}
     printable_info = {
         mn: {
-            v[: v.index("=")]: v[v.index("=") + 2 : -1]
-            for v in vs
-            if v.find("=") > -1
+            v[: v.index("=")]: v[v.index("=") + 2 : -1] for v in vs if v.find("=") > -1
         }
         for mn, vs in printable_info.items()
     }
     printable_info = {
         mn: (
-            {
-                "name": (
-                    models[mn].name
-                    if models[mn].name is not None
-                    else "UNNAMED"
-                )
-            }
+            {"name": (models[mn].name if models[mn].name is not None else "UNNAMED")}
             | d
         )
         for mn, d in printable_info.items()

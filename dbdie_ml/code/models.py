@@ -24,6 +24,4 @@ def load_label_ref(path: "Path") -> dict[int, str]:
     assert unique_vals.max() + 1 == label_ref.shape[0]
     assert unique_vals.size == label_ref.shape[0]
 
-    return {
-        row["label_id"]: row["name"] for _, row in label_ref.iterrows()
-    }
+    return {row["label_id"]: row["name"] for _, row in label_ref.iterrows()}

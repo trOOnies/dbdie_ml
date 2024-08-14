@@ -21,7 +21,7 @@ class TestCropperSwarm:
 
     def test_print_croppers(self, monkeypatch, mock_cropper_swarm):
         text = []
-        monkeypatch.setattr(builtins, 'print', lambda *s: text.append(" ".join(s)))
+        monkeypatch.setattr(builtins, "print", lambda *s: text.append(" ".join(s)))
 
         cps: CropperSwarm = mock_cropper_swarm
 

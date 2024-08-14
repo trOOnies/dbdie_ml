@@ -2,7 +2,9 @@ from dbdie_ml.code.models import is_str_like
 
 
 class TestCodeModels:
-    def test_is_str_like(self, ):
+    def test_is_str_like(
+        self,
+    ):
         assert not is_str_like(None)
         assert not is_str_like(10)
         assert not is_str_like(0.1)

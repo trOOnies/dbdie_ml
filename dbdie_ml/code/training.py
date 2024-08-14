@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from dbdie_ml.data import DatasetClass
+
 if TYPE_CHECKING:
     from torch.optim import Optimizer
 
