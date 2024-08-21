@@ -95,11 +95,11 @@ def match_preds_types(
     on: Optional[Union["FullModelType", list["FullModelType"]]],
 ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
     if isinstance(preds, dict):
-        preds_ = {deepcopy(k): p for k, p in preds.items()}
         on_ = filter_multitype(
             on,
-            default=list(preds_.keys()),
+            default=list(preds.keys()),
         )
+        preds_ = {deepcopy(k): p for k, p in preds.items() if k in on_}
     else:
         msg = "'on' must be a FullModelType if 'preds' is not a dict."
         assert isinstance(on, str), msg
