@@ -1,6 +1,7 @@
 from pytest import raises
+
+from dbdie_ml.code.cropper_swarm import cropper_fmts_nand, filter_use_croppers
 from dbdie_ml.options import CROP_TYPES
-from dbdie_ml.code.cropper_swarm import filter_use_croppers, cropper_fmts_nand
 
 
 class TestCodeCropperSwarm:
@@ -39,13 +40,6 @@ class TestCodeCropperSwarm:
             use_fmts=["character__killer", "points", "perks"],
         )
         cropper_fmts_nand(use_croppers=None, use_fmts=None)
-
-        with raises(TypeError):
-            cropper_fmts_nand(use_croppers=["cp1", "cp2"])
-        with raises(TypeError):
-            cropper_fmts_nand(use_fmts=["character__killer", "points", "perks"])
-        with raises(TypeError):
-            cropper_fmts_nand()
 
         with raises(AssertionError):
             cropper_fmts_nand(

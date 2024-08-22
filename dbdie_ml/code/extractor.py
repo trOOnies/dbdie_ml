@@ -1,19 +1,24 @@
-import os
-import pandas as pd
-from shutil import rmtree
 from copy import deepcopy
+from os import mkdir
+from os.path import isdir, join
+from shutil import rmtree
 from typing import TYPE_CHECKING, Optional, Union
+
+import pandas as pd
+
 from dbdie_ml.utils import filter_multitype
 
 if TYPE_CHECKING:
     from numpy import ndarray
-    from dbdie_ml.classes import DBDVersionRange, FullModelType
+
+    from dbdie_ml.classes import DBDVersionRange, FullModelType, PathToFolder
+    from dbdie_ml.models import IEModel
 
 # * Base
 
 
 def get_version_range(
-    models: dict,
+    models: dict["FullModelType", "IEModel"],
     expected: Optional["DBDVersionRange"] = None,
 ) -> "DBDVersionRange":
     assert all(model.selected_fd == mt for mt, model in models.items())
@@ -59,32 +64,36 @@ def get_printable_info(models: dict) -> pd.DataFrame:
 # * Loading and saving
 
 
-def folder_save_logic(models: dict, extractor_fd: str, replace: bool) -> None:
+def folder_save_logic(
+    models: dict["FullModelType", "IEModel"],
+    extractor_fd: "PathToFolder",
+    replace: bool,
+) -> None:
     """Logic for the creation of the saving folder and subfolders."""
     if replace:
-        if os.path.isdir(extractor_fd):
+        if isdir(extractor_fd):
             rmtree(extractor_fd)
-        os.mkdir(extractor_fd)
-        os.mkdir(os.path.join(extractor_fd, "models"))
+        mkdir(extractor_fd)
+        mkdir(join(extractor_fd, "models"))
     else:
-        models_fd = os.path.join(extractor_fd, "models")
+        models_fd = join(extractor_fd, "models")
 
-        if not os.path.isdir(extractor_fd):
-            os.mkdir(extractor_fd)
-            os.mkdir(models_fd)
+        if not isdir(extractor_fd):
+            mkdir(extractor_fd)
+            mkdir(models_fd)
             for mn in models:
-                path = os.path.join(models_fd, mn)
-                os.mkdir(path)
-        elif not os.path.isdir(models_fd):
-            os.mkdir(models_fd)
+                path = join(models_fd, mn)
+                mkdir(path)
+        elif not isdir(models_fd):
+            mkdir(models_fd)
             for mn in models:
-                path = os.path.join(models_fd, mn)
-                os.mkdir(path)
+                path = join(models_fd, mn)
+                mkdir(path)
         else:
             for mn in models:
-                path = os.path.join(models_fd, mn)
-                if not os.path.isdir(path):
-                    os.mkdir(path)
+                path = join(models_fd, mn)
+                if not isdir(path):
+                    mkdir(path)
 
 
 # * Prediction

@@ -1,9 +1,252 @@
+import os
+from functools import partial
+from shutil import rmtree
+
 import numpy as np
-from pytest import raises
-from dbdie_ml.code.extractor import match_preds_types
+from pytest import mark, raises
+
+from dbdie_ml.classes import DBDVersionRange
+from dbdie_ml.code.extractor import (
+    folder_save_logic,
+    get_version_range,
+    match_preds_types,
+)
+
+
+class MockModel:
+    def __init__(self, selected_fd: str, version_range: DBDVersionRange):
+        self.selected_fd = selected_fd
+        self.version_range = version_range
 
 
 class TestCodeExtractor:
+    @mark.parametrize(
+        "models,expected",
+        [
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                None,
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__surv",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                None,
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__surv",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                DBDVersionRange("5.0.0", "7.0.0"),
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        None,
+                    ),
+                    "character__surv": (
+                        "character__surv",
+                        "5.0.0",
+                        None,
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        None,
+                    ),
+                },
+                DBDVersionRange("5.0.0"),
+            ),
+        ],
+    )
+    def test_get_version_range(self, models, expected):
+        models_proc = {
+            mt: MockModel(
+                vs[0],
+                DBDVersionRange(vs[1], vs[2]),
+            )
+            for mt, vs in models.items()
+        }
+        dbd_vr = get_version_range(models_proc, expected)
+
+        first_mt = list(models.keys())[0]
+        assert dbd_vr == DBDVersionRange(
+            models[first_mt][1],
+            models[first_mt][2],
+        )
+
+    @mark.parametrize(
+        "models,expected",
+        [
+            (
+                {
+                    "perks__killer": (
+                        "another_name",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                None,
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.1",
+                    ),
+                },
+                None,
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__killer",
+                        "4.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                None,
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                DBDVersionRange("5.0.0"),
+            ),
+            (
+                {
+                    "character__killer": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "character__surv": (
+                        "character__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                    "perks__killer": (
+                        "perks__killer",
+                        "5.0.0",
+                        "7.0.0",
+                    ),
+                },
+                DBDVersionRange("5.0.0", "7.0.1"),
+            ),
+        ],
+    )
+    def test_get_version_range_raises(self, models, expected):
+        models_proc = {
+            mt: MockModel(
+                vs[0],
+                DBDVersionRange(vs[1], vs[2]),
+            )
+            for mt, vs in models.items()
+        }
+        with raises(AssertionError):
+            get_version_range(models_proc, expected)
+
+    def test_folder_save_logic(self):
+        # TODO: More testing
+        fsl_fd = "./tests/files/folder_save_logic"
+        assert os.path.isdir(fsl_fd)
+        assert os.listdir(fsl_fd) == [".gitkeep"]
+        fsl = partial(os.path.join, fsl_fd)
+
+        extr_fd = fsl("my_extractor")
+        extr = partial(os.path.join, extr_fd)
+
+        model_list = ["perks_killer", "charactersurv", "character_killer"]
+        models = {
+            mt: MockModel(
+                mt,
+                DBDVersionRange("5.0.0", "7.0.0"),
+            )
+            for mt in model_list
+        }
+
+        try:
+            folder_save_logic(models, extr_fd, replace=False)
+            assert os.path.isdir(fsl("my_extractor"))
+            assert os.path.isdir(extr("models"))
+            assert all(os.path.isdir(extr(f"models/{mt}")) for mt in model_list)
+        finally:
+            rmtree(fsl_fd)
+            os.mkdir(fsl_fd)
+            with open(fsl(".gitkeep"), "w") as f:
+                f.write("")
+
     def test_match_preds_types(self):
         preds = np.array([1, 4, 0, 14, 4], dtype=int)
         on = "perks__killer"
