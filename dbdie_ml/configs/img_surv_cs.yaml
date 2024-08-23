@@ -1,0 +1,14 @@
+name: surv
+src_fd_rp: data/img/pending
+dst_fd_rp: data/crops
+version_range:
+  - "7.5.0"
+  - null
+img_size: [1920, 1080]
+crops:
+  player__surv:
+    - [67, 257, 897, 374]
+    - [67, 374, 897, 491]
+    - [67, 491, 897, 608]
+    - [67, 609, 897, 726]
+offset: null

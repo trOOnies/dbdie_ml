@@ -1,0 +1,31 @@
+name: killer_player
+src_fd_rp: data/crops/player__killer
+dst_fd_rp: data/crops
+version_range:
+  - "7.5.0"
+  - null
+img_size:
+  cs: killer
+  crop: player__killer
+crops:
+  addons__killer:
+    - [483, 67, 524, 108]
+    - [524, 67, 565, 108]
+  character__killer:
+    - [124, 15, 600, 48]
+  item__killer:
+    - [422, 68, 465, 110]
+  offering__killer:
+    - [356, 63, 405, 116]
+  perks__killer:
+    - [123, 60, 178, 116]
+    - [178, 60, 233, 116]
+    - [233, 60, 288, 116]
+    - [288, 60, 343, 116]
+  points:
+    - [582, 64, 752, 114]
+  prestige:
+    - [0, 9, 117, 125]
+  status:
+    - [124, 10, 155, 51]
+offset: 4

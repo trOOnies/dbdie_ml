@@ -13,6 +13,13 @@ from dbdie_ml.paths import (
     IMG_MAIN_FD_RP,
     IMG_VERSIONS_FD_RP,
     IN_CVAT_FD_RP,
+    INFERENCE_CROP_PENDING_IMG_FD_RP,
+    INFERENCE_CROPPED_IMG_FD_RP,
+    INFERENCE_CROPS_MAIN_FD_RP,
+    INFERENCE_IMG_MAIN_FD_RP,
+    INFERENCE_LABELS_FD_RP,
+    INFERENCE_LABELS_MAIN_FD_RP,
+    INFERENCE_LABELS_REF_FD_RP,
     LABELS_FD_RP,
     LABELS_MAIN_FD_RP,
     LABELS_REF_FD_RP,
@@ -43,30 +50,37 @@ def main():
     else:
         mkdir(environ["DBDIE_MAIN_FD"])
 
-    data_fd = absp("data")
-    assert not isdir(data_fd)
-    mkdir(data_fd)
+    for f in ["data", "inference"]:
+        data_fd = absp(f)
+        assert not isdir(data_fd)
+        mkdir(data_fd)
 
     # main subfolders
     mkdir(absp(CROPS_MAIN_FD_RP))
     mkdir(absp(IMG_MAIN_FD_RP))
     mkdir(absp(LABELS_MAIN_FD_RP))
-    # TODO: Add predictions to another folder,
-    # that nonetheless updates the training data
+    mkdir(absp(INFERENCE_CROPS_MAIN_FD_RP))
+    mkdir(absp(INFERENCE_IMG_MAIN_FD_RP))
+    mkdir(absp(INFERENCE_LABELS_MAIN_FD_RP))
 
     # crops
     all_fmt = list(set(PLAYER_FMT.ALL) | set(KILLER_FMT.ALL) | set(SURV_FMT.ALL))
     for fd in all_fmt:
         mkdir(join(absp(CROPS_MAIN_FD_RP), fd))
+        mkdir(join(absp(INFERENCE_CROPS_MAIN_FD_RP), fd))
 
     # img
     mkdir(absp(CROP_PENDING_IMG_FD_RP))
     mkdir(absp(CROPPED_IMG_FD_RP))
     mkdir(absp(IN_CVAT_FD_RP))
+    mkdir(absp(INFERENCE_CROP_PENDING_IMG_FD_RP))
+    mkdir(absp(INFERENCE_CROPPED_IMG_FD_RP))
 
     # labels
     mkdir(absp(LABELS_FD_RP))
     mkdir(absp(LABELS_REF_FD_RP))
+    mkdir(absp(INFERENCE_LABELS_FD_RP))
+    mkdir(absp(INFERENCE_LABELS_REF_FD_RP))
 
     # _old_versions
     mkdir(absp(CROPS_VERSIONS_FD_RP))

@@ -34,3 +34,7 @@ lint:
 .PHONY: test
 test:
 	python3 -m pytest --cov=dbdie_ml
+
+.PHONY: build
+build:
+	python3 -m build

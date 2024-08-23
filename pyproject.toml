@@ -22,7 +22,6 @@ dependencies = { file = ["requirements.txt"] }
 # optional-dependencies.dev = { file = ["requirements-dev.txt"] }
 # optional-dependencies.test = { file = ["requirements-test.txt"] }
 
-
 [tool.pytest.ini_options]
 minversion = "6.0"
 

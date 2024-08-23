@@ -1,30 +1,33 @@
 from __future__ import annotations
-import os
-import yaml
-from typing import TYPE_CHECKING, Optional, Union
-from dbdie_ml.classes import SnippetInfo, Path, PathToFolder
-from dbdie_ml.models import IEModel
 
-# from dbdie_ml.db import to_player
-from dbdie_ml.schemas import MatchOut
+import os
+from typing import TYPE_CHECKING, Optional, Union
+
+import yaml
+
+from dbdie_ml.classes import DBDVersion, Path, PathToFolder, PlayerInfo
 from dbdie_ml.code.extractor import (
     folder_save_logic,
     get_printable_info,
     get_version_range,
     match_preds_types,
 )
+from dbdie_ml.models import IEModel
 
+# from dbdie_ml.db import to_player
+from dbdie_ml.schemas.groupings import MatchOut
 
 if TYPE_CHECKING:
     from numpy import ndarray
+
     from dbdie_ml.classes import (
-        AllSnippetCoords,
-        AllSnippetInfo,
-        SnippetCoords,
-        FullModelType,
         DBDVersionRange,
+        FullModelType,
+        PlayersInfoDict,
+        PlayersSnippetCoords,
+        SnippetCoords,
     )
-    from dbdie_ml.schemas import PlayerOut
+    from dbdie_ml.schemas.groupings import PlayerOut
 
 TYPES_TO_ID_NAMES = {
     "character": "character_id",
@@ -38,10 +41,10 @@ TYPES_TO_ID_NAMES = {
 
 
 class InfoExtractor:
-    """Extracts information of an image using multiple `IEModels`.
+    """Extracts information of an image using multiple IEModels.
 
     Inputs:
-        name (str | None): Name of the `InfoExtractor`.
+        name (str | None): Name of the InfoExtractor.
 
     Attrs:
         version_range (DBDVersionRange | None): Inferred from its models.
@@ -51,13 +54,13 @@ class InfoExtractor:
 
     Usage:
     >>> ie = InfoExtractor(name="my_info_extractor")
-    >>> # ie._models = {"perks__surv": my_model, ...}  # ! only for super-users
+    >>> # ie.models = {"perks_surv": my_model, ...}  # ! only for super-users
     >>> ie.init_extractor()  # this uses all standard models
     >>> ie.train(...)
     >>> ie.save("/path/to/extractor/folder")
     >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
 
-    Load previously trained `InfoExtractor`:
+    Load previously trained InfoExtractor:
     >>> ie = InfoExtractor.from_folder("/path/to/extractor/folder")
     >>> new_preds_dict = ie.predict_batch({"perks": "/path/to/other/dataset.csv", ...})
     """
@@ -93,7 +96,7 @@ class InfoExtractor:
             return all(m.model_is_trained for m in self._models.values())
 
     # @staticmethod
-    # def to_players(snippets_info: "AllSnippetInfo") -> list["PlayerOut"]:
+    # def to_players(snippets_info: "PlayersInfoDict") -> list["PlayerOut"]:
     #     return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
 
     # * Base
@@ -103,7 +106,7 @@ class InfoExtractor:
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
         expected_version_range: Optional["DBDVersionRange"] = None,
     ) -> None:
-        """Initialize the `InfoExtractor` and its `IEModels`.
+        """Initialize the InfoExtractor and its IEModels.
         Can be provided with already trained models.
         """
         assert (
@@ -111,7 +114,7 @@ class InfoExtractor:
         ), "InfoExtractor can't be reinitialized before being flushed first"
 
         if trained_models is None:
-            from dbdie_ml.models.custom import PerkModel, CharacterModel
+            from dbdie_ml.models.custom import CharacterModel, PerkModel
 
             TYPES_TO_MODELS = {
                 "character": CharacterModel,
@@ -124,7 +127,7 @@ class InfoExtractor:
                 "perks__surv": False,
             }
             self._models = {
-                mt: TYPES_TO_MODELS[mt[: mt.index("__")]](
+                mt: TYPES_TO_MODELS[mt[: mt.index("")]](
                     name=f"{self.name}__m{i}" if self.name is not None else None,
                     is_for_killer=ifk,
                 )
@@ -196,8 +199,8 @@ class InfoExtractor:
             yaml.dump(metadata, f)
 
     def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
-        """Save all necessary objects of the `InfoExtractor` and all its `IEModels`"""
-        assert self.models_are_trained, "Non-trained `InfoExtractor` cannot be saved"
+        """Save all necessary objects of the InfoExtractor and all its IEModels"""
+        assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved"
         folder_save_logic(self._models, extractor_fd, replace)
         self._save_metadata(os.path.join(extractor_fd, "metadata.yaml"))
         for mn, model in self._models.items():
@@ -234,7 +237,7 @@ class InfoExtractor:
         print("All models have been trained.")
 
     def flush(self) -> None:
-        """Reset `InfoExtractor` to pre-init state."""
+        """Reset InfoExtractor to pre-init state."""
         model_names = (mn for mn in self._models)
         for mn in model_names:
             self._models[mn].flush()
@@ -242,13 +245,13 @@ class InfoExtractor:
 
     # * Prediction
 
-    def predict_on_snippet(self, s: "SnippetCoords") -> SnippetInfo:
+    def predict_on_snippet(self, s: "SnippetCoords") -> PlayerInfo:
         preds = {
             TYPES_TO_ID_NAMES[k]: model.predict(s) for k, model in self._models.items()
         }
-        return SnippetInfo(**preds)
+        return PlayerInfo(**preds)
 
-    def predict(self, snippets: "AllSnippetCoords") -> "AllSnippetInfo":
+    def predict(self, snippets: "PlayersSnippetCoords") -> "PlayersInfoDict":
         return {i: self.predict_on_snippet(s) for i, s in snippets.items()}
 
     def predict_batch(
@@ -273,18 +276,17 @@ class InfoExtractor:
         - dict[FullModelType, ndarray]: Preds from different model types
 
         on (Union[...]): Work 'on' certain model types
-        - FullModelType: Select a model type (only mode allowed when `preds` is a ndarray)
+        - FullModelType: Select a model type (only mode allowed when preds is a ndarray)
         - list[FullModelType]: Select many model types
-        - None: Select all provided model types in `preds`
+        - None: Select all provided model types in preds
         """
         assert self.models_are_trained
 
         preds_, on_ = match_preds_types(preds, on)
-        names = {k: self._models[k].convert_names(preds_[k]) for k in on_}
+        names = {k: self.models[k].convert_names(preds[k]) for k in on_}
         return names[list(names.keys())[0]] if isinstance(on, str) else names
 
     # * Match
 
-    def form_match(self, players: list["PlayerOut"]) -> MatchOut:
-        # TODO: version or version range?
-        return MatchOut(version=self.version_range, players=players)
+    def form_match(self, version: DBDVersion, players: list["PlayerOut"]) -> MatchOut:
+        return MatchOut(version=version, players=players)
