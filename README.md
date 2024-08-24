@@ -14,7 +14,7 @@ It is very much a WIP repo. I write it whenever I'm feeling inspired, thus its d
 - `CropperSwarm`: Chain of `Croppers` that can be run in sequence.
 - `InfoExtractor`: Extracts information of an image using multiple `IEModels`.
 - `IEModel`: ML model for the extraction of a particular information type, such as perks, addons, etc.
-- `MatchOut`: Extracted match information.
+- `FullMatchOut`: Extracted match information.
 
 ## Environment variables
 

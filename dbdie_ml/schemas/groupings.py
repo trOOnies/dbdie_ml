@@ -1,4 +1,5 @@
 from typing import Optional
+import datetime as dt
 
 from pydantic import BaseModel
 
@@ -18,6 +19,17 @@ from dbdie_ml.schemas.predictables import (
     Perk,
     Status,
 )
+
+# * Version
+
+
+class DBDVersionOut(BaseModel):
+    id: int
+    name: str
+    release_date: Optional[dt.date]
+
+
+# * Players
 
 
 class PlayerIn(BaseModel):
@@ -71,7 +83,38 @@ class PlayerOut(BaseModel):
             self.is_consistent = True
 
 
-class MatchOut(BaseModel):
+# * Matches
+
+
+class MatchCreate(BaseModel):
+    filename: str
+    match_date: Optional[dt.date]
+    dbd_version: Optional[DBDVersion]
+    special_mode: Optional[bool]
+    user: Optional[str]
+    extractor: Optional[str]
+    kills: Optional[int]
+
+
+class MatchOut(MatchCreate):
+    id: int
+    filename: str
+    match_date: Optional[dt.date]
+    dbd_version: Optional[DBDVersionOut]
+    special_mode: Optional[bool]
+    user: Optional[str]
+    extractor: Optional[str]
+    kills: Optional[int]
+    date_created: dt.datetime
+    date_modified: dt.datetime
+
+
+# class LabelsCreate(BaseModel):
+#     ...
+
+
+class FullMatchOut(BaseModel):
+    # TODO
     version: DBDVersion
     players: list[PlayerOut]
     kills: Optional[int] = None  # ! do not use

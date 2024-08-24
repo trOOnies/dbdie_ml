@@ -16,7 +16,7 @@ from dbdie_ml.code.extractor import (
 from dbdie_ml.models import IEModel
 
 # from dbdie_ml.db import to_player
-from dbdie_ml.schemas.groupings import MatchOut
+from dbdie_ml.schemas.groupings import FullMatchOut
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -290,5 +290,5 @@ class InfoExtractor:
 
     # * Match
 
-    def form_match(self, version: DBDVersion, players: list["PlayerOut"]) -> MatchOut:
-        return MatchOut(version=version, players=players)
+    def form_match(self, version: DBDVersion, players: list["PlayerOut"]) -> FullMatchOut:
+        return FullMatchOut(version=version, players=players)

@@ -5,7 +5,7 @@ import datetime as dt
 from dbdie_ml.classes.base import Probability
 
 
-class DBDVersion(BaseModel):
+class DBDVersionOut(BaseModel):
     id: int
     name: str
     release_date: Optional[dt.date]
