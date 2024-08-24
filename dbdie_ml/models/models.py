@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 import json
 import os
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import yaml
-from torch import load, save
+from functools import partial
+from torch import load
 from torch.cuda import device as get_device
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda import mem_get_info
@@ -14,10 +16,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from dbdie_ml.classes import DBDVersionRange
-from dbdie_ml.data import DatasetClass, get_total_classes
-from dbdie_ml.options import MODEL_TYPES
-from dbdie_ml.code.models import is_str_like, load_label_ref
+from dbdie_ml.classes.version import DBDVersionRange
+from dbdie_ml.code.models import (
+    is_str_like, load_label_ref, save_metadata, save_model,
+)
 from dbdie_ml.code.training import (
     EarlyStopper,
     TrainingConfig,
@@ -27,11 +29,20 @@ from dbdie_ml.code.training import (
     predict_process,
     train_process,
 )
+from dbdie_ml.data import DatasetClass, get_total_classes
+from dbdie_ml.options import MODEL_TYPES
 
 if TYPE_CHECKING:
     from torch.nn import Sequential
 
-    from dbdie_ml.classes import Height, ModelType, Path, PathToFolder, Width
+    from dbdie_ml.classes.base import (
+        CropCoords,
+        Height,
+        ModelType,
+        Path,
+        PathToFolder,
+        Width,
+    )
 
 
 class IEModel:
@@ -198,38 +209,23 @@ class IEModel:
 
         return iem
 
-    def _save_metadata(self, dst: "Path") -> None:
-        assert dst.endswith(".yaml")
-        metadata = {
-            k: getattr(self, k)
-            for k in ["name", "model_type", "is_for_killer", "version"]
-        }
-        metadata["image_size"] = list(self.image_size)
-        metadata.update({k: getattr(self, f"_{k}") for k in ["norm_means", "norm_std"]})
-        with open(dst, "w") as f:
-            yaml.dump(metadata, f)
-
-    def _save_model(self, dst: "Path") -> None:
-        assert self.model_is_trained, "IEModel is not trained"
-        assert dst.endswith(".pt")
-        save(self._model, dst)
-        # save(self._model.state_dict(), dst)
-
     def save(self, model_fd: "PathToFolder") -> None:
-        """Save all necessary objects of the `IEModel`"""
+        """Save all necessary objects of the IEModel"""
         print("Saving model...", end=" ")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
 
-        self._save_metadata(os.path.join(model_fd, "metadata.yaml"))
-        with open(os.path.join(model_fd, "label_ref.json"), "w") as f:
+        mfd = partial(os.path.join, model_fd)
+
+        save_metadata(self, mfd("metadata.yaml"))
+        with open(mfd("label_ref.json"), "w") as f:
             json.dump(self.label_ref, f, indent=4)
-        self._save_model(os.path.join(model_fd, "model.pt"))
+        save_model(self, mfd("model.pt"))
 
         print("Model saved.")
 
     def flush(self) -> None:
-        """Reset `IEModel` to pre-init state."""
+        """Reset IEModel to pre-init state."""
         # TODO: Reinit a flushed model
         if not self.model_is_init:
             return
@@ -268,19 +264,27 @@ class IEModel:
 
     # * Prediction
 
+    def predict(self, crop: "CropCoords"):
+        raise NotImplementedError
+
     def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
         """Returns: preds or probas"""
         assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
         dataset = DatasetClass(
-            self.selected_fd, dataset_path, transform=self.cfg.transform
+            self.selected_fd,
+            dataset_path,
+            transform=self.cfg.transform,
         )
         loader = DataLoader(dataset, batch_size=self.batch_size)
 
         if probas:
             return predict_probas_process(
-                self._model, dataset, loader, self.total_classes
+                self._model,
+                dataset,
+                loader,
+                self.total_classes,
             )
         else:
             return predict_process(self._model, dataset, loader)

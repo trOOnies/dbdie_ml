@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from numpy import int64 as np_int64
     from torch import Tensor
     from torchvision.transforms import Compose
-    from dbdie_ml.classes import FullModelType
+    from dbdie_ml.classes.base import FullModelType
 
 
 def get_total_classes(selected_fd: "FullModelType") -> int:

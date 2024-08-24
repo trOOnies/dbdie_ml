@@ -6,7 +6,8 @@ from dbdie_ml.utils import pls, filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import CropType, CropSettings, FullModelType, Path
+    from dbdie_ml.classes.base import CropType, FullModelType, Path
+    from dbdie_ml.classes.version import CropSettings
 
 CS_DICT: dict["CropType", "CropSettings"] = {cs.name: cs for cs in ALL_CS}
 

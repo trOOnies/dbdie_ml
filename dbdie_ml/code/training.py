@@ -12,7 +12,7 @@ from dbdie_ml.data import DatasetClass
 if TYPE_CHECKING:
     from torch.optim import Optimizer
 
-    from dbdie_ml.classes import FullModelType, Path
+    from dbdie_ml.classes.base import FullModelType, Path
 
 
 class EarlyStopper:

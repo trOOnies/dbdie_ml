@@ -1,4 +1,4 @@
-from dbdie_ml.classes import CropSettings
+from dbdie_ml.classes.version import CropSettings
 
 IMG_SURV_CS = CropSettings.from_config("img_surv_cs")
 IMG_KILLER_CS = CropSettings.from_config("img_killer_cs")

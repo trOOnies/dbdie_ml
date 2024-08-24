@@ -11,4 +11,7 @@ crops:
     - [67, 374, 897, 491]
     - [67, 491, 897, 608]
     - [67, 609, 897, 726]
+allow:
+  overlap: false
+  overboard: false
 offset: null

@@ -2,7 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 import datetime as dt
 
-from dbdie_ml.classes import Probability
+from dbdie_ml.classes.base import Probability
 
 
 class DBDVersion(BaseModel):

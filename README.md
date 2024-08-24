@@ -10,7 +10,7 @@ It is very much a WIP repo. I write it whenever I'm feeling inspired, thus its d
 
 ## Classes
 
-- `Cropper`: Crops images or image snippets according to its settings. Used to avoid hardcoding settings in the code.
+- `Cropper`: Crops images according to its settings. Used to avoid hardcoding settings in the code.
 - `CropperSwarm`: Chain of `Croppers` that can be run in sequence.
 - `InfoExtractor`: Extracts information of an image using multiple `IEModels`.
 - `IEModel`: ML model for the extraction of a particular information type, such as perks, addons, etc.

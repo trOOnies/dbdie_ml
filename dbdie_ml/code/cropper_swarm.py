@@ -7,7 +7,7 @@ from dbdie_ml.utils import filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes import FullModelType, Filename
+    from dbdie_ml.classes.base import FullModelType, Filename
     from dbdie_ml.cropper import Cropper
     from dbdie_ml.movable_report import MovableReport
 

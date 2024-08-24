@@ -12,7 +12,7 @@ from dbdie_ml.code.cropper_swarm import (
 )
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes import RelPath, CropType, FullModelType
+    from dbdie_ml.classes.base import RelPath, CropType, FullModelType
 
 
 class CropperAlignments:

@@ -28,4 +28,7 @@ crops:
     - [0, 9, 117, 125]
   status:
     - [124, 10, 155, 51]
+allow:
+  overlap: false
+  overboard: true
 offset: 4

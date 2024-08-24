@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import yaml
 
-from dbdie_ml.classes import DBDVersion, Path, PathToFolder, PlayerInfo
+from dbdie_ml.classes.base import Path, PathToFolder, PlayerInfo
+from dbdie_ml.classes.version import DBDVersion
 from dbdie_ml.code.extractor import (
     folder_save_logic,
     get_printable_info,
@@ -20,13 +21,13 @@ from dbdie_ml.schemas.groupings import MatchOut
 if TYPE_CHECKING:
     from numpy import ndarray
 
-    from dbdie_ml.classes import (
-        DBDVersionRange,
+    from dbdie_ml.classes.base import (
+        CropCoords,
         FullModelType,
+        PlayersCropCoords,
         PlayersInfoDict,
-        PlayersSnippetCoords,
-        SnippetCoords,
     )
+    from dbdie_ml.classes.version import DBDVersionRange
     from dbdie_ml.schemas.groupings import PlayerOut
 
 TYPES_TO_ID_NAMES = {
@@ -96,8 +97,8 @@ class InfoExtractor:
             return all(m.model_is_trained for m in self._models.values())
 
     # @staticmethod
-    # def to_players(snippets_info: "PlayersInfoDict") -> list["PlayerOut"]:
-    #     return [to_player(i, sn_info) for i, sn_info in snippets_info.items()]
+    # def to_players(players_info: "PlayersInfoDict") -> list["PlayerOut"]:
+    #     return [to_player(i, sn_info) for i, sn_info in players_info.items()]
 
     # * Base
 
@@ -245,14 +246,15 @@ class InfoExtractor:
 
     # * Prediction
 
-    def predict_on_snippet(self, s: "SnippetCoords") -> PlayerInfo:
+    def predict_on_crop(self, crop: "CropCoords") -> PlayerInfo:
         preds = {
-            TYPES_TO_ID_NAMES[k]: model.predict(s) for k, model in self._models.items()
+            TYPES_TO_ID_NAMES[k]: model.predict(crop)
+            for k, model in self._models.items()
         }
         return PlayerInfo(**preds)
 
-    def predict(self, snippets: "PlayersSnippetCoords") -> "PlayersInfoDict":
-        return {i: self.predict_on_snippet(s) for i, s in snippets.items()}
+    def predict(self, player_crops: "PlayersCropCoords") -> "PlayersInfoDict":
+        return {i: self.predict_on_crop(s) for i, s in player_crops.items()}
 
     def predict_batch(
         self, datasets: dict["FullModelType", Path], probas: bool = False

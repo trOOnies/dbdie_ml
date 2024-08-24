@@ -4,7 +4,7 @@ from shutil import move
 from dbdie_ml.paths import absp, relp, CROPPED_IMG_FD_RP, CROP_PENDING_IMG_FD_RP
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes import Filename, PathToFolder
+    from dbdie_ml.classes.base import Filename, PathToFolder
 
 MAX_PRINT_LEN = 10
 

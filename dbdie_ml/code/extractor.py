@@ -11,7 +11,8 @@ from dbdie_ml.utils import filter_multitype
 if TYPE_CHECKING:
     from numpy import ndarray
 
-    from dbdie_ml.classes import DBDVersionRange, FullModelType, PathToFolder
+    from dbdie_ml.classes.base import FullModelType, PathToFolder
+    from dbdie_ml.classes.version import DBDVersionRange
     from dbdie_ml.models import IEModel
 
 # * Base

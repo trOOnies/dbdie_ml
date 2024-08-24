@@ -2,7 +2,7 @@ from typing import Optional
 
 from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 
-from dbdie_ml.classes import DBDVersionRange
+from dbdie_ml.classes.version import DBDVersionRange
 from dbdie_ml.data import get_total_classes
 from dbdie_ml.models import IEModel
 

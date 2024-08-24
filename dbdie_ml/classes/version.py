@@ -1,40 +1,23 @@
 import os
 from dataclasses import dataclass
-from typing import Literal
+from itertools import combinations
+from typing import TYPE_CHECKING, Literal
 
 import yaml
 
+from dbdie_ml.classes.base import CropCoords
 from dbdie_ml.paths import absp
 
-CONFIGS_FD = os.path.join(os.path.dirname(__file__), "configs")
+if TYPE_CHECKING:
+    from dbdie_ml.classes.base import (
+        CropType,
+        FullModelType,
+        ImgSize,
+        Path,
+        RelPath,
+    )
 
-# General
-PlayerId = Literal[0, 1, 2, 3, 4]
-ModelType = Literal[
-    "character", "perks", "item", "addons", "offering", "status", "points"
-]
-FullModelType = str  # i.e. character__killer
-Probability = float  # 0.0 to 1.0
-
-# Paths
-Filename = str
-PathToFolder = str
-RelPath = str
-Path = str
-
-# Crops
-Width = int
-Height = int
-ImgSize = tuple[Width, Height]
-SnippetWindow = tuple[
-    int, int, int, int
-]  # Best estimation (1920x1080): (67,217) to (1015,897)
-SnippetCoords = tuple[
-    int, int, int, int
-]  # Best estimation (1920x1080): from 257 to 842 in intervals of 117
-EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
-
-CropType = Literal["surv", "killer", "surv_player", "killer_player"]
+CONFIGS_FD = os.path.join(os.path.dirname(os.path.dirname(__file__)), "configs")
 
 
 @dataclass(frozen=True, eq=True, order=True)
@@ -47,6 +30,10 @@ class DBDVersion:
 
     def __str__(self) -> str:
         return f"{self.major}.{self.minor}.{self.patch}"
+
+    @classmethod
+    def from_schema(cls, dbdv):
+        return DBDVersion(*dbdv.name.split("."))
 
 
 @dataclass
@@ -83,30 +70,18 @@ class DBDVersionRange:
         return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
 
 
-@dataclass
-class PlayerInfo:
-    """Integer-encoded DBD information of a player snippet"""
-
-    character_id: int
-    perks_ids: tuple[int, int, int, int]
-    item_id: int
-    addons_ids: tuple[int, int]
-    offering_id: int
-    status_id: int
-    points: int
-
-
 class CropSettings:
     """Settings for the cropping of a full screenshot or a previously cropped snippet"""
 
     def __init__(
         self,
-        name: CropType,
-        src_fd_rp: RelPath,
-        dst_fd_rp: RelPath,
+        name: "CropType",
+        src_fd_rp: "RelPath",
+        dst_fd_rp: "RelPath",
         version_range: DBDVersionRange,
-        img_size: ImgSize,
-        crops: dict[FullModelType, list[SnippetWindow] | list[SnippetCoords]],
+        img_size: "ImgSize",
+        crops: dict["FullModelType", list[CropCoords]],
+        allow: dict[Literal["overlap", "overboard"], bool],
         offset: int = 0,
     ) -> None:
         self.name = name
@@ -115,13 +90,14 @@ class CropSettings:
         self.version_range = version_range
         self.img_size = img_size
         self.crops = crops
+        self.allow = allow
         self.offset = offset
 
         self.src_fd_rp, self.src = self._setup_folder("src")
         self.dst_fd_rp, self.dst = self._setup_folder("dst")
-        self._check_crop_sizes()
+        self._check_crop_shapes()
 
-    def _setup_folder(self, fd: Literal["src", "dst"]) -> tuple[RelPath, Path]:
+    def _setup_folder(self, fd: Literal["src", "dst"]) -> tuple["RelPath", "Path"]:
         """Initial processing of folder's attributes."""
         assert fd in {"src", "dst"}
 
@@ -130,32 +106,36 @@ class CropSettings:
         rp = rp[:-1] if rp.endswith("/") else rp
 
         path = absp(rp)
-        print(path)
         assert os.path.isdir(path)
 
         return rp, path
 
-    def _check_crop_sizes(self):
+    def _check_crop_shapes(self):
         """Sets crop sizes and checks if crop coordinates are feasible."""
-        assert all(
-            (coord >= 0) and (coord <= limit)
-            for crops in self.crops.values()
-            for crop in crops
-            for coord, limit in zip(crop, self.img_size)
-        ), f"[ct={self.name}] Crop out of bounds"
+        if not self.allow["overboard"]:
+            img_crop = CropCoords(0, 0, self.img_size[0], self.img_size[1])
+            assert all(
+                crop.is_fully_inside(img_crop)
+                for crops in self.crops.values()
+                for crop in crops
+            ), f"[ct={self.name}] Crop out of bounds"
 
-        self.crop_sizes = {
-            name: (crops[0][2] - crops[0][0], crops[0][3] - crops[0][1])
-            for name, crops in self.crops.items()
-        }
+        self.crop_shapes = {name: crops[0].shape for name, crops in self.crops.items()}
         assert all(
-            (cs[0] > 0) and (cs[1] > 0) for cs in self.crop_sizes.values()
+            (cs[0] > 0) and (cs[1] > 0) for cs in self.crop_shapes.values()
         ), f"[ct={self.name}] Coord sizes must be positive"
         assert all(
-            (c[2] - c[0], c[3] - c[1]) == self.crop_sizes[name]
+            c.shape == self.crop_shapes[name]
             for name, crops in self.crops.items()
             for c in crops
-        ), f"[ct={self.name}] All crops must have the same size"
+        ), f"[ct={self.name}] All crops must have the same shape"
+
+        if not self.allow["overlap"]:
+            assert all(
+                not c1.check_overlap(c2)
+                for crops in self.crops.values()
+                for c1, c2 in combinations(crops, 2)
+            ), f"[ct={self.name}] Crops cannot overlap"
 
     # * Instantiation
 
@@ -171,24 +151,18 @@ class CropSettings:
 
         data["version_range"] = DBDVersionRange(*data["version_range"])
 
-        print(data)
-
         if depends_on is not None:
             assert isinstance(data["img_size"], dict)
             assert depends_on.name == data["img_size"]["cs"]
-            data["img_size"] = depends_on.crop_sizes[data["img_size"]["crop"]]
+            data["img_size"] = depends_on.crop_shapes[data["img_size"]["crop"]]
         else:
             assert isinstance(data["img_size"], list)
             assert len(data["img_size"]) == 2
             data["img_size"] = tuple(data["img_size"])
 
         data["crops"] = {
-            fmt: [tuple(c) for c in crops] for fmt, crops in data["crops"].items()
+            fmt: [CropCoords(*c) for c in crops] for fmt, crops in data["crops"].items()
         }
 
         cs = CropSettings(**data)
         return cs
-
-
-PlayersSnippetCoords = dict[PlayerId, SnippetCoords]
-PlayersInfoDict = dict[PlayerId, PlayerInfo]

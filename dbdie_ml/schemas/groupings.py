@@ -2,7 +2,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from dbdie_ml.classes import DBDVersion, PlayerId
+from dbdie_ml.classes.base import PlayerId
+from dbdie_ml.classes.version import DBDVersion
 from dbdie_ml.code.schemas import (
     check_addons_consistency,
     check_item_consistency,

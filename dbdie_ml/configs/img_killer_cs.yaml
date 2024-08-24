@@ -8,4 +8,7 @@ img_size: [1920, 1080]
 crops:
   player__killer:
     - [66, 716, 896, 833]
+allow:
+  overlap: false
+  overboard: false
 offset: 4

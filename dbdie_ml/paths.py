@@ -2,7 +2,7 @@ import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes import Path, RelPath
+    from dbdie_ml.classes.base import Path, RelPath
 
 OLD_VERSIONS_NAME = "_old_versions"
 
