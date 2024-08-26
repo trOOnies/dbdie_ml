@@ -1,5 +1,5 @@
-from typing import Optional
 import datetime as dt
+from typing import Optional
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
@@ -12,12 +12,12 @@ from dbdie_ml.code.schemas import (
     check_status_consistency,
 )
 from dbdie_ml.schemas.predictables import (
-    Addon,
-    Character,
-    Item,
-    Offering,
-    Perk,
-    Status,
+    AddonOut,
+    CharacterOut,
+    ItemOut,
+    OfferingOut,
+    PerkOut,
+    StatusOut,
 )
 
 # * Version
@@ -34,6 +34,7 @@ class DBDVersionOut(BaseModel):
 
 class PlayerIn(BaseModel):
     """Player to be"""
+
     id: PlayerId
     character_id: Optional[int] = Field(None, ge=0)
     perk_ids: Optional[list[int]] = None
@@ -42,6 +43,20 @@ class PlayerIn(BaseModel):
     offering_id: Optional[int] = Field(None, ge=0)
     status_id: Optional[int] = Field(None, ge=0)
     points: Optional[int] = Field(None, ge=0)
+
+    @classmethod
+    def from_labels(cls, labels):
+        player = PlayerIn(
+            id=labels.player_id,
+            character_id=labels.character,
+            perk_ids=[labels.perk_0, labels.perk_1, labels.perk_2, labels.perk_3],
+            item_id=labels.item,
+            addon_ids=[labels.addon_0, labels.addon_1],
+            offering_id=labels.offering,
+            status_id=labels.status,
+            points=labels.points,
+        )
+        return player
 
     @field_validator("perk_ids", "addon_ids")
     @classmethod
@@ -65,12 +80,12 @@ class PlayerIn(BaseModel):
 
 class PlayerOut(BaseModel):
     id: PlayerId
-    character: Character
-    perks: list[Perk]
-    item: Item
-    addons: list[Addon]
-    offering: Offering
-    status: Status
+    character: CharacterOut
+    perks: list[PerkOut]
+    item: ItemOut
+    addons: list[AddonOut]
+    offering: OfferingOut
+    status: StatusOut
     points: int
     is_consistent: Optional[bool] = None
 
@@ -119,7 +134,7 @@ class MatchCreate(BaseModel):
     kills: Optional[int] = Field(None, ge=0, le=4)
 
 
-class MatchOut(MatchCreate):
+class MatchOut(BaseModel):
     id: int
     filename: str
     match_date: Optional[dt.date]
@@ -137,7 +152,7 @@ class LabelsCreate(BaseModel):
     player: PlayerIn
 
 
-class LabelsOut(LabelsCreate):
+class LabelsOut(BaseModel):
     match_id: int
     player: PlayerIn
     date_modified: dt.datetime

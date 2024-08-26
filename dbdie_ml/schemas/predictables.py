@@ -1,8 +1,14 @@
-from typing import Optional
-from pydantic import BaseModel, ConfigDict
 import datetime as dt
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 from dbdie_ml.classes.base import Probability
+
+
+class DBDVersionCreate(BaseModel):
+    name: str
+    release_date: Optional[dt.date]
 
 
 class DBDVersionOut(BaseModel):
@@ -13,18 +19,18 @@ class DBDVersionOut(BaseModel):
 
 class CharacterCreate(BaseModel):
     name: str
-    is_killer: bool
+    is_killer: Optional[bool]
 
 
-class Character(BaseModel):
+class CharacterOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     proba: Probability | None = None
-    is_killer: Optional[bool] = None
-    base_char_id: Optional[int] = None
-    dbd_version_id: Optional[int] = None
+    is_killer: Optional[bool]
+    base_char_id: Optional[int]
+    dbd_version_id: Optional[int]
 
 
 class PerkCreate(BaseModel):
@@ -32,7 +38,7 @@ class PerkCreate(BaseModel):
     character_id: int
 
 
-class Perk(BaseModel):
+class PerkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -42,7 +48,12 @@ class Perk(BaseModel):
     is_for_killer: Optional[bool]
 
 
-class Item(BaseModel):
+class ItemCreate(BaseModel):
+    name: str
+    type_id: int
+
+
+class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -51,7 +62,16 @@ class Item(BaseModel):
     type_id: int
 
 
-class Offering(BaseModel):
+class OfferingCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    type_id: int
+    user_id: int
+    is_for_killer: Optional[bool]
+
+
+class OfferingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -68,7 +88,7 @@ class AddonCreate(BaseModel):
     user_id: int
 
 
-class Addon(BaseModel):
+class AddonOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -78,17 +98,25 @@ class Addon(BaseModel):
     user_id: int
 
 
-class Status(BaseModel):
+class StatusCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    character_id: int
+    is_dead: Optional[bool]
+
+
+class StatusOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     proba: Probability | None = None
     character_id: int
-    is_dead: Optional[bool] = None
+    is_dead: Optional[bool]
 
 
-class FullCharacter(BaseModel):
-    character: Character
-    perks: list[Perk]
-    addons: list[Addon]
+class FullCharacterOut(BaseModel):
+    character: CharacterOut
+    perks: list[PerkOut]
+    addons: list[AddonOut]
