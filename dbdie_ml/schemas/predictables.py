@@ -22,9 +22,9 @@ class Character(BaseModel):
     id: int
     name: str
     proba: Probability | None = None
-    is_killer: Optional[bool]
-    base_char_id: Optional[int]
-    dbd_version_id: Optional[int]
+    is_killer: Optional[bool] = None
+    base_char_id: Optional[int] = None
+    dbd_version_id: Optional[int] = None
 
 
 class PerkCreate(BaseModel):
@@ -85,7 +85,7 @@ class Status(BaseModel):
     name: str
     proba: Probability | None = None
     character_id: int
-    is_dead: Optional[bool]
+    is_dead: Optional[bool] = None
 
 
 class FullCharacter(BaseModel):

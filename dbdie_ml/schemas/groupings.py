@@ -1,7 +1,7 @@
 from typing import Optional
 import datetime as dt
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from dbdie_ml.classes.base import PlayerId
 from dbdie_ml.classes.version import DBDVersion
@@ -33,11 +33,34 @@ class DBDVersionOut(BaseModel):
 
 
 class PlayerIn(BaseModel):
-    character_id: int
-    perk_ids: list[int]
-    item_id: int
-    addon_ids: list[int]
-    offering_id: int
+    """Player to be"""
+    id: PlayerId
+    character_id: Optional[int] = Field(None, ge=0)
+    perk_ids: Optional[list[int]] = None
+    item_id: Optional[int] = Field(None, ge=0)
+    addon_ids: Optional[list[int]] = None
+    offering_id: Optional[int] = Field(None, ge=0)
+    status_id: Optional[int] = Field(None, ge=0)
+    points: Optional[int] = Field(None, ge=0)
+
+    @field_validator("perk_ids", "addon_ids")
+    @classmethod
+    def count_is(
+        cls,
+        v: Optional[list[int]],
+        info: ValidationInfo,
+    ) -> Optional[list[int]]:
+        if v is None:
+            return v
+        elif info.field_name == "perk_ids":
+            assert len(v) == 4, "There can only be 4 perks or None"
+            assert all(p >= 0 for p in v), "Perk ids can't be negative"
+        elif info.field_name == "addon_ids":
+            assert len(v) == 2, "There can only be 2 addons or None"
+            assert all(p >= 0 for p in v), "Addon ids can't be negative"
+        else:
+            raise NotImplementedError
+        return v
 
 
 class PlayerOut(BaseModel):
@@ -88,12 +111,12 @@ class PlayerOut(BaseModel):
 
 class MatchCreate(BaseModel):
     filename: str
-    match_date: Optional[dt.date]
-    dbd_version: Optional[DBDVersion]
-    special_mode: Optional[bool]
-    user: Optional[str]
-    extractor: Optional[str]
-    kills: Optional[int]
+    match_date: Optional[dt.date] = None
+    dbd_version: Optional[DBDVersion] = None
+    special_mode: Optional[bool] = None
+    user: Optional[str] = None
+    extractor: Optional[str] = None
+    kills: Optional[int] = Field(None, ge=0, le=4)
 
 
 class MatchOut(MatchCreate):
@@ -109,8 +132,15 @@ class MatchOut(MatchCreate):
     date_modified: dt.datetime
 
 
-# class LabelsCreate(BaseModel):
-#     ...
+class LabelsCreate(BaseModel):
+    match_id: int
+    player: PlayerIn
+
+
+class LabelsOut(LabelsCreate):
+    match_id: int
+    player: PlayerIn
+    date_modified: dt.datetime
 
 
 class FullMatchOut(BaseModel):
