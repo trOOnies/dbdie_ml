@@ -27,13 +27,27 @@ class DBDVersion:
     major: str
     minor: str
     patch: str
+    is_not_ptb: bool = True
 
     def __str__(self) -> str:
-        return f"{self.major}.{self.minor}.{self.patch}"
+        return (
+            f"{self.major}.{self.minor}.{self.patch}{'' if self.is_not_ptb else '-ptb'}"
+        )
+
+    @classmethod
+    def from_str(cls, s: str):
+        ss = s.split(".")
+        is_ptb = ss[2].endswith("-ptb")
+        return DBDVersion(
+            ss[0],
+            ss[1],
+            ss[2][:-4] if is_ptb else ss[2],
+            not is_ptb,
+        )
 
     @classmethod
     def from_schema(cls, dbdv):
-        return DBDVersion(*dbdv.name.split("."))
+        return cls.from_str(dbdv.name)
 
 
 @dataclass
@@ -45,10 +59,8 @@ class DBDVersionRange:
 
     def __post_init__(self):
         self.bounded = self.max_id is not None
-        self._id = DBDVersion(*[v for v in self.id.split(".")])
-        self._max_id = (
-            DBDVersion(*[v for v in self.max_id.split(".")]) if self.bounded else None
-        )
+        self._id = DBDVersion.from_str(self.id)
+        self._max_id = DBDVersion.from_str(self.max_id) if self.bounded else None
 
     def __str__(self) -> str:
         return f">={self._id},<{self._max_id}" if self.bounded else f">={self._id}"
@@ -68,6 +80,21 @@ class DBDVersionRange:
 
     def __contains__(self, v: DBDVersion) -> bool:
         return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
+
+    def __and__(self, other):
+        """DBDVersions intersection."""
+        _id = max(self._id, other._id)
+        id = str(_id)
+
+        if not self.bounded:
+            max_id = other.max_id
+        elif not other.bounded:
+            max_id = self.max_id
+        else:
+            _max_id = min(self._max_id, other._max_id)
+            max_id = str(_max_id)
+
+        return DBDVersionRange(id, max_id)
 
 
 class CropSettings:
