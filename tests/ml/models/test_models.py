@@ -1,4 +1,4 @@
-from dbdie_ml.models.models import EarlyStopper
+from dbdie_ml.ml.models.models import EarlyStopper
 
 
 class TestModels:

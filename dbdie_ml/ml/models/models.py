@@ -18,7 +18,10 @@ from torchsummary import summary
 
 from dbdie_ml.classes.version import DBDVersionRange
 from dbdie_ml.code.models import (
-    is_str_like, load_label_ref, save_metadata, save_model,
+    is_str_like,
+    load_label_ref,
+    save_metadata,
+    save_model,
 )
 from dbdie_ml.code.training import (
     EarlyStopper,

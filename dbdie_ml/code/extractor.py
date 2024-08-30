@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from dbdie_ml.classes.base import FullModelType, PathToFolder
     from dbdie_ml.classes.version import DBDVersionRange
-    from dbdie_ml.models import IEModel
+    from dbdie_ml.ml.models import IEModel
 
 # * Base
 

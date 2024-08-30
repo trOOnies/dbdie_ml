@@ -1,3 +1,5 @@
+"""Survivor FullModelTypes"""
+
 from dbdie_ml.options import COMMON_FMT
 
 ADDONS = "addons__surv"

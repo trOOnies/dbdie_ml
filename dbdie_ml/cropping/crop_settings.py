@@ -1,3 +1,5 @@
+"""Cropping settings implementation"""
+
 from dbdie_ml.classes.version import CropSettings
 
 IMG_SURV_CS = CropSettings.from_config("img_surv_cs")

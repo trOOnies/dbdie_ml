@@ -35,8 +35,7 @@ def load_label_ref(path: "Path") -> dict[int, str]:
 def save_metadata(model, dst: "Path") -> None:
     assert dst.endswith(".yaml")
     metadata = {
-        k: getattr(model, k)
-        for k in ["name", "model_type", "is_for_killer", "version"]
+        k: getattr(model, k) for k in ["name", "model_type", "is_for_killer", "version"]
     }
     metadata["image_size"] = list(model.image_size)
     metadata.update({k: getattr(model, f"_{k}") for k in ["norm_means", "norm_std"]})

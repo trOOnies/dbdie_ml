@@ -1,3 +1,5 @@
+"""Pydantic schemas for the grouping classes"""
+
 import datetime as dt
 from typing import Optional
 

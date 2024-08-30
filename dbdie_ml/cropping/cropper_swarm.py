@@ -1,8 +1,7 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from dbdie_ml.cropper import Cropper
-from dbdie_ml.movable_report import MovableReport
-from dbdie_ml.utils import pls
+
 from dbdie_ml.code.cropper_swarm import (
     cropper_fmts_nand,
     filter_use_croppers,
@@ -10,16 +9,19 @@ from dbdie_ml.code.cropper_swarm import (
     run_using_cropper_names,
     run_using_fmts,
 )
+from dbdie_ml.cropping.cropper import Cropper
+from dbdie_ml.cropping.movable_report import MovableReport
+from dbdie_ml.utils import pls
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import RelPath, CropType, FullModelType
+    from dbdie_ml.classes.base import CropType, FullModelType, RelPath
 
 
 class CropperAlignments:
-    """Group a list of Croppers into `CropperAlignments`.
+    """Group a list of Croppers into CropperAlignments.
 
-    A `CropperAlignments` dict maps folders to many `Croppers`.
-    In short, it's a way to take advantage of same-level `Croppers`
+    A CropperAlignments dict maps folders to many Croppers.
+    In short, it's a way to take advantage of same-level Croppers
     that share a source folder, so that the amount of times an image is loaded
     is minimized.
     """
@@ -55,7 +57,7 @@ class CropperAlignments:
 
 
 class CropperSwarm:
-    """Chain of `Croppers` that can be run in sequence.
+    """Chain of Croppers that can be run in sequence.
     This input sequence will be respected, so it's best to design
     it based on crop dependencies.
 
@@ -80,8 +82,8 @@ class CropperSwarm:
     >>> cps.print_croppers()
     >>> cps.run()  # ! doesn't return output, processes folder images in the background
 
-    Nota: the `CropperSwarm` constructs in the background a list of `CropperAlignments`.
-    See `CropperAlignments` for more information.
+    Nota: the CropperSwarm constructs in the background a list of CropperAlignments.
+    See CropperAlignments for more information.
     """
 
     def __init__(self, croppers: list[Cropper | list[Cropper]]) -> None:
@@ -141,7 +143,7 @@ class CropperSwarm:
                     print(f"- '{cpp.settings.name}'")
 
     def get_all_fmts(self) -> list:
-        """Get all `FullModelTypes` present in its `Croppers`"""
+        """Get all FullModelTypes present in its Croppers"""
         return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
 
     # * Instantiate
@@ -174,7 +176,7 @@ class CropperSwarm:
         move: bool = True,
         use_croppers: list[str] | None = None,
     ) -> None:
-        """[OLD] Run all `Croppers` in their preset order"""
+        """[OLD] Run all Croppers in their preset order"""
         cpp_to_use = filter_use_croppers(self.cropper_flat_names, use_croppers)
 
         self._movable_report = MovableReport()
@@ -200,15 +202,15 @@ class CropperSwarm:
         use_croppers: list[str] | None = None,
         use_fmts: list["FullModelType"] | None = None,
     ) -> None:
-        """[NEW] Run all `Croppers` iterating on images first.
+        """[NEW] Run all Croppers iterating on images first.
 
         move: Whether to move the source images at the end of the cropping.
-            Note: The `MovableReport` still avoid creating crops
+            Note: The MovableReport still avoid creating crops
             of duplicate source images.
 
         Filter options (cannot be used at the same time):
-        - use_croppers: Filter cropping using `Cropper` names (level=`Cropper`).
-        - use_fmt: Filter cropping using `FullModelTypes` names (level=crop type).
+        - use_croppers: Filter cropping using Cropper names (level=Cropper).
+        - use_fmt: Filter cropping using FullModelTypes names (level=crop type).
         """
         cropper_fmts_nand(use_croppers, use_fmts)
 

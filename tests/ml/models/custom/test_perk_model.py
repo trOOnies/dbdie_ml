@@ -1,5 +1,5 @@
 from pytest import fixture
-from dbdie_ml.models.custom import PerkModel
+from dbdie_ml.ml.models.custom import PerkModel
 
 
 @fixture

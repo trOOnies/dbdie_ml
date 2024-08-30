@@ -1,3 +1,7 @@
+"""Types of models.
+They aren't 'full' (FullModelTypes) because they lack the surv / killer suffix.
+"""
+
 from dbdie_ml.options import COMMON_FMT
 
 ADDONS = "addons"

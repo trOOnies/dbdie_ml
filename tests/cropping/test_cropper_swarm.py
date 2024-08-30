@@ -1,7 +1,7 @@
 import builtins
 from pytest import fixture
 from dbdie_ml.options import CROP_TYPES, SURV_FMT, KILLER_FMT
-from dbdie_ml.cropper_swarm import Cropper, CropperSwarm, CropperAlignments
+from dbdie_ml.cropping.cropper_swarm import Cropper, CropperSwarm, CropperAlignments
 
 
 @fixture

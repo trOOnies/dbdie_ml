@@ -1,3 +1,5 @@
+"""DBD version related classes"""
+
 import os
 from dataclasses import dataclass
 from itertools import combinations

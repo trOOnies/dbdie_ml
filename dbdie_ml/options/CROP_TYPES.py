@@ -1,3 +1,5 @@
+"""Types of crops made by the Croppers"""
+
 SURV = "surv"
 KILLER = "killer"
 SURV_PLAYER = "surv_player"

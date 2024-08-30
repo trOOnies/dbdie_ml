@@ -1,3 +1,5 @@
+"""InfoExtractor code (which manages many IEModels)"""
+
 from __future__ import annotations
 
 import os
@@ -13,7 +15,7 @@ from dbdie_ml.code.extractor import (
     get_version_range,
     match_preds_types,
 )
-from dbdie_ml.models import IEModel
+from dbdie_ml.ml.models import IEModel
 
 # from dbdie_ml.db import to_player
 from dbdie_ml.schemas.groupings import FullMatchOut
@@ -115,7 +117,7 @@ class InfoExtractor:
         ), "InfoExtractor can't be reinitialized before being flushed first"
 
         if trained_models is None:
-            from dbdie_ml.models.custom import CharacterModel, PerkModel
+            from dbdie_ml.ml.models.custom import CharacterModel, PerkModel
 
             TYPES_TO_MODELS = {
                 "character": CharacterModel,
@@ -290,5 +292,7 @@ class InfoExtractor:
 
     # * Match
 
-    def form_match(self, version: DBDVersion, players: list["PlayerOut"]) -> FullMatchOut:
+    def form_match(
+        self, version: DBDVersion, players: list["PlayerOut"]
+    ) -> FullMatchOut:
         return FullMatchOut(version=version, players=players)

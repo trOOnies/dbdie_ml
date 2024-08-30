@@ -1,3 +1,5 @@
+"""Common FullModelTypes"""
+
 POINTS = "points"
 PRESTIGE = "prestige"
 STATUS = "status"

@@ -1,3 +1,5 @@
+"""Standard paths for DBDIE"""
+
 import os
 from typing import TYPE_CHECKING
 

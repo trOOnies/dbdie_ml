@@ -1,7 +1,8 @@
 import os
-from typing import TYPE_CHECKING
 from shutil import move
-from dbdie_ml.paths import absp, relp, CROPPED_IMG_FD_RP, CROP_PENDING_IMG_FD_RP
+from typing import TYPE_CHECKING
+
+from dbdie_ml.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
 
 if TYPE_CHECKING:
     from dbdie_ml.classes.base import Filename, PathToFolder
@@ -10,15 +11,15 @@ MAX_PRINT_LEN = 10
 
 
 class MovableReport:
-    """. # ! Not intended to be used outside of this library's code
+    """Images' filenames according to movable status.
+    Used in the CropperSwarm code.
 
-    Images' filenames according to movable status.
-    Used in the `CropperSwarm` code.
+    . # ! MovableReport is not intended to be used outside of this library's code
 
-    Take into account the `obsolete` attribute.
-    It's assumed that if `MovableReport.move_images()` is used,
-    the `mvi` and `umvi` lists become stale. You should instantiate
-    a new `MovableReport` instead.
+    Take into account the obsolete attribute.
+    It's assumed that if MovableReport.move_images() is used,
+    the mvi and umvi lists become stale. You should instantiate
+    a new MovableReport instead.
     """
 
     def __init__(self):
@@ -57,7 +58,7 @@ class MovableReport:
 
     def load_and_filter(self, src: "PathToFolder") -> list["Filename"]:
         """Load and filter images based on UMVI.
-        NOTE: These can be the same images that the `MovableReport` used,
+        NOTE: These can be the same images that the MovableReport used,
         or player crops, hence the difference in exact and cut match.
 
         Ex.: base.jpg vs base_N.jpg (where N would be a player index)

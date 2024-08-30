@@ -1,14 +1,18 @@
+"""Custom models code.
+Mainly default IEModels for each (implemented) predictable.
+"""
+
 from typing import Optional
 
 from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 
 from dbdie_ml.classes.version import DBDVersionRange
 from dbdie_ml.data import get_total_classes
-from dbdie_ml.models import IEModel
+from dbdie_ml.ml.models import IEModel
 
 
 class PerkModel(IEModel):
-    """Recommended custom `IEModel` with a perk-based non-trained `model`"""
+    """Recommended custom IEModel with a perk-based non-trained model"""
 
     def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:
         super().__init__(
@@ -40,7 +44,7 @@ class PerkModel(IEModel):
 
 
 class CharacterModel(IEModel):
-    """Recommended custom `IEModel` with a character-based non-trained `model`"""
+    """Recommended custom IEModel with a character-based non-trained model"""
 
     def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:
         super().__init__(
@@ -76,7 +80,7 @@ class CharacterModel(IEModel):
 
 
 class StatusModel(IEModel):
-    """Recommended custom `IEModel` with a status-based non-trained `model`"""
+    """Recommended custom IEModel with a status-based non-trained model"""
 
     def __init__(self, is_for_killer: bool, name: Optional[str] = None) -> None:
         super().__init__(

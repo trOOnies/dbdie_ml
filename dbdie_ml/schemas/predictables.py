@@ -1,3 +1,5 @@
+"""Pydantic schemas for the classes that are to be predicted"""
+
 import datetime as dt
 from typing import Optional
 

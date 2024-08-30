@@ -1,15 +1,18 @@
 import os
-from typing import TYPE_CHECKING
 from copy import deepcopy
+from typing import TYPE_CHECKING
+
 from PIL import Image
+
 from dbdie_ml.paths import absp
 from dbdie_ml.utils import filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
-    from dbdie_ml.classes.base import FullModelType, Filename
-    from dbdie_ml.cropper import Cropper
-    from dbdie_ml.movable_report import MovableReport
+
+    from dbdie_ml.classes.base import Filename, FullModelType
+    from dbdie_ml.cropping.cropper import Cropper
+    from dbdie_ml.cropping.movable_report import MovableReport
 
 # * Cropping helpers
 

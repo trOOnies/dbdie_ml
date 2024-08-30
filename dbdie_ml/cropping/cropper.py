@@ -1,11 +1,15 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 from PIL import Image
-from dbdie_ml.crop_settings import ALL_CS
-from dbdie_ml.utils import pls, filter_multitype
+
+from dbdie_ml.cropping.crop_settings import ALL_CS
+from dbdie_ml.utils import filter_multitype, pls
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
+
     from dbdie_ml.classes.base import CropType, FullModelType, Path
     from dbdie_ml.classes.version import CropSettings
 
@@ -54,7 +58,7 @@ class Cropper:
         return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:
-        """Print all crop boxes from the `Cropper` settings"""
+        """Print all crop boxes from the Cropper settings"""
         for k, vs in self.settings.crops.items():
             print(k)
             for v in vs:
@@ -86,7 +90,7 @@ class Cropper:
         convert_to_rgb: bool = False,
         full_model_types: "FullModelType" | list["FullModelType"] | None = None,
     ) -> dict["FullModelType", list["PILImage"]]:
-        """Make and return all the `Cropper` crops for a single in-memory image"""
+        """Make and return all the Cropper crops for a single in-memory image"""
         fmts = self._filter_fmts(full_model_types)
         if convert_to_rgb:
             img = img.convert("RGB")
@@ -99,7 +103,7 @@ class Cropper:
         path: "Path",
         full_model_types: "FullModelType" | list["FullModelType"] | None = None,
     ) -> dict["FullModelType", list["PILImage"]]:
-        """Make and return all the `Cropper` crops for a single in-memory image"""
+        """Make and return all the Cropper crops for a single in-memory image"""
         fmts = self._filter_fmts(full_model_types)
         img = Image.open(path)
         img = img.convert("RGB")

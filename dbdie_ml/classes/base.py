@@ -1,3 +1,5 @@
+"""Base DBDIE classes mainly for typing reasons"""
+
 from dataclasses import dataclass
 from typing import Literal
 
@@ -25,7 +27,7 @@ EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 
 
-@dataclass(frozen=True, eq=True)
+@dataclass(eq=True)
 class CropCoords:
     left: int
     top: int
