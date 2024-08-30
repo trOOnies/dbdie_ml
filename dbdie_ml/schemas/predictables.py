@@ -23,8 +23,8 @@ class DBDVersionOut(BaseModel):
 class CharacterCreate(BaseModel):
     name: str
     is_killer: Optional[bool]
-    base_char_id: Optional[int] = None
-    dbd_version: Optional[str] = None
+    base_char_id: Optional[int] = None  # Support for legendary outfits
+    dbd_version_str: Optional[str] = None
 
 
 class CharacterOut(BaseModel):
@@ -41,6 +41,7 @@ class CharacterOut(BaseModel):
 class PerkCreate(BaseModel):
     name: str
     character_id: int
+    dbd_version_id: Optional[int] = None  # TODO: Change to dbd_version_str
 
 
 class PerkOut(BaseModel):
@@ -90,6 +91,7 @@ class AddonCreate(BaseModel):
     name: str
     type_id: int
     user_id: int
+    dbd_version_id: Optional[int] = None  # TODO: Change to dbd_version_str
 
 
 class AddonOut(BaseModel):
@@ -100,6 +102,7 @@ class AddonOut(BaseModel):
     proba: Probability | None = None
     type_id: int
     user_id: int
+    dbd_version_id: int | None
 
 
 class StatusCreate(BaseModel):
@@ -126,6 +129,8 @@ class FullCharacterCreate(BaseModel):
     dbd_version: DBDVersion
     addon_names: Optional[list[str]]
 
+    # ! Note: Shouldn't be used for legendary outfits (that use base_char_id)
+
     @field_validator("perk_names")
     @classmethod
     def perks_must_be_three(cls, perks: list) -> list[str]:
@@ -139,9 +144,9 @@ class FullCharacterCreate(BaseModel):
                 self.addon_names is not None and len(self.addon_names) == 20
             ), "You must provide exactly 20 killer addon names"
         else:
-            assert (
-                self.addon_names is None or not self.addon_names
-            ), "Survivors can't have addon names"
+            if self.addon_names is not None:
+                assert not self.addon_names, "Survivors can't have addon names"
+                self.addon_names = None
         return self
 
 

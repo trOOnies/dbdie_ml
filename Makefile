@@ -5,7 +5,7 @@ define PRINT_HELP_PYSCRIPT
 import re, sys
 
 for line in sys.stdin:
-	match = re.match(r'^([a-zA-Z_-]+):.?## (.)$$', line)
+	match = re.match(r'^([a-zA-Z_-]+):.*## (.*)$$', line)
 	if match:
 		target, help = match.groups()
 		print("%-20s %s" % (target, help))
@@ -17,7 +17,7 @@ COLOUR_RED=\033[0;31m
 COLOUR_BLUE=\033[0;34m
 END_COLOUR=\033[0m
 
-help:  ## Show the help
+help: ## Show the help
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
 
 venv: ## Create venv
@@ -37,19 +37,19 @@ install: ## Install the dependencies
 folders: ## Create the DBDIE folder structure
 	python3 -m folder_structure
 
-fmt: ## Format the code with ruff
+fmt: ## [ruff] Format the code
 	ruff format
 
-lint: ## Run lint checks with ruff
+lint: ## [ruff] Run lint checks
 	ruff check --output-format=concise
 
-clean-lint: ## Remove ruff cache
+clean-lint: ## [ruff] Remove cache
 	rm -rf .ruff_cache
 
-test: ## Test the code and coverage with pytest
+test: ## [pytest] Test the code and coverage
 	python3 -m pytest --cov=dbdie_ml
 
-clean-test: ## Remove test and coverage artifacts
+clean-test: ## [pytest] Remove test and coverage artifacts
 	rm -rf .pytest_cache
 	rm -rf .coverage
 
