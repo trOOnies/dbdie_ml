@@ -2,38 +2,35 @@ from __future__ import annotations
 
 import json
 import os
+import yaml
+from functools import partial
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-import yaml
-from functools import partial
-from torch import load
 from torch.cuda import device as get_device
 from torch.cuda import is_available as cuda_is_available
 from torch.cuda import mem_get_info
-from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from dbdie_ml.classes.version import DBDVersionRange
 from dbdie_ml.code.models import (
     is_str_like,
     load_label_ref,
+    process_metadata,
+    load_with_trained_model,
     save_metadata,
     save_model,
 )
 from dbdie_ml.code.training import (
-    EarlyStopper,
     TrainingConfig,
-    get_transform,
+    load_label_ref_for_train,
     load_process,
+    load_training_config,
     predict_probas_process,
     predict_process,
     train_process,
 )
 from dbdie_ml.data import DatasetClass, get_total_classes
-from dbdie_ml.options import MODEL_TYPES
 
 if TYPE_CHECKING:
     from torch.nn import Sequential
@@ -41,7 +38,6 @@ if TYPE_CHECKING:
     from dbdie_ml.classes.base import (
         CropCoords,
         Height,
-        ModelType,
         Path,
         PathToFolder,
         Width,
@@ -55,10 +51,10 @@ class IEModel:
         model (torch.nn.Sequential)
         model_type (ModelType)
         is_for_killer (bool)
-        image_size (tuple[int, int])
+        img_size (tuple[int, int])
         version_range (DBDVersionRange): DBD game version range for which
             the model works.
-        norm_means (list[float]): 3 floats for the torch `Compose`.
+        norm_means (list[float]): 3 floats for the torch 'Compose'.
         norm_std (list[float]): Idem norm_means.
         name (str | None): Model name.
 
@@ -73,37 +69,24 @@ class IEModel:
     >>> model.save_preds(preds, "/path/to/preds.txt")
     >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
 
-    Load previously trained `IEModel`:
+    Load previously trained 'IEModel':
     >>> model = IEModel.from_folder("/path/to/model/folder")
     >>> new_preds = model.predict_batch("/path/to/other/dataset.csv")
     """
 
     def __init__(
         self,
+        metadata: dict,
         model: "Sequential",
-        model_type: "ModelType",
-        is_for_killer: bool,
-        image_size: tuple["Width", "Height"],
-        version_range: DBDVersionRange,
-        norm_means: list[float],
-        norm_std: list[float],
-        name: Optional[str] = None,
     ) -> None:
-        assert model_type in MODEL_TYPES.ALL
-
-        self.name = name
-        self._model = model
-        self.model_type = model_type
-        self.is_for_killer = is_for_killer
-        self.image_size = image_size
-        self.version_range = version_range  # TODO: Implement
-
-        self._norm_means = norm_means
-        self._norm_std = norm_std
+        metadata = process_metadata(metadata)
+        for k, v in metadata.items():
+            setattr(self, k, v)
 
         self.selected_fd = (
-            f"{self.model_type}__{'killer' if self.is_for_killer else 'surv'}"
+            f"{self.model_type}{'killer' if self.is_for_killer else 'surv'}"
         )
+        self._model = model
 
         self._set_empty_placeholders()
 
@@ -152,19 +135,7 @@ class IEModel:
         self.total_classes = get_total_classes(self.selected_fd)
         self._model = self._model.cuda()
 
-        config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
-        with open(config_path) as f:
-            self._cfg = yaml.safe_load(f)
-
-        self.cfg = self.cfg | {
-            "optimizer": Adam(self._model.parameters(), lr=self._cfg["adam_lr"]),
-            "criterion": CrossEntropyLoss(),
-            "transform": get_transform(self._norm_means, self._norm_std),
-            "estop": EarlyStopper(patience=3, min_delta=0.01),
-        }
-        del self.cfg["adam_lr"]
-
-        self.cfg = TrainingConfig(**self.cfg)
+        load_training_config(self)
 
     def get_summary(self) -> None:
         """Get underlying model summary"""
@@ -172,10 +143,10 @@ class IEModel:
 
         summary(
             self._model,
-            (
+            input_size=(
                 3,
-                self.image_size[0],
-                self.image_size[1],
+                self.img_size[0],
+                self.img_size[1],
             ),  # The number of channels is 3 (RGB)
             batch_size=self.cfg.batch_size,
             device="cuda",
@@ -197,19 +168,10 @@ class IEModel:
         # TODO: Check if any other PT object needs to be saved
         with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
             metadata = yaml.safe_load(f)
-        metadata["image_size"] = tuple(metadata["image_size"])
 
-        with open(os.path.join(model_fd, "model.pt"), "rb") as f:
-            model = load(f)
-
-        iem = cls(model=model, **metadata)
-        iem.init_model()
-        iem.model_is_trained = True
-
-        with open(os.path.join(model_fd, "label_ref.json"), "r") as f:
-            iem.label_ref = json.load(f)
-        iem.label_ref = {int(k): v for k, v in iem.label_ref.items()}
-
+        metadata = process_metadata(model_fd)
+        iem = load_with_trained_model(cls, model_fd, metadata)
+        iem.label_ref = load_label_ref(model_fd)
         return iem
 
     def save(self, model_fd: "PathToFolder") -> None:
@@ -244,13 +206,13 @@ class IEModel:
         train_dataset_path: "Path",
         val_dataset_path: "Path",
     ) -> None:
-        """Trains the `IEModel`"""
+        """Trains the 'IEModel'"""
         # TODO: Add training scores as attributes once trained
         assert self.model_is_init, "IEModel is not initialized"
         assert (
             not self.model_is_trained
         ), "IEModel cannot be retrained without being flushed first"
-        self.label_ref = load_label_ref(label_ref_path)
+        self.label_ref = load_label_ref_for_train(label_ref_path)
         train_loader, val_loader = load_process(
             self.selected_fd,
             train_dataset_path,
@@ -300,7 +262,7 @@ class IEModel:
 
     @staticmethod
     def save_preds(preds: np.ndarray, dst: "Path") -> None:
-        """Save predictions to the `dst` path"""
+        """Save predictions to the 'dst' path"""
         print("Saving preds...", end=" ")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")

@@ -11,6 +11,25 @@ class TestClassesVersion:
         dbdv = DBDVersion("8", "1", "1a")
         assert str(dbdv) == "8.1.1a"
 
+    def test_dbdversion_from_str(self):
+        dbvd1 = DBDVersion.from_str("8.5.0")
+        assert dbvd1.major == "8"
+        assert dbvd1.minor == "5"
+        assert dbvd1.patch == "0"
+        assert dbvd1.is_not_ptb
+
+        dbvd2 = DBDVersion.from_str("8.5.0a")
+        assert dbvd2.major == "8"
+        assert dbvd2.minor == "5"
+        assert dbvd2.patch == "0a"
+        assert dbvd2.is_not_ptb
+
+        dbvd3 = DBDVersion.from_str("7.2.0-ptb")
+        assert dbvd3.major == "7"
+        assert dbvd3.minor == "2"
+        assert dbvd3.patch == "0"
+        assert not dbvd3.is_not_ptb
+
     @mark.parametrize(
         "ineq,v1,v2",
         [
@@ -22,11 +41,17 @@ class TestClassesVersion:
             (-1, "7.9.0", "7.5.0"),
             (1, "7.5.0", "7.5.0a"),
             (-1, "7.5.0a", "7.5.0"),
+            (1, "7.5.0-ptb", "7.5.0"),
+            (-1, "7.5.0", "7.5.0-ptb"),
+            (-1, "8.0.0-ptb", "7.5.0"),
+            (1, "7.5.0-ptb", "8.0.0"),
+            (0, "7.5.0-ptb", "7.5.0-ptb"),
+            (1, "7.5.0-ptb", "8.0.0-ptb"),
         ],
     )
     def test_dbdversion_dunder_ineq(self, ineq, v1, v2):
-        dbdv1 = DBDVersion(*v1.split("."))
-        dbdv2 = DBDVersion(*v2.split("."))
+        dbdv1 = DBDVersion.from_str(v1)
+        dbdv2 = DBDVersion.from_str(v2)
         if ineq == -1:
             assert dbdv1 > dbdv2
         elif ineq == 0:
@@ -36,21 +61,40 @@ class TestClassesVersion:
         else:
             raise ValueError
 
-    def test_dbdversionrange_dunder_post_init(self):
+    def test_dbdvr_dunder_post_init(self):
         dbd_vr = DBDVersionRange("7.5.0")
         assert not dbd_vr.bounded
         assert dbd_vr._id.major == "7"
         assert str(dbd_vr._id) == "7.5.0"
         assert dbd_vr._max_id is None
+        assert dbd_vr._id.is_not_ptb
 
-        dbd_vr = DBDVersionRange("7.5.0", "8.0.0")
-        assert dbd_vr.bounded
-        assert dbd_vr._id.major == "7"
-        assert dbd_vr._max_id.major == "8"
-        assert str(dbd_vr._id) == "7.5.0"
-        assert str(dbd_vr._max_id) == "8.0.0"
+        dbd_vr_2 = DBDVersionRange("7.5.0", "8.0.0")
+        assert dbd_vr_2.bounded
+        assert dbd_vr_2._id.major == "7"
+        assert dbd_vr_2._max_id.major == "8"
+        assert str(dbd_vr_2._id) == "7.5.0"
+        assert str(dbd_vr_2._max_id) == "8.0.0"
+        assert dbd_vr_2._id.is_not_ptb
+        assert dbd_vr_2._max_id.is_not_ptb
 
-    def test_dbdversionrange_dunder_str(self):
+        dbd_vr_3 = DBDVersionRange("8.0.0-ptb", "8.0.0")
+        assert dbd_vr_3.bounded
+        assert dbd_vr_3._id.major == "8"
+        assert dbd_vr_3._max_id.major == "8"
+        assert str(dbd_vr_3._id) == "8.0.0-ptb"
+        assert str(dbd_vr_3._max_id) == "8.0.0"
+        assert not dbd_vr_3._id.is_not_ptb
+        assert dbd_vr_3._max_id.is_not_ptb
+
+        with raises(AssertionError):
+            DBDVersionRange("8.0.0", "8.0.0")
+        with raises(AssertionError):
+            DBDVersionRange("8.0.0", "7.5.0")
+        with raises(AssertionError):
+            DBDVersionRange("8.0.0", "8.0.0-ptb")
+
+    def test_dbdvr_dunder_str(self):
         dbd_vr = DBDVersionRange("7.5.0")
         assert str(dbd_vr) == ">=7.5.0"
 
@@ -68,7 +112,7 @@ class TestClassesVersion:
             (False, "7.5.0", "8.0.0", "7.5.0a", "8.0.0"),
         ],
     )
-    def test_dbdversion_dunder_eq(self, eq, v1, v1_max, v2, v2_max):
+    def test_dbdvr_dunder_eq(self, eq, v1, v1_max, v2, v2_max):
         dbd_vr_1 = DBDVersionRange(v1, v1_max)
         dbd_vr_2 = DBDVersionRange(v2, v2_max)
         assert (dbd_vr_1 == dbd_vr_2) == eq
@@ -93,7 +137,7 @@ class TestClassesVersion:
             (False, True, "1.5.0", "4.5.0", "7.5.0"),
         ],
     )
-    def test_dbdversion_dunder_contains(self, cont, cont_unbounded, v_min, v_max, v):
+    def test_dbdvr_dunder_contains(self, cont, cont_unbounded, v_min, v_max, v):
         dbdvr = DBDVersionRange(v_min, v_max)
         dbdv = DBDVersion(*v.split("."))
         assert (dbdv in dbdvr) == cont
@@ -102,7 +146,38 @@ class TestClassesVersion:
         dbdv = DBDVersion(*v.split("."))
         assert (dbdv in dbdvr) == cont_unbounded
 
-    # def test_dunder_post_init  # TODO
+    @mark.parametrize(
+        "int_min,int_max,vr1_min,vr1_max,vr2_min,vr2_max",
+        [
+            ("8.0.0", "8.5.0", "8.0.0", "8.5.0", "8.0.0", "8.5.0"),
+            ("8.0.0", "8.5.0", "8.0.0", "9.0.0", "8.0.0", "8.5.0"),
+            ("8.0.0", "8.5.0", "7.5.0", "8.5.0", "8.0.0", "8.5.0"),
+            ("8.0.0", "8.5.0", "7.5.0", "9.0.0", "8.0.0", "8.5.0"),
+            ("8.0.0-ptb", "8.0.0", "7.5.0", "9.0.0", "8.0.0-ptb", "8.0.0"),
+            ("8.0.0-ptb", "8.0.0", "8.0.0-ptb", "8.1.0", "8.0.0-ptb", "8.0.0"),
+            ("8.0.0", "8.5.0", "8.0.0", "8.5.0", "8.0.0", None),
+            ("8.0.0", "8.5.0", "8.0.0", "8.5.0", "7.0.0", None),
+            ("8.0.0", "8.5.0", "7.0.0", "8.5.0", "8.0.0", None),
+            ("8.5.0", None, "8.0.0", None, "8.5.0", None),
+            ("8.0.0", None, "8.0.0", None, "8.0.0", None),
+            ("8.0.0", None, "8.0.0-ptb", None, "8.0.0", None),
+        ],
+    )
+    def test_dbdvr_dunder_and(
+        self,
+        int_min,
+        int_max,
+        vr1_min,
+        vr1_max,
+        vr2_min,
+        vr2_max,
+    ):
+        vr1 = DBDVersionRange(vr1_min, vr1_max)
+        vr2 = DBDVersionRange(vr2_min, vr2_max)
+        vr_int = DBDVersionRange(int_min, int_max)
+        assert vr_int == vr1 & vr2
+        assert vr_int == vr2 & vr1
+
     # def test_setup_folder  # TODO
 
     @mark.parametrize(

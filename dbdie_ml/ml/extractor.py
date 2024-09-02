@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Optional, Union
+from uuid import uuid4
 
 import yaml
 
@@ -11,9 +12,11 @@ from dbdie_ml.classes.base import Path, PathToFolder, PlayerInfo
 from dbdie_ml.classes.version import DBDVersion
 from dbdie_ml.code.extractor import (
     folder_save_logic,
+    get_models,
     get_printable_info,
     get_version_range,
     match_preds_types,
+    process_model_names,
 )
 from dbdie_ml.ml.models import IEModel
 
@@ -68,8 +71,8 @@ class InfoExtractor:
     >>> new_preds_dict = ie.predict_batch({"perks": "/path/to/other/dataset.csv", ...})
     """
 
-    def __init__(self, name: Optional[str] = None) -> None:
-        self.name = name
+    def __init__(self, name: str = "") -> None:
+        self.name = str(uuid4()) if name == "" else name  # TODO: fill with a random friendlier name if empty
         self._set_empty_placeholders()
 
     def _set_empty_placeholders(self) -> None:
@@ -116,29 +119,7 @@ class InfoExtractor:
             not self.models_are_init
         ), "InfoExtractor can't be reinitialized before being flushed first"
 
-        if trained_models is None:
-            from dbdie_ml.ml.models.custom import CharacterModel, PerkModel
-
-            TYPES_TO_MODELS = {
-                "character": CharacterModel,
-                "perks": PerkModel,
-            }
-            models = {
-                "character__killer": True,
-                "character__surv": False,
-                "perks__killer": True,
-                "perks__surv": False,
-            }
-            self._models = {
-                mt: TYPES_TO_MODELS[mt[: mt.index("")]](
-                    name=f"{self.name}__m{i}" if self.name is not None else None,
-                    is_for_killer=ifk,
-                )
-                for i, (mt, ifk) in enumerate(models.items())
-            }
-        else:
-            self._models = trained_models
-
+        self._models = get_models(self.name, trained_models)
         self.version_range = get_version_range(
             self._models,
             expected=expected_version_range,
@@ -166,20 +147,9 @@ class InfoExtractor:
         with open(os.path.join(extractor_fd, "metadata.yaml"), "r") as f:
             metadata = yaml.safe_load(f)
 
-        model_names = set(metadata["models"])
-        assert len(model_names) == len(
-            metadata["models"]
-        ), "Duplicated model names in the metadata YAML file"
-        del metadata["models"]
-
         models_fd = os.path.join(extractor_fd, "models")
-
-        assert model_names == set(
-            fd
-            for fd in os.listdir(models_fd)
-            if os.path.isdir(os.path.join(models_fd, fd))
-        ), "The model subfolders do not match the metadata YAML file"
-        model_names = list(model_names)
+        model_names = process_model_names(metadata, models_fd)
+        del metadata["models"]
 
         exp_version_range = metadata["version-range"]
         del metadata["version-range"]

@@ -1,5 +1,7 @@
 """Pydantic schemas for the grouping classes"""
 
+from __future__ import annotations
+
 import datetime as dt
 from typing import Optional
 
@@ -16,26 +18,18 @@ from dbdie_ml.code.schemas import (
 from dbdie_ml.schemas.predictables import (
     AddonOut,
     CharacterOut,
+    DBDVersionOut,
     ItemOut,
     OfferingOut,
     PerkOut,
     StatusOut,
 )
 
-# * Version
-
-
-class DBDVersionOut(BaseModel):
-    id: int
-    name: str
-    release_date: Optional[dt.date]
-
-
 # * Players
 
 
 class PlayerIn(BaseModel):
-    """Player to be"""
+    """Player input schema to be used for creating labels"""
 
     id: PlayerId
     character_id: Optional[int] = Field(None, ge=0)
@@ -47,7 +41,7 @@ class PlayerIn(BaseModel):
     points: Optional[int] = Field(None, ge=0)
 
     @classmethod
-    def from_labels(cls, labels):
+    def from_labels(cls, labels) -> PlayerIn:
         player = PlayerIn(
             id=labels.player_id,
             character_id=labels.character,
@@ -81,6 +75,8 @@ class PlayerIn(BaseModel):
 
 
 class PlayerOut(BaseModel):
+    """Player output schema as seen in created labels"""
+
     id: PlayerId
     character: CharacterOut
     perks: list[PerkOut]
@@ -113,9 +109,7 @@ class PlayerOut(BaseModel):
             self.is_consistent = False
         elif not check_item_consistency(self.is_killer, self.item.type_id):
             self.is_consistent = False
-        elif not check_addons_consistency(
-            self.is_killer, self.addons, self.item.type_id
-        ):
+        elif not check_addons_consistency(self.is_killer, self.addons):
             self.is_consistent = False
         elif not check_status_consistency(self.status.character_id, self.is_killer):
             self.is_consistent = False
@@ -127,6 +121,8 @@ class PlayerOut(BaseModel):
 
 
 class MatchCreate(BaseModel):
+    """DBD match creation schema"""
+
     filename: str
     match_date: Optional[dt.date] = None
     dbd_version: Optional[DBDVersion] = None
@@ -137,6 +133,8 @@ class MatchCreate(BaseModel):
 
 
 class MatchOut(BaseModel):
+    """DBD match output schema"""
+
     id: int
     filename: str
     match_date: Optional[dt.date]
@@ -150,34 +148,42 @@ class MatchOut(BaseModel):
 
 
 class LabelsCreate(BaseModel):
+    """Labels creation schema"""
+
     match_id: int
     player: PlayerIn
 
 
 class LabelsOut(BaseModel):
+    """Labels output schema"""
+
     match_id: int
     player: PlayerIn
     date_modified: dt.datetime
 
 
 class FullMatchOut(BaseModel):
+    """Labeled DBD match output schema"""
+
     # TODO
     version: DBDVersion
     players: list[PlayerOut]
-    kills: Optional[int] = None  # ! do not use
-    is_consistent: Optional[bool] = None  # ! do not use
+    kills: int = -1  # ! do not use
+    is_consistent: bool = True  # ! do not use
 
     def model_post_init(self, __context) -> None:
-        assert self.kills is None
-        assert self.is_consistent is None
+        assert self.kills == -1
+        assert self.is_consistent
         self.check_consistency()
         self.kills = sum(pl.status.is_dead for pl in self.players[:4])
 
     def check_consistency(self) -> None:
         """Executes all consistency checks."""
         self.is_consistent = all(not pl.character.is_killer for pl in self.players[:4])
-        self.is_consistent = self.is_consistent and (
-            self.players[4].character.is_killer
+        self.is_consistent = (
+            self.is_consistent
+            and (self.players[4].character.is_killer is not None)
+            and self.players[4].character.is_killer
         )
         self.is_consistent = self.is_consistent and all(
             pl.is_consistent for pl in self.players

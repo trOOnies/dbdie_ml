@@ -22,11 +22,11 @@ crops:
     - [178, 50, 233, 106]
     - [233, 50, 288, 106]
     - [288, 50, 343, 106]
-  points:
+  points__surv:
     - [580, 54, 750, 104]
-  prestige:
+  prestige__surv:
     - [0, 0, 117, 116]
-  status:
+  status__surv:
     - [124, 5, 155, 46]
 allow:
   overlap: false

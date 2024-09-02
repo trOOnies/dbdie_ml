@@ -1,8 +1,9 @@
+import os
 from copy import deepcopy
 from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import pandas as pd
 
@@ -15,19 +16,77 @@ if TYPE_CHECKING:
     from dbdie_ml.classes.version import DBDVersionRange
     from dbdie_ml.ml.models import IEModel
 
+# * Loading
+
+
+def process_model_names(
+    metadata: dict,
+    models_fd: "PathToFolder",
+) -> list:
+    model_names = set(metadata["models"])
+    assert len(model_names) == len(
+        metadata["models"]
+    ), "Duplicated model names in the metadata YAML file"
+
+    assert model_names == set(
+        fd for fd in os.listdir(models_fd) if os.path.isdir(os.path.join(models_fd, fd))
+    ), "The model subfolders do not match the metadata YAML file"
+    return list(model_names)
+
+
 # * Base
+
+
+def get_models(
+    name: str,
+    trained_models: Optional[dict["FullModelType", "IEModel"]],
+) -> dict["FullModelType", "IEModel"]:
+    if trained_models is not None:
+        return trained_models
+    else:
+        from dbdie_ml.ml.models.custom import CharacterModel, PerkModel
+
+        TYPES_TO_MODELS = {
+            "character": CharacterModel,
+            "perks": PerkModel,
+        }
+        models = {
+            "character__killer": True,
+            "character__surv": False,
+            "perks__killer": True,
+            "perks__surv": False,
+        }
+        return {
+            mt: TYPES_TO_MODELS[mt[: mt.index("")]](
+                name=f"{name}__m{i}" if name is not None else None,
+                is_for_killer=ifk,
+            )
+            for i, (mt, ifk) in enumerate(models.items())
+        }
 
 
 def get_version_range(
     models: dict["FullModelType", "IEModel"],
+    mode: Literal["match_all", "intersection"] = "match_all",
     expected: Optional["DBDVersionRange"] = None,
 ) -> "DBDVersionRange":
+    """Calculate DBDVersionRange from many IEModels."""
     assert all(model.selected_fd == mt for mt, model in models.items())
 
     vrs = [model.version_range for model in models.values()]
-    version_range = vrs[0]
-
-    assert all(vr == version_range for vr in vrs), "All model versions must match"
+    if mode == "match_all":
+        version_range = vrs[0]
+        assert all(vr == version_range for vr in vrs), "All model versions must match"
+    elif mode == "intersection":
+        if len(vrs) == 1:
+            version_range = vrs[0]
+        else:
+            version_range = vrs[0] & vrs[1]
+            if len(vrs) > 2:
+                for vr in vrs[2:]:
+                    version_range = version_range & vr
+    else:
+        raise ValueError(f"Mode '{mode}' not recognized")
 
     if expected is not None:
         assert (
@@ -62,7 +121,7 @@ def get_printable_info(models: dict) -> pd.DataFrame:
     return printable_info
 
 
-# * Loading and saving
+# * Saving
 
 
 def folder_save_logic(

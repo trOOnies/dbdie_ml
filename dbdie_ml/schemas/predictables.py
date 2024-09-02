@@ -10,17 +10,23 @@ from dbdie_ml.classes.version import DBDVersion
 
 
 class DBDVersionCreate(BaseModel):
+    """DBD game version creation schema"""
+
     name: str
     release_date: Optional[dt.date]
 
 
 class DBDVersionOut(BaseModel):
+    """DBD game version output schema"""
+
     id: int
     name: str
     release_date: Optional[dt.date]
 
 
 class CharacterCreate(BaseModel):
+    """Character creation schema"""
+
     name: str
     is_killer: Optional[bool]
     base_char_id: Optional[int] = None  # Support for legendary outfits
@@ -28,6 +34,8 @@ class CharacterCreate(BaseModel):
 
 
 class CharacterOut(BaseModel):
+    """Character output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -39,12 +47,16 @@ class CharacterOut(BaseModel):
 
 
 class PerkCreate(BaseModel):
+    """Perk creation schema"""
+
     name: str
     character_id: int
     dbd_version_id: Optional[int] = None  # TODO: Change to dbd_version_str
 
 
 class PerkOut(BaseModel):
+    """Perk output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -55,11 +67,15 @@ class PerkOut(BaseModel):
 
 
 class ItemCreate(BaseModel):
+    """Match item creation schema"""
+
     name: str
     type_id: int
 
 
 class ItemOut(BaseModel):
+    """Match item output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -69,6 +85,8 @@ class ItemOut(BaseModel):
 
 
 class OfferingCreate(BaseModel):
+    """Offering creation schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     name: str
@@ -77,6 +95,8 @@ class OfferingCreate(BaseModel):
 
 
 class OfferingOut(BaseModel):
+    """Offering output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -88,6 +108,8 @@ class OfferingOut(BaseModel):
 
 
 class AddonCreate(BaseModel):
+    """Addon creation schema"""
+
     name: str
     type_id: int
     user_id: int
@@ -95,6 +117,8 @@ class AddonCreate(BaseModel):
 
 
 class AddonOut(BaseModel):
+    """Addon output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -106,6 +130,8 @@ class AddonOut(BaseModel):
 
 
 class StatusCreate(BaseModel):
+    """Final player match status creation schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     name: str
@@ -113,6 +139,8 @@ class StatusCreate(BaseModel):
 
 
 class StatusOut(BaseModel):
+    """Final player match status output schema"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -123,13 +151,19 @@ class StatusOut(BaseModel):
 
 
 class FullCharacterCreate(BaseModel):
+    """Full character creation schema.
+    Includes the creation perks and addons (if addons apply).
+    DBD game version must already exist in the database.
+
+    Note: This schema shouldn't be used for creating legendary outfits that
+    use base_char_id. Please use CharacterCreate instead.
+    """
+
     name: str
     is_killer: bool
     perk_names: list[str]
-    dbd_version: DBDVersion
     addon_names: Optional[list[str]]
-
-    # ! Note: Shouldn't be used for legendary outfits (that use base_char_id)
+    dbd_version: DBDVersion
 
     @field_validator("perk_names")
     @classmethod

@@ -7,9 +7,9 @@ CHARACTER = "character__surv"
 ITEM = "item__surv"
 OFFERING = "offering__surv"
 PERKS = "perks__surv"
-POINTS = COMMON_FMT.POINTS
-PRESTIGE = COMMON_FMT.PRESTIGE
-STATUS = COMMON_FMT.STATUS
+POINTS = f"{COMMON_FMT.POINTS}__surv"
+PRESTIGE = f"{COMMON_FMT.PRESTIGE}__surv"
+STATUS = f"{COMMON_FMT.STATUS}__surv"
 
 ALL = [
     ADDONS,

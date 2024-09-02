@@ -7,9 +7,9 @@ CHARACTER = "character__killer"
 ITEM = "item__killer"
 OFFERING = "offering__killer"
 PERKS = "perks__killer"
-POINTS = COMMON_FMT.POINTS
-PRESTIGE = COMMON_FMT.PRESTIGE
-STATUS = COMMON_FMT.STATUS
+POINTS = f"{COMMON_FMT.POINTS}__killer"
+PRESTIGE = f"{COMMON_FMT.PRESTIGE}__killer"
+STATUS = f"{COMMON_FMT.STATUS}__killer"
 
 ALL = [
     ADDONS,

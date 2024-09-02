@@ -1,5 +1,7 @@
 """DBD version related classes"""
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from itertools import combinations
@@ -24,7 +26,7 @@ CONFIGS_FD = os.path.join(os.path.dirname(os.path.dirname(__file__)), "configs")
 
 @dataclass(frozen=True, eq=True, order=True)
 class DBDVersion:
-    """DBD game version as named by BHVR (M.m.p)"""
+    """DBD game version as named by BHVR (M.m.p-ptb)"""
 
     major: str
     minor: str
@@ -37,18 +39,20 @@ class DBDVersion:
         )
 
     @classmethod
-    def from_str(cls, s: str):
+    def from_str(cls, s: str) -> DBDVersion:
+        """Instantiate DBDVersion from its string form."""
         ss = s.split(".")
         is_ptb = ss[2].endswith("-ptb")
         return DBDVersion(
-            ss[0],
-            ss[1],
-            ss[2][:-4] if is_ptb else ss[2],
-            not is_ptb,
+            major=ss[0],
+            minor=ss[1],
+            patch=ss[2][:-4] if is_ptb else ss[2],
+            is_not_ptb=not is_ptb,
         )
 
     @classmethod
-    def from_schema(cls, dbdv):
+    def from_schema(cls, dbdv) -> DBDVersion:
+        """Instantiate DBDVersion from a sqlalchemy DBDVersionOut model."""
         return cls.from_str(dbdv.name)
 
 
@@ -63,6 +67,7 @@ class DBDVersionRange:
         self.bounded = self.max_id is not None
         self._id = DBDVersion.from_str(self.id)
         self._max_id = DBDVersion.from_str(self.max_id) if self.bounded else None
+        assert (not self.bounded) or (self._id < self._max_id)
 
     def __str__(self) -> str:
         return f">={self._id},<{self._max_id}" if self.bounded else f">={self._id}"
@@ -81,9 +86,10 @@ class DBDVersionRange:
         return False
 
     def __contains__(self, v: DBDVersion) -> bool:
+        """Checks if a DBDVersion is contained in the DBDVersionRange."""
         return (self._id <= v) and ((not self.bounded) or (v < self._max_id))
 
-    def __and__(self, other):
+    def __and__(self, other) -> DBDVersionRange | None:
         """DBDVersions intersection."""
         _id = max(self._id, other._id)
         id = str(_id)
@@ -96,7 +102,14 @@ class DBDVersionRange:
             _max_id = min(self._max_id, other._max_id)
             max_id = str(_max_id)
 
-        return DBDVersionRange(id, max_id)
+        try:
+            dbd_vr = DBDVersionRange(id, max_id)
+        except AssertionError:
+            dbd_vr = None
+        except Exception:
+            raise
+
+        return dbd_vr
 
 
 class CropSettings:
@@ -174,7 +187,8 @@ class CropSettings:
         cfg_name: str,
         depends_on=None,
     ):
-        path = os.path.join(CONFIGS_FD, f"{cfg_name}.yaml")
+        """Instantiate CropSettings from a config file."""
+        path = os.path.join(CONFIGS_FD, "crop_settings", f"{cfg_name}.yaml")
         with open(path) as f:
             data = yaml.safe_load(f)
 

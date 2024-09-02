@@ -75,7 +75,8 @@ class Cropper:
     # * Cropping
 
     def _filter_fmts(
-        self, full_model_types: "FullModelType" | list["FullModelType"] | None
+        self,
+        full_model_types: "FullModelType" | list["FullModelType"] | None,
     ) -> list["FullModelType"]:
         possible_values = self.full_model_types
         return filter_multitype(

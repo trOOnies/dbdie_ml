@@ -103,16 +103,23 @@ class TestCodeExtractor:
             )
             for mt, vs in models.items()
         }
-        dbd_vr = get_version_range(models_proc, expected)
 
+        dbd_vr = get_version_range(models_proc, mode="match_all", expected=expected)
         first_mt = list(models.keys())[0]
         assert dbd_vr == DBDVersionRange(
             models[first_mt][1],
             models[first_mt][2],
         )
 
+        # For intersection changes nothing should change
+        dbd_vr = get_version_range(models_proc, mode="intersection", expected=expected)
+        assert dbd_vr == DBDVersionRange(
+            models[first_mt][1],
+            models[first_mt][2],
+        )
+
     @mark.parametrize(
-        "models,expected",
+        "models,expected_ma,actual_expected_int",
         [
             (
                 {
@@ -123,6 +130,7 @@ class TestCodeExtractor:
                     ),
                 },
                 None,
+                -1,
             ),
             (
                 {
@@ -132,7 +140,7 @@ class TestCodeExtractor:
                         "7.0.0",
                     ),
                     "character__surv": (
-                        "character__killer",
+                        "character__surv",
                         "5.0.0",
                         "7.0.0",
                     ),
@@ -143,6 +151,7 @@ class TestCodeExtractor:
                     ),
                 },
                 None,
+                DBDVersionRange("5.0.0", "7.0.0"),
             ),
             (
                 {
@@ -152,7 +161,7 @@ class TestCodeExtractor:
                         "7.0.0",
                     ),
                     "character__surv": (
-                        "character__killer",
+                        "character__surv",
                         "4.0.0",
                         "7.0.0",
                     ),
@@ -163,6 +172,7 @@ class TestCodeExtractor:
                     ),
                 },
                 None,
+                DBDVersionRange("5.0.0", "7.0.0"),
             ),
             (
                 {
@@ -183,6 +193,7 @@ class TestCodeExtractor:
                     ),
                 },
                 DBDVersionRange("5.0.0"),
+                -1,
             ),
             (
                 {
@@ -203,10 +214,11 @@ class TestCodeExtractor:
                     ),
                 },
                 DBDVersionRange("5.0.0", "7.0.1"),
+                -1,
             ),
         ],
     )
-    def test_get_version_range_raises(self, models, expected):
+    def test_get_version_range_raises(self, models, expected_ma, actual_expected_int):
         models_proc = {
             mt: MockModel(
                 vs[0],
@@ -215,7 +227,22 @@ class TestCodeExtractor:
             for mt, vs in models.items()
         }
         with raises(AssertionError):
-            get_version_range(models_proc, expected)
+            get_version_range(models_proc, mode="match_all", expected=expected_ma)
+
+        # Intersection
+        if actual_expected_int == -1:
+            with raises(AssertionError):
+                get_version_range(models_proc, mode="intersection")
+        else:
+            assert actual_expected_int == get_version_range(
+                models_proc,
+                mode="intersection",
+            )
+            assert actual_expected_int == get_version_range(
+                models_proc,
+                mode="intersection",
+                expected=actual_expected_int,
+            )
 
     def test_folder_save_logic(self):
         # TODO: More testing

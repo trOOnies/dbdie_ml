@@ -1,11 +1,16 @@
-from typing import TYPE_CHECKING, Any
-import numpy as np
+from copy import deepcopy
 from dataclasses import dataclass
-from torch import no_grad
-from torch import max as torch_max
-from torchvision import transforms
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+import pandas as pd
 import torch.nn.functional as F
+from torch import max as torch_max
+from torch import no_grad
+from torch.nn import CrossEntropyLoss
+from torch.optim import Adam
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from dbdie_ml.data import DatasetClass
 
@@ -60,6 +65,37 @@ def get_transform(
             transforms.Normalize(mean=norm_means, std=norm_std),
         ]
     )
+
+
+def load_training_config(iem) -> None:
+    iem.cfg = deepcopy(iem.training_params)
+    iem.cfg = iem.cfg | {
+        "optimizer": Adam(
+            iem._model.parameters(),
+            lr=iem.training_params["adam_lr"],
+        ),
+        "criterion": CrossEntropyLoss(),
+        "transform": get_transform(iem._norm_means, iem._norm_std),
+        "estop": EarlyStopper(patience=3, min_delta=0.01),
+    }
+    del iem.cfg["adam_lr"]
+
+    iem.cfg = TrainingConfig(**iem.cfg)
+
+
+def load_label_ref_for_train(path: "Path") -> dict[int, str]:
+    label_ref = pd.read_csv(
+        path,
+        usecols=["label_id", "name"],
+        dtype={"label_id": int, "name": str},
+    )
+
+    unique_vals = label_ref.label_id.unique()
+    assert unique_vals.min() == 0
+    assert unique_vals.max() + 1 == label_ref.shape[0]
+    assert unique_vals.size == label_ref.shape[0]
+
+    return {row["label_id"]: row["name"] for _, row in label_ref.iterrows()}
 
 
 # * Training

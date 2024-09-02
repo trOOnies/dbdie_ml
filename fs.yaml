@@ -1,0 +1,22 @@
+data:
+  crops:
+    - _old_versions
+    - <FMTs>
+  img:
+    - _old_versions
+    - pending
+    - cropped
+    - in_cvat
+  labels:
+    - _old_versions
+    - labels
+    - label_ref
+inference:
+  crops:
+    - <FMTs>
+  img:
+    - pending
+    - cropped
+  labels:
+    - labels
+    - label_ref

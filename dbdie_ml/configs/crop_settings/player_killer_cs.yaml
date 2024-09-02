@@ -22,11 +22,11 @@ crops:
     - [178, 60, 233, 116]
     - [233, 60, 288, 116]
     - [288, 60, 343, 116]
-  points:
+  points__killer:
     - [582, 64, 752, 114]
-  prestige:
+  prestige__killer:
     - [0, 9, 117, 125]
-  status:
+  status__killer:
     - [124, 10, 155, 51]
 allow:
   overlap: false
