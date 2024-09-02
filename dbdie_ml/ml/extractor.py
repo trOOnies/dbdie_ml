@@ -72,12 +72,10 @@ class InfoExtractor:
     """
 
     def __init__(self, name: str = "") -> None:
-        self.name = str(uuid4()) if name == "" else name  # TODO: fill with a random friendlier name if empty
-        self._set_empty_placeholders()
-
-    def _set_empty_placeholders(self) -> None:
-        self._models: Optional[dict["FullModelType", IEModel]] = None
-        self.version_range: Optional["DBDVersionRange"] = None
+        self.flushed = False
+        self.name = (
+            str(uuid4()) if name == "" else name
+        )  # TODO: fill with a random friendlier name if empty
 
     def __repr__(self) -> str:
         """InfoExtractor('my_info_extractor', version='7.5.0')"""
@@ -87,8 +85,9 @@ class InfoExtractor:
         return f"InfoExtractor({vals})"
 
     @property
-    def model_types(self) -> Optional[list["FullModelType"]]:
-        return list(self._models.keys()) if self.models_are_init else None
+    def model_types(self) -> list["FullModelType"]:
+        assert self.models_are_init
+        return list(self._models.keys())
 
     @property
     def models_are_init(self) -> bool:
@@ -115,6 +114,7 @@ class InfoExtractor:
         """Initialize the InfoExtractor and its IEModels.
         Can be provided with already trained models.
         """
+        assert not self.flushed, "InfoExtractor was flushed"
         assert (
             not self.models_are_init
         ), "InfoExtractor can't be reinitialized before being flushed first"
@@ -165,6 +165,7 @@ class InfoExtractor:
         return ie
 
     def _save_metadata(self, dst: "Path") -> None:
+        assert not self.flushed, "InfoExtractor was flushed"
         assert dst.endswith(".yaml")
         metadata = {k: getattr(self, k) for k in ["name", "version_range"]}
         metadata["models"] = list(self._models.keys())
@@ -172,6 +173,7 @@ class InfoExtractor:
             yaml.dump(metadata, f)
 
     def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
+        assert not self.flushed, "InfoExtractor was flushed"
         """Save all necessary objects of the InfoExtractor and all its IEModels"""
         assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved"
         folder_save_logic(self._models, extractor_fd, replace)
@@ -182,6 +184,7 @@ class InfoExtractor:
     # * Training
 
     def _check_datasets(self, datasets: dict["FullModelType", Path]) -> None:
+        assert not self.flushed, "InfoExtractor was flushed"
         assert set(self.model_types) == set(datasets.keys())
         assert all(os.path.exists(p) for p in datasets.values())
 
@@ -192,6 +195,7 @@ class InfoExtractor:
         val_datasets: dict["FullModelType", Path],
     ) -> None:
         """Train all models one after the other."""
+        assert not self.flushed, "InfoExtractor was flushed"
         assert not self.models_are_trained
 
         self._check_datasets(label_ref_paths)
@@ -210,15 +214,21 @@ class InfoExtractor:
         print("All models have been trained.")
 
     def flush(self) -> None:
-        """Reset InfoExtractor to pre-init state."""
+        """Flush InfoExtractor and its IEModels so as to free space.
+        A flushed InfoExtractor shouldn't be reused, but deleted and reinstantiated.
+        """
+        assert not self.flushed, "InfoExtractor was flushed"
+        self.flushed = True
         model_names = (mn for mn in self._models)
         for mn in model_names:
             self._models[mn].flush()
-        self._set_empty_placeholders()
+            del self._models[mn]
+        del self._models
 
     # * Prediction
 
     def predict_on_crop(self, crop: "CropCoords") -> PlayerInfo:
+        assert not self.flushed, "InfoExtractor was flushed"
         preds = {
             TYPES_TO_ID_NAMES[k]: model.predict(crop)
             for k, model in self._models.items()
@@ -226,11 +236,13 @@ class InfoExtractor:
         return PlayerInfo(**preds)
 
     def predict(self, player_crops: "PlayersCropCoords") -> "PlayersInfoDict":
+        assert not self.flushed, "InfoExtractor was flushed"
         return {i: self.predict_on_crop(s) for i, s in player_crops.items()}
 
     def predict_batch(
         self, datasets: dict["FullModelType", Path], probas: bool = False
     ) -> dict["FullModelType", "ndarray"]:
+        assert not self.flushed, "InfoExtractor was flushed"
         assert self.models_are_trained
         self._check_datasets(datasets)
         return {
@@ -254,10 +266,11 @@ class InfoExtractor:
         - list[FullModelType]: Select many model types
         - None: Select all provided model types in preds
         """
+        assert not self.flushed, "InfoExtractor was flushed"
         assert self.models_are_trained
 
         preds_, on_ = match_preds_types(preds, on)
-        names = {k: self.models[k].convert_names(preds[k]) for k in on_}
+        names = {k: self.models[k].convert_names(preds[k]) for k in on}
         return names[list(names.keys())[0]] if isinstance(on, str) else names
 
     # * Match
@@ -265,4 +278,5 @@ class InfoExtractor:
     def form_match(
         self, version: DBDVersion, players: list["PlayerOut"]
     ) -> FullMatchOut:
+        assert not self.flushed, "InfoExtractor was flushed"
         return FullMatchOut(version=version, players=players)

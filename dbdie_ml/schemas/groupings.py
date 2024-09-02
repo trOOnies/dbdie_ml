@@ -95,7 +95,7 @@ class PlayerOut(BaseModel):
         return self.character.is_killer
 
     def check_consistency(self) -> None:
-        """Executes all consistency checks.
+        """Execute all consistency checks.
         It's purposefully separated so that in the future we could have
         customized self healing methods.
         """
@@ -168,17 +168,20 @@ class FullMatchOut(BaseModel):
     # TODO
     version: DBDVersion
     players: list[PlayerOut]
-    kills: int = -1  # ! do not use
+    kills: int = Field(-1, ge=-1, le=4)  # ! do not use
     is_consistent: bool = True  # ! do not use
 
     def model_post_init(self, __context) -> None:
         assert self.kills == -1
         assert self.is_consistent
         self.check_consistency()
-        self.kills = sum(pl.status.is_dead for pl in self.players[:4])
+        self.kills = sum(
+            pl.status.is_dead if pl.status.is_dead is not None else 0
+            for pl in self.players[:4]
+        )
 
     def check_consistency(self) -> None:
-        """Executes all consistency checks."""
+        """Execute all consistency checks."""
         self.is_consistent = all(not pl.character.is_killer for pl in self.players[:4])
         self.is_consistent = (
             self.is_consistent

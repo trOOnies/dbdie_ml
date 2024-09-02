@@ -31,6 +31,7 @@ class EarlyStopper:
         self.min_validation_loss = float("inf")
 
     def early_stop(self, validation_loss: float) -> bool:
+        """Check if training should early stop"""
         val_diff = self.min_validation_loss - validation_loss
         if val_diff > self.min_delta:
             self.min_validation_loss = validation_loss
@@ -43,6 +44,8 @@ class EarlyStopper:
 
 @dataclass
 class TrainingConfig:
+    """Helper dataclass for training configuration"""
+
     epochs: int
     batch_size: int
     optimizer: "Optimizer"
@@ -67,9 +70,9 @@ def get_transform(
     )
 
 
-def load_training_config(iem) -> None:
-    iem.cfg = deepcopy(iem.training_params)
-    iem.cfg = iem.cfg | {
+def load_training_config(iem) -> TrainingConfig:
+    cfg = deepcopy(iem.training_params)
+    cfg = cfg | {
         "optimizer": Adam(
             iem._model.parameters(),
             lr=iem.training_params["adam_lr"],
@@ -78,9 +81,12 @@ def load_training_config(iem) -> None:
         "transform": get_transform(iem._norm_means, iem._norm_std),
         "estop": EarlyStopper(patience=3, min_delta=0.01),
     }
-    del iem.cfg["adam_lr"]
+    del cfg["adam_lr"]
 
-    iem.cfg = TrainingConfig(**iem.cfg)
+    return TrainingConfig(**cfg)
+
+
+# * Training
 
 
 def load_label_ref_for_train(path: "Path") -> dict[int, str]:
@@ -96,9 +102,6 @@ def load_label_ref_for_train(path: "Path") -> dict[int, str]:
     assert unique_vals.size == label_ref.shape[0]
 
     return {row["label_id"]: row["name"] for _, row in label_ref.iterrows()}
-
-
-# * Training
 
 
 def load_process(
@@ -130,6 +133,39 @@ def load_process(
     return train_loader, val_loader
 
 
+def train_backprop(model, train_loader: DataLoader, cfg: TrainingConfig):
+    """Train backpropagation"""
+    for images, labels in train_loader:
+        images = images.cuda()
+        labels = labels.cuda()
+
+        outputs = model(images)
+        loss = cfg.criterion(outputs, labels)
+
+        cfg.optimizer.zero_grad()
+        loss.backward()
+        cfg.optimizer.step()
+
+    return loss
+
+
+def train_eval(model, val_loader: DataLoader) -> float:
+    """Calculate validation accuracy in percentage points"""
+    correct = 0
+    total = 0
+    for images, labels in val_loader:
+        images = images.cuda()
+        labels = labels.cuda()
+
+        outputs = model(images)
+        _, predicted = torch_max(outputs.data, 1)
+
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    return 100.0 * correct / total
+
+
 def train_process(
     model,
     train_loader: DataLoader,
@@ -140,32 +176,11 @@ def train_process(
     epochs_clen = len(str(cfg.epochs))
     for epoch in range(1, cfg.epochs + 1):
         model.train()
-        for images, labels in train_loader:
-            images = images.cuda()
-            labels = labels.cuda()
-
-            outputs = model(images)
-            loss = cfg.criterion(outputs, labels)
-
-            cfg.optimizer.zero_grad()
-            loss.backward()
-            cfg.optimizer.step()
+        loss = train_backprop(model, train_loader, cfg)
 
         model.eval()
         with no_grad():
-            correct = 0
-            total = 0
-            for images, labels in val_loader:
-                images = images.cuda()
-                labels = labels.cuda()
-
-                outputs = model(images)
-                _, predicted = torch_max(outputs.data, 1)
-
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-            val_acc_pp = 100.0 * correct / total
+            val_acc_pp = train_eval(model, val_loader)
             print(
                 f"- Epoch [{epoch:>{epochs_clen}}/{cfg.epochs}]",
                 f"Loss: {loss.item():.4f}",

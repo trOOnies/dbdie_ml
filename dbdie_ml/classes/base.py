@@ -26,6 +26,11 @@ EncodedInfo = tuple[int, int, tuple, int, tuple, int, int]
 
 CropType = Literal["surv", "killer", "surv_player", "killer_player"]
 
+# Labels
+LabelId = int
+LabelName = str
+LabelRef = dict[LabelId, LabelName]
+
 
 @dataclass(eq=True)
 class CropCoords:

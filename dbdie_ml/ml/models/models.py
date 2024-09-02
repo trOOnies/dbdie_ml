@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import os
-import yaml
 from functools import partial
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
+import yaml
+from torch import load
 from torch.cuda import device as get_device
+from torch.cuda import empty_cache, mem_get_info
 from torch.cuda import is_available as cuda_is_available
-from torch.cuda import mem_get_info
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
@@ -17,12 +18,10 @@ from dbdie_ml.code.models import (
     is_str_like,
     load_label_ref,
     process_metadata,
-    load_with_trained_model,
     save_metadata,
     save_model,
 )
 from dbdie_ml.code.training import (
-    TrainingConfig,
     load_label_ref_for_train,
     load_process,
     load_training_config,
@@ -37,10 +36,10 @@ if TYPE_CHECKING:
 
     from dbdie_ml.classes.base import (
         CropCoords,
-        Height,
+        LabelName,
+        ModelType,
         Path,
         PathToFolder,
-        Width,
     )
 
 
@@ -48,15 +47,19 @@ class IEModel:
     """ML model for information extraction
 
     Inputs:
+        metadata (dict): Raw metadata YAML for the IEModel configuration.
+            Its processing is done within the init function.
         model (torch.nn.Sequential)
-        model_type (ModelType)
+
+    Parameters:
+        name (str): IEModel name.
         is_for_killer (bool)
+        model_type (ModelType)
         img_size (tuple[int, int])
         version_range (DBDVersionRange): DBD game version range for which
             the model works.
         norm_means (list[float]): 3 floats for the torch 'Compose'.
         norm_std (list[float]): Idem norm_means.
-        name (str | None): Model name.
 
     Usage:
     >>> model = IEModel(Sequential(...), "perks", "7.6.0", ...)
@@ -69,6 +72,10 @@ class IEModel:
     >>> model.save_preds(preds, "/path/to/preds.txt")
     >>> probas = model.predict_batch("/path/to/dataset.csv", probas=True)
 
+    Deleting a model
+    >>> model.flush()
+    >>> del model
+
     Load previously trained 'IEModel':
     >>> model = IEModel.from_folder("/path/to/model/folder")
     >>> new_preds = model.predict_batch("/path/to/other/dataset.csv")
@@ -80,52 +87,53 @@ class IEModel:
         model: "Sequential",
     ) -> None:
         metadata = process_metadata(metadata)
-        for k, v in metadata.items():
-            setattr(self, k, v)
 
-        self.selected_fd = (
+        self.flushed: bool = False
+        self.name: str = metadata["name"]
+        self.is_for_killer: str = metadata["is_for_killer"]
+        self.model_type: "ModelType" = metadata["model_type"]
+        self.img_size: tuple[int, int] = metadata["img_size"]  # replaces cs & crop
+        self.version_range = metadata["version_range"]
+        self._norm_means: list[float] = metadata["norm_means"]
+        self._norm_std: list[float] = metadata["norm_std"]
+        self.training_params = metadata["training"]
+
+        self.selected_fd: str = (
             f"{self.model_type}{'killer' if self.is_for_killer else 'surv'}"
         )
         self._model = model
-
-        self._set_empty_placeholders()
-
-    def _set_empty_placeholders(self) -> None:
-        self.total_classes: Optional[int] = None
-
-        self._device = None
-        self.cfg: Optional[TrainingConfig] = None
-
-        self.label_ref: Optional[dict[int, str]] = None
-        self.model_is_trained = False
+        self.model_is_trained: bool = False
 
     def __repr__(self) -> str:
         """IEModel(...)"""
+        total_classes = getattr(self, "total_classes", "none")
         vals = {
             "type": self.model_type,
             "for_killer": self.is_for_killer,
             "version": self.version_range,
-            "classes": self.total_classes,
+            "classes": total_classes if total_classes != "none" else None,
             "trained": self.model_is_trained,
         }
         vals = ", ".join(
             [f"{k}='{v}'" if is_str_like(v) else f"{k}={v}" for k, v in vals.items()]
         )
-        if self.name is not None:
-            vals = f"'{self.name}', " + vals
+        vals = f"'{self.name}', " + vals
         return f"IEModel({vals})"
 
     @property
     def model_is_init(self) -> bool:
-        return self.cfg is not None
+        try:
+            getattr(self, "cfg")
+            return True
+        except Exception:
+            return False
 
     # * Base
 
     def init_model(self) -> None:
         """Initialize model to allow it to be trained"""
-        assert (
-            not self.model_is_init
-        ), "IEModel can't be reinitialized before being flushed first"
+        assert not self.flushed, "IEModel was flushed"
+        assert not self.model_is_init, "IEModel can't be initialized more than once"
 
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
@@ -135,10 +143,11 @@ class IEModel:
         self.total_classes = get_total_classes(self.selected_fd)
         self._model = self._model.cuda()
 
-        load_training_config(self)
+        self.cfg = load_training_config(self)
 
     def get_summary(self) -> None:
         """Get underlying model summary"""
+        assert not self.flushed, "IEModel was flushed"
         assert self.model_is_init
 
         summary(
@@ -168,14 +177,21 @@ class IEModel:
         # TODO: Check if any other PT object needs to be saved
         with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
             metadata = yaml.safe_load(f)
+        with open(os.path.join(model_fd, "model.pt"), "rb") as f:
+            model = load(f)
 
-        metadata = process_metadata(model_fd)
-        iem = load_with_trained_model(cls, model_fd, metadata)
+        iem = cls(metadata, model=model)
+
+        # Init the already trained model
+        iem.init_model()
+        iem.model_is_trained = True
         iem.label_ref = load_label_ref(model_fd)
+
         return iem
 
     def save(self, model_fd: "PathToFolder") -> None:
         """Save all necessary objects of the IEModel"""
+        assert not self.flushed, "IEModel was flushed"
         print("Saving model...", end=" ")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
@@ -190,13 +206,17 @@ class IEModel:
         print("Model saved.")
 
     def flush(self) -> None:
-        """Reset IEModel to pre-init state."""
-        # TODO: Reinit a flushed model
+        """Flush IEModel params so as to free space.
+        A flushed IEModel shouldn't be reused, but deleted and reinstantiated.
+        """
+        assert not self.flushed, "IEModel was flushed"
+        self.flushed = True
         if not self.model_is_init:
             return
         del self._model
-        self._model = None
-        self._set_empty_placeholders()
+        del self.cfg
+        del self._device
+        empty_cache()
 
     # * Training
 
@@ -207,6 +227,8 @@ class IEModel:
         val_dataset_path: "Path",
     ) -> None:
         """Trains the 'IEModel'"""
+        assert not self.flushed, "IEModel was flushed"
+
         # TODO: Add training scores as attributes once trained
         assert self.model_is_init, "IEModel is not initialized"
         assert (
@@ -230,10 +252,12 @@ class IEModel:
     # * Prediction
 
     def predict(self, crop: "CropCoords"):
+        assert not self.flushed, "IEModel was flushed"
         raise NotImplementedError
 
     def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
         """Returns: preds or probas"""
+        assert not self.flushed, "IEModel was flushed"
         assert self.model_is_trained, "IEModel is not trained"
 
         print("Predictions for:", dataset_path)
@@ -242,7 +266,7 @@ class IEModel:
             dataset_path,
             transform=self.cfg.transform,
         )
-        loader = DataLoader(dataset, batch_size=self.batch_size)
+        loader = DataLoader(dataset, batch_size=self.cfg.batch_size)
 
         if probas:
             return predict_probas_process(
@@ -254,8 +278,9 @@ class IEModel:
         else:
             return predict_process(self._model, dataset, loader)
 
-    def convert_names(self, preds: np.ndarray) -> list[str]:
+    def convert_names(self, preds: np.ndarray) -> list["LabelName"]:
         """Convert integer predictions to named predictions"""
+        assert not self.flushed, "IEModel was flushed"
         assert isinstance(preds[0], (np.ushort, int))
         assert self.model_is_trained, "IEModel is not trained"
         return [self.label_ref[lbl] for lbl in preds]

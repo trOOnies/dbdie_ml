@@ -1,7 +1,8 @@
 from pytest import mark, raises
 
 from dbdie_ml.classes.base import CropCoords
-from dbdie_ml.classes.version import CropSettings, DBDVersion, DBDVersionRange
+from dbdie_ml.classes.version import DBDVersion, DBDVersionRange
+from dbdie_ml.cropping.crop_settings import CropSettings
 
 
 class TestClassesVersion:

@@ -11,13 +11,13 @@ if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
     from dbdie_ml.classes.base import CropType, FullModelType, Path
-    from dbdie_ml.classes.version import CropSettings
+    from dbdie_ml.cropping.crop_settings import CropSettings
 
 CS_DICT: dict["CropType", "CropSettings"] = {cs.name: cs for cs in ALL_CS}
 
 
 class Cropper:
-    """Class that crops images in order to have crops model-ready.
+    """Crops images in order to have crops model-ready.
 
     Instantiation:
     >>> cpp = Cropper.from_type("surv")
@@ -68,7 +68,7 @@ class Cropper:
 
     @classmethod
     def from_type(cls, t: "CropType") -> Cropper:
-        """Loads a certain type of DBDIE Cropper"""
+        """Load a certain type of DBDIE Cropper"""
         cpp = Cropper(settings=CS_DICT[t])
         return cpp
 
@@ -96,7 +96,8 @@ class Cropper:
         if convert_to_rgb:
             img = img.convert("RGB")
         return {
-            fmt: [img.crop(box) for box in self.settings.crops[fmt]] for fmt in fmts
+            fmt: [img.crop(box.raw()) for box in self.settings.crops[fmt]]
+            for fmt in fmts
         }
 
     def apply_from_path(
@@ -109,5 +110,6 @@ class Cropper:
         img = Image.open(path)
         img = img.convert("RGB")
         return {
-            fmt: [img.crop(box) for box in self.settings.crops[fmt]] for fmt in fmts
+            fmt: [img.crop(box.raw()) for box in self.settings.crops[fmt]]
+            for fmt in fmts
         }

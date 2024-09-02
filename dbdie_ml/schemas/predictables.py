@@ -21,6 +21,7 @@ class DBDVersionOut(BaseModel):
 
     id: int
     name: str
+    common_name: Optional[str]
     release_date: Optional[dt.date]
 
 
@@ -40,6 +41,7 @@ class CharacterOut(BaseModel):
 
     id: int
     name: str
+    common_name: Optional[str]
     proba: Probability | None = None
     is_killer: Optional[bool]
     base_char_id: Optional[int]
@@ -51,7 +53,7 @@ class PerkCreate(BaseModel):
 
     name: str
     character_id: int
-    dbd_version_id: Optional[int] = None  # TODO: Change to dbd_version_str
+    dbd_version_str: Optional[str] = None
 
 
 class PerkOut(BaseModel):
@@ -64,6 +66,7 @@ class PerkOut(BaseModel):
     proba: Probability | None = None
     character_id: int
     is_for_killer: Optional[bool]
+    dbd_version_id: int | None
 
 
 class ItemCreate(BaseModel):
@@ -113,7 +116,7 @@ class AddonCreate(BaseModel):
     name: str
     type_id: int
     user_id: int
-    dbd_version_id: Optional[int] = None  # TODO: Change to dbd_version_str
+    dbd_version_str: Optional[str] = None
 
 
 class AddonOut(BaseModel):
@@ -185,6 +188,22 @@ class FullCharacterCreate(BaseModel):
 
 
 class FullCharacterOut(BaseModel):
+    """Full character output schema"""
+
     character: CharacterOut
     perks: list[PerkOut]
     addons: list[AddonOut]
+
+    @field_validator("perks")
+    @classmethod
+    def perks_must_be_three(cls, perks: list) -> list[PerkOut]:
+        assert len(perks) == 3, "You must provide exactly 3 perk names"
+        return perks
+
+    @model_validator(mode="after")
+    def check_total_addons(self):
+        if self.character.is_killer:
+            assert len(self.addons) == 20, "There can only be killers with 20 addons"
+        elif not self.character.is_killer:
+            assert not self.addons, "Survivors can't have addons"
+        return self

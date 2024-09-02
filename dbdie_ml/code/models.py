@@ -1,15 +1,17 @@
+"""Extra code for the IEModel models Python file"""
+
 import json
 import os
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from torch import load, save
+from torch import save
 
 from dbdie_ml.cropping.crop_settings import ALL_CS
 from dbdie_ml.options import MODEL_TYPES
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import Path, PathToFolder
+    from dbdie_ml.classes.base import LabelRef, Path, PathToFolder
 
 
 def is_str_like(v: Any) -> bool:
@@ -19,39 +21,25 @@ def is_str_like(v: Any) -> bool:
 # * Loading
 
 
-def load_with_trained_model(obj_class, model_fd: "PathToFolder", metadata: dict):
-    with open(os.path.join(model_fd, "model.pt"), "rb") as f:
-        model = load(f)
-
-    iem = obj_class(model=model, **metadata)
-    iem.init_model()
-    iem.model_is_trained = True
-
-    return iem
-
-
-def load_label_ref(model_fd: "PathToFolder"):
-    with open(os.path.join(model_fd, "label_ref.json"), "r") as f:
-        label_ref = json.load(f)
-    label_ref = {int(k): v for k, v in label_ref.items()}
-    return label_ref
-
-
 def process_metadata(metadata: dict) -> dict:
+    """Process IEModel raw metadata dict (straight from the YAML file)."""
     assert metadata["model_type"] in MODEL_TYPES.ALL
+
     cs = [cs_i for cs_i in ALL_CS if cs_i.name == metadata["cs"]][0]
     metadata["img_size"] = cs.crop_shapes[metadata["crop"]]
     del metadata["cs"], metadata["crop"]
 
     metadata["version_range"] = cs.version_range
-    metadata["_norm_means"] = metadata["norm_means"]
-    metadata["_norm_std"] = metadata["norm_std"]
-    del metadata["norm_means"], metadata["norm_std"]
-
-    metadata["training_params"] = metadata["training"]
-    del metadata["training"]
 
     return metadata
+
+
+def load_label_ref(model_fd: "PathToFolder") -> "LabelRef":
+    """Load label_ref used in training."""
+    with open(os.path.join(model_fd, "label_ref.json"), "r") as f:
+        label_ref = json.load(f)
+    label_ref = {int(k): v for k, v in label_ref.items()}
+    return label_ref
 
 
 # * Saving
