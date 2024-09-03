@@ -45,10 +45,10 @@ class DBDIEFolderStructure:
     >>> dbdie_fs.create_fs()
     """
 
-    def __init__(self, filename: str):
-        assert filename[-5:] == ".yaml"
-        assert "." not in filename[:-5]
-        with open(filename) as f:
+    def __init__(self, path: "Path"):
+        assert path[-5:] == ".yaml"
+        assert ".." not in path[:-5]
+        with open(path) as f:
             self.fs = yaml.safe_load(f)
 
         self.fmts: list["FullModelType"] = list(
@@ -114,7 +114,7 @@ class DBDIEFolderStructure:
         self._create_fd(environ["DBDIE_MAIN_FD"], self.fs["inference"])
 
 
-dbdie_fs = DBDIEFolderStructure("fs.yaml")
+dbdie_fs = DBDIEFolderStructure(join(dirname(__file__), "configs/fs.yaml"))
 vrp = dbdie_fs.validate_rp
 
 # * Paths

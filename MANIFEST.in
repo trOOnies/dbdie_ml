@@ -1,2 +1,1 @@
-include dbdie_ml/models/config.yaml
-include dbdie_ml/configs/*.yaml
+recursive-include dbdie_ml/configs *.yaml
