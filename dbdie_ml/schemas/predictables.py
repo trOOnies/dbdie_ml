@@ -21,7 +21,7 @@ class DBDVersionOut(BaseModel):
 
     id: int
     name: str
-    common_name: Optional[str]
+    common_name: str | None
     release_date: Optional[dt.date]
 
 
@@ -29,9 +29,10 @@ class CharacterCreate(BaseModel):
     """Character creation schema"""
 
     name: str
-    is_killer: Optional[bool]
-    base_char_id: Optional[int] = None  # Support for legendary outfits
-    dbd_version_str: Optional[str] = None
+    is_killer: bool | None
+    base_char_id: int | None = None  # Support for legendary outfits
+    dbd_version_str: str | None = None
+    emoji: str | None = None
 
 
 class CharacterOut(BaseModel):
@@ -41,11 +42,12 @@ class CharacterOut(BaseModel):
 
     id: int
     name: str
-    common_name: Optional[str]
+    common_name: str | None
     proba: Probability | None = None
-    is_killer: Optional[bool]
-    base_char_id: Optional[int]
-    dbd_version_id: Optional[int]
+    is_killer: bool | None
+    base_char_id: int | None
+    dbd_version_id: int | None
+    emoji: str | None
 
 
 class PerkCreate(BaseModel):
@@ -53,7 +55,8 @@ class PerkCreate(BaseModel):
 
     name: str
     character_id: int
-    dbd_version_str: Optional[str] = None
+    dbd_version_str: str | None = None
+    emoji: str | None = None
 
 
 class PerkOut(BaseModel):
@@ -65,8 +68,9 @@ class PerkOut(BaseModel):
     name: str
     proba: Probability | None = None
     character_id: int
-    is_for_killer: Optional[bool]
+    is_for_killer: bool | None
     dbd_version_id: int | None
+    emoji: str | None
 
 
 class ItemCreate(BaseModel):
@@ -107,7 +111,7 @@ class OfferingOut(BaseModel):
     proba: Probability | None = None
     type_id: int
     user_id: int
-    is_for_killer: Optional[bool]
+    is_for_killer: bool | None
 
 
 class AddonCreate(BaseModel):
@@ -116,7 +120,7 @@ class AddonCreate(BaseModel):
     name: str
     type_id: int
     user_id: int
-    dbd_version_str: Optional[str] = None
+    dbd_version_str: str | None = None
 
 
 class AddonOut(BaseModel):
@@ -139,6 +143,7 @@ class StatusCreate(BaseModel):
 
     name: str
     character_id: int
+    emoji: str | None = None
 
 
 class StatusOut(BaseModel):
@@ -150,7 +155,8 @@ class StatusOut(BaseModel):
     name: str
     proba: Probability | None = None
     character_id: int
-    is_dead: Optional[bool]
+    is_dead: bool | None
+    emoji: str | None
 
 
 class FullCharacterCreate(BaseModel):
@@ -167,12 +173,20 @@ class FullCharacterCreate(BaseModel):
     perk_names: list[str]
     addon_names: Optional[list[str]]
     dbd_version: DBDVersion
+    common_name: str
+    emoji: str
 
     @field_validator("perk_names")
     @classmethod
     def perks_must_be_three(cls, perks: list) -> list[str]:
         assert len(perks) == 3, "You must provide exactly 3 perk names"
         return perks
+
+    @field_validator("emoji")
+    @classmethod
+    def emoji_len_le_4(cls, emoji: str) -> str:
+        assert len(emoji) <= 4, "Emoji character-equivalence must be as most 4"
+        return emoji
 
     @model_validator(mode="after")
     def check_total_addons(self):
@@ -193,6 +207,12 @@ class FullCharacterOut(BaseModel):
     character: CharacterOut
     perks: list[PerkOut]
     addons: list[AddonOut]
+    common_name: str | None
+    # proba: Probability | None = None
+    is_killer: bool | None
+    base_char_id: int | None
+    dbd_version_id: int | None
+    emoji: str | None
 
     @field_validator("perks")
     @classmethod
