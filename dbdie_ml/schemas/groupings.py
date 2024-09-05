@@ -32,22 +32,28 @@ class PlayerIn(BaseModel):
     """Player input schema to be used for creating labels"""
 
     id: PlayerId
-    character_id: Optional[int] = Field(None, ge=0)
-    perk_ids: Optional[list[int]] = None
-    item_id: Optional[int] = Field(None, ge=0)
-    addon_ids: Optional[list[int]] = None
-    offering_id: Optional[int] = Field(None, ge=0)
-    status_id: Optional[int] = Field(None, ge=0)
-    points: Optional[int] = Field(None, ge=0)
+    character_id: int | None = Field(None, ge=0)
+    perk_ids: list[int] | None = None
+    item_id: int | None = Field(None, ge=0)
+    addon_ids: list[int] | None = None
+    offering_id: int | None = Field(None, ge=0)
+    status_id: int | None = Field(None, ge=0)
+    points: int | None = Field(None, ge=0)
 
     @classmethod
     def from_labels(cls, labels) -> PlayerIn:
+        perks = [labels.perk_0, labels.perk_1, labels.perk_2, labels.perk_3]
+        perks = perks if all(p is not None for p in perks) else None
+
+        addons = [labels.addon_0, labels.addon_1]
+        addons = addons if all(a is not None for a in addons) else None
+
         player = PlayerIn(
             id=labels.player_id,
             character_id=labels.character,
-            perk_ids=[labels.perk_0, labels.perk_1, labels.perk_2, labels.perk_3],
+            perk_ids=perks,
             item_id=labels.item,
-            addon_ids=[labels.addon_0, labels.addon_1],
+            addon_ids=addons,
             offering_id=labels.offering,
             status_id=labels.status,
             points=labels.points,
