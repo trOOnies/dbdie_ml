@@ -149,5 +149,6 @@ I chose to link all the code I develop to a **GPL-3.0** license. You can see its
 ## See also
 
 - [dbdie_api](https://github.com/trOOnies/dbdie_api)
+- [dbdie_ui](https://github.com/trOOnies/dbdie_ui)
 - [dbdie_info_extraction](https://github.com/trOOnies/dbd_info_extraction)
 - [dbdie_info_training](https://github.com/trOOnies/dbd_info_training)
