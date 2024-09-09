@@ -41,13 +41,13 @@ def apply_cropper(
     fmts = cpp._filter_fmts(full_model_types)
 
     plain = src_filename[:-4]
-    o = cpp.settings.offset
+    o = cpp.settings.offset if cpp.settings.offset is not None else 0
 
     for fmt in fmts:
         boxes = deepcopy(cpp.settings.crops[fmt])
         dst_fd = os.path.join(cpp.settings.dst, fmt)
         for i, box in enumerate(boxes):
-            cropped = img.crop(box)
+            cropped = img.crop(box.raw())
             cropped.save(os.path.join(dst_fd, f"{plain}_{i+o}.jpg"))
             del cropped
 

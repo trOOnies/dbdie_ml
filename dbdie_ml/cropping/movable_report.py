@@ -48,4 +48,4 @@ class MovableReport:
                 absp(os.path.join(CROPPED_IMG_FD_RP, f)),
             )
         self.obsolete = True
-        print("Images moved")
+        print("[MovableReport] Images moved")

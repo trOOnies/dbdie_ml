@@ -21,7 +21,7 @@ def print_umvi_verdict(umvi: list[str]) -> None:
             msg = f"{msg[:-1]}, ...]"
         print(msg)
     else:
-        print("All images can be moved")
+        print("[MovableReport] All images can be moved")
 
 
 def calculate_umvis() -> tuple[list["Filename"], list["Filename"]]:

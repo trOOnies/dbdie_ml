@@ -79,6 +79,30 @@ class PlayerIn(BaseModel):
             raise NotImplementedError
         return v
 
+    def to_sqla(self) -> dict:
+        """To dict for the 'Labels' SQLAlchemy model."""
+        # character_id: int | None = Field(None, ge=0)
+        # perk_ids: list[int] | None = None
+        # item_id: int | None = Field(None, ge=0)
+        # addon_ids: list[int] | None = None
+        # offering_id: int | None = Field(None, ge=0)
+        # status_id: int | None = Field(None, ge=0)
+        # points: int | None = Field(None, ge=0)
+        return {
+            "player_id": self.id,
+            "character": self.character_id,
+            "perk_0": self.perk_ids[0] if self.perk_ids is not None else None,
+            "perk_1": self.perk_ids[1] if self.perk_ids is not None else None,
+            "perk_2": self.perk_ids[2] if self.perk_ids is not None else None,
+            "perk_3": self.perk_ids[3] if self.perk_ids is not None else None,
+            "item": self.item_id,
+            "addon_0": self.addon_ids[0] if self.addon_ids is not None else None,
+            "addon_1": self.addon_ids[1] if self.addon_ids is not None else None,
+            "offering": self.offering_id,
+            "status": self.status_id,
+            "points": self.points,
+        }
+
 
 class PlayerOut(BaseModel):
     """Player output schema as seen in created labels"""
@@ -130,12 +154,12 @@ class MatchCreate(BaseModel):
     """DBD match creation schema"""
 
     filename: str
-    match_date: Optional[dt.date] = None
-    dbd_version: Optional[DBDVersion] = None
-    special_mode: Optional[bool] = None
-    user: Optional[str] = None
-    extractor: Optional[str] = None
-    kills: Optional[int] = Field(None, ge=0, le=4)
+    match_date: dt.date | None = None
+    dbd_version: DBDVersion | None = None
+    special_mode: bool | None = None
+    user_id: int | None = None
+    extractor_id: int | None = None
+    kills: int | None = Field(None, ge=0, le=4)
 
 
 class MatchOut(BaseModel):
@@ -143,33 +167,68 @@ class MatchOut(BaseModel):
 
     id: int
     filename: str
-    match_date: Optional[dt.date]
-    dbd_version: Optional[DBDVersionOut]
-    special_mode: Optional[bool]
-    user: Optional[str]
-    extractor: Optional[str]
-    kills: Optional[int]
+    match_date: dt.date | None
+    dbd_version: DBDVersionOut | None
+    special_mode: bool | None
+    kills: int | None
     date_created: dt.datetime
     date_modified: dt.datetime
+    user_id: int | None
+    extractor_id: int | None
+
+
+class VersionedFolderUpload(BaseModel):
+    """DBD-versioned folder to upload."""
+
+    dbd_version: DBDVersion
+    special_mode: Optional[bool] = None
+
+
+class VersionedMatchOut(BaseModel):
+    """DBD match simplified output schema for DBD-versioned folder upload."""
+
+    id: int
+    filename: str
+    match_date: Optional[dt.date]
+    dbd_version: DBDVersionOut
+    special_mode: Optional[bool]
 
 
 class LabelsCreate(BaseModel):
-    """Labels creation schema"""
+    """Labels creation schema."""
 
     match_id: int
     player: PlayerIn
+    user_id: int | None = None
+    extractor_id: int | None = None
+    manually_checked: bool | None = None
 
 
 class LabelsOut(BaseModel):
-    """Labels output schema"""
+    """Labels output schema."""
 
     match_id: int
     player: PlayerIn
     date_modified: dt.datetime
+    user_id: int | None
+    extractor_id: int | None
+    manually_checked: bool | None
+
+    @classmethod
+    def from_labels(cls, labels) -> LabelsOut:
+        labels_out = LabelsOut(
+            match_id=labels.match_id,
+            player=PlayerIn.from_labels(labels),
+            date_modified=labels.date_modified,
+            user_id=labels.user_id,
+            extractor_id=labels.extractor_id,
+            manually_checked=labels.manually_checked,
+        )
+        return labels_out
 
 
 class FullMatchOut(BaseModel):
-    """Labeled DBD match output schema"""
+    """Labeled DBD match output schema."""
 
     # TODO
     version: DBDVersion

@@ -52,6 +52,9 @@ class CropperAlignments:
     def __getitem__(self, key) -> list[Cropper]:
         return self._data[key]
 
+    def items(self):
+        return self._data.items()
+
     def show_mapping(self):
         return {k: [cp.name for cp in cp_list] for k, cp_list in self._data.items()}
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 
 @dataclass(frozen=True, eq=True, order=True)
@@ -13,6 +13,8 @@ class DBDVersion:
     minor: str
     patch: str
     is_not_ptb: bool = True
+
+    dict = asdict
 
     def __str__(self) -> str:
         return (

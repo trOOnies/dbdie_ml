@@ -129,7 +129,6 @@ CROPS_VERSIONS_FD_RP = vrp(f"data/crops/{OLD_VS}")
 IMG_MAIN_FD_RP = vrp("data/img")
 CROP_PENDING_IMG_FD_RP = vrp("data/img/pending")
 CROPPED_IMG_FD_RP = vrp("data/img/cropped")
-IN_CVAT_FD_RP = vrp("data/img/in_cvat")
 IMG_VERSIONS_FD_RP = vrp(f"data/img/{OLD_VS}")
 
 

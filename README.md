@@ -81,10 +81,8 @@ Data folder
     │   │   ├── ...
     │   │   └── 0
     │   │       ├── cropped
-    │   │       ├── in_cvat
     │   │       └── pending
     │   ├── cropped
-    │   ├── in_cvat
     │   └── pending
     └── labels
         ├── _old_versions
