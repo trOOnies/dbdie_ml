@@ -6,7 +6,7 @@ from typing import Literal
 # General
 PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal[
-    "character", "perks", "item", "addons", "offering", "status", "points"
+    "character", "perks", "item", "addons", "offering", "status", "points", "prestige"
 ]
 FullModelType = str  # i.e. character__killer
 Probability = float  # 0.0 to 1.0
