@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
-from dbdie_ml.classes.base import PlayerId
+from dbdie_ml.classes.base import ModelType, PlayerId
 from dbdie_ml.classes.version import DBDVersion
 from dbdie_ml.code.schemas import (
     check_addons_consistency,
@@ -24,6 +24,7 @@ from dbdie_ml.schemas.predictables import (
     PerkOut,
     StatusOut,
 )
+from dbdie_ml.options.MODEL_TYPES import ALL as ALL_MT
 
 # * Players
 
@@ -38,6 +39,7 @@ class PlayerIn(BaseModel):
     offering_id:  int | None = Field(None, ge=0)
     status_id:    int | None = Field(None, ge=0)
     points:       int | None = Field(None, ge=0)
+    prestige:     int | None = Field(None, ge=0, le=100)
 
     @classmethod
     def from_labels(cls, labels) -> PlayerIn:
@@ -56,6 +58,7 @@ class PlayerIn(BaseModel):
             offering_id=labels.offering,
             status_id=labels.status,
             points=labels.points,
+            prestige=labels.prestige,
         )
         return player
 
@@ -87,33 +90,50 @@ class PlayerIn(BaseModel):
     def to_sqla(self, fps: list[str]) -> dict:
         """To dict for the 'Labels' SQLAlchemy model."""
         sqld = {"player_id": self.id}
-        sqld = {
+        single_ids = {
             "character": self.character_id,
             "item": self.item_id,
             "offering": self.offering_id,
             "status": self.status_id,
         }
-        sqld = {
-            k: v for k, v in sqld.items()
+        sqld = sqld | {
+            k: v for k, v in single_ids.items()
+            if getattr(self, f"{k}_id") in fps
+        }
+        sqld = sqld | {
+            f"{k}_mckd": True for k in single_ids
             if getattr(self, f"{k}_id") in fps
         }
 
         if "points" in fps:
-            sqld = sqld | {"points": self.points}
+            sqld = sqld | {"points": self.points, "points_mckd": True}
+        if "prestige" in fps:
+            sqld = sqld | {"prestige": self.prestige, "prestige_mckd": True}
         if "perk_ids" in fps:
             sqld = sqld | {
                 "perk_0": self.perk_ids[0] if self.perk_ids is not None else None,
                 "perk_1": self.perk_ids[1] if self.perk_ids is not None else None,
                 "perk_2": self.perk_ids[2] if self.perk_ids is not None else None,
                 "perk_3": self.perk_ids[3] if self.perk_ids is not None else None,
+                "perks_mckd": True,
             }
         if "addon_ids" in fps:
             sqld = sqld | {
                 "addon_0": self.addon_ids[0] if self.addon_ids is not None else None,
                 "addon_1": self.addon_ids[1] if self.addon_ids is not None else None,
+                "addons_mckd": True,
             }
 
         return sqld
+
+    @staticmethod
+    def flatten_predictables(info: dict) -> dict:
+        new_info = {
+            f"{k}_mckd": v
+            for k, v in info["manual_checks"]["predictables"].items()
+        }
+        del info["manual_checks"]
+        return info | new_info
 
 
 class PlayerOut(BaseModel):
@@ -127,6 +147,7 @@ class PlayerOut(BaseModel):
     offering:  OfferingOut
     status:    StatusOut
     points:    int
+    prestige:  int
     is_consistent: Optional[bool] = None
 
     def model_post_init(self, __context) -> None:
@@ -212,12 +233,12 @@ class ManualChecksIn(BaseModel):
             labels_model.status_mckd,
         ]
 
-    def to_labels_filters(self, labels_model) -> list:
+    def get_filters_conds(self, labels_model) -> list[tuple]:
         return [
-            col == chk
-            for chk, col in zip(
-                self.checks,
+            (col, chk)
+            for col, chk in zip(
                 self.model_to_cols(labels_model),
+                self.checks,
             )
             if chk is not None
         ]
@@ -225,35 +246,22 @@ class ManualChecksIn(BaseModel):
 
 class ManualChecksOut(BaseModel):
     """Manual predictables checks output schema."""
-    addons    : bool | None
-    character : bool | None
-    item      : bool | None
-    offering  : bool | None
-    perks     : bool | None
-    points    : bool | None
-    prestige  : bool | None
-    status    : bool | None
-    is_init     : bool = False  # ! do not use
-    in_progress : bool = False  # ! do not use
-    completed   : bool = False  # ! do not use
+    predictables : dict["ModelType", bool | None]
+    is_init      : bool = False  # ! do not use
+    in_progress  : bool = False  # ! do not use
+    completed    : bool = False  # ! do not use
 
     @property
     def checks(self) -> list[bool | None]:
-        return [
-            self.addons,
-            self.character,
-            self.item,
-            self.offering,
-            self.perks,
-            self.points,
-            self.prestige,
-            self.status,
-        ]
+        return [self.predictables[mt] for mt in ALL_MT]
 
     def model_post_init(self, __context) -> None:
         assert not self.is_init
         assert not self.in_progress
         assert not self.completed
+
+        # Dict must have exactly all expected keys
+        assert set(mt for mt in ALL_MT) == set(self.predictables.keys())
 
         self.is_init = any(c is not None for c in self.checks)
         conds = [(c is not None and c) for c in self.checks]
@@ -263,14 +271,16 @@ class ManualChecksOut(BaseModel):
     @classmethod
     def from_labels(cls, labels) -> ManualChecksOut:
         mc_out = ManualChecksOut(
-            addons=labels.addons_mckd,
-            character=labels.character_mckd,
-            item=labels.item_mckd,
-            offering=labels.offering_mckd,
-            perks=labels.perks_mckd,
-            prestige=labels.prestige_mckd,
-            points=labels.points_mckd,
-            status=labels.status_mckd,
+            predictables={
+                "addons": labels.addons_mckd,
+                "character": labels.character_mckd,
+                "item": labels.item_mckd,
+                "offering": labels.offering_mckd,
+                "perks": labels.perks_mckd,
+                "prestige": labels.prestige_mckd,
+                "points": labels.points_mckd,
+                "status": labels.status_mckd,
+            }
         )
         return mc_out
 
