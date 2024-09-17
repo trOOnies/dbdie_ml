@@ -10,153 +10,177 @@ from dbdie_ml.classes.version import DBDVersion
 
 
 class DBDVersionCreate(BaseModel):
-    """DBD game version creation schema"""
+    """DBD game version creation schema."""
 
-    name: str
-    release_date: Optional[dt.date]
+    name         : str
+    release_date : Optional[dt.date]
 
 
 class DBDVersionOut(BaseModel):
-    """DBD game version output schema"""
+    """DBD game version output schema."""
 
-    id: int
-    name: str
-    common_name: str | None
-    release_date: Optional[dt.date]
+    id           : int
+    name         : str
+    common_name  : str | None
+    release_date : Optional[dt.date]
 
 
 class CharacterCreate(BaseModel):
-    """Character creation schema"""
+    """Character creation schema."""
 
-    name: str
-    is_killer: bool | None
-    base_char_id: int | None = None  # Support for legendary outfits
-    dbd_version_str: str | None = None
-    emoji: str | None = None
+    name            : str
+    is_killer       : bool | None
+    base_char_id    : int | None = None  # Support for legendary outfits
+    dbd_version_str : str | None = None
+    emoji           : str | None = None
 
 
 class CharacterOut(BaseModel):
-    """Character output schema"""
+    """Character output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    common_name: str | None
-    proba: Probability | None = None
-    is_killer: bool | None
-    base_char_id: int | None
-    dbd_version_id: int | None
-    emoji: str | None
+    id             : int
+    name           : str
+    common_name    : str | None
+    proba          : Probability | None = None
+    is_killer      : bool | None
+    base_char_id   : int | None
+    dbd_version_id : int | None
+    emoji          : str | None
 
 
 class PerkCreate(BaseModel):
-    """Perk creation schema"""
+    """Perk creation schema."""
 
-    name: str
-    character_id: int
-    dbd_version_str: str | None = None
-    emoji: str | None = None
+    name            : str
+    character_id    : int
+    dbd_version_str : str | None = None
+    emoji           : str | None = None
 
 
 class PerkOut(BaseModel):
-    """Perk output schema"""
+    """Perk output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    proba: Probability | None = None
-    character_id: int
-    is_for_killer: bool | None
-    dbd_version_id: int | None
-    emoji: str | None
+    id             : int
+    name           : str
+    proba          : Probability | None = None
+    character_id   : int
+    is_for_killer  : bool | None
+    dbd_version_id : int | None
+    emoji          : str | None
 
 
 class ItemCreate(BaseModel):
-    """Match item creation schema"""
+    """Match item creation schema."""
 
-    name: str
-    type_id: int
+    name    : str
+    type_id : int
 
 
 class ItemOut(BaseModel):
-    """Match item output schema"""
+    """Match item output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    proba: Probability | None = None
-    type_id: int
+    id      : int
+    name    : str
+    proba   : Probability | None = None
+    type_id : int
+
+
+class ItemTypeOut(BaseModel):
+    """Match item type output schema."""
+    id            : int
+    name          : str
+    emoji         : str | None
+    is_for_killer : bool | None
 
 
 class OfferingCreate(BaseModel):
-    """Offering creation schema"""
+    """Offering creation schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    name: str
-    type_id: int
-    user_id: int
+    name    : str
+    type_id : int
+    user_id : int
 
 
 class OfferingOut(BaseModel):
-    """Offering output schema"""
+    """Offering output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    proba: Probability | None = None
-    type_id: int
-    user_id: int
-    is_for_killer: bool | None
+    id            : int
+    name          : str
+    proba         : Probability | None = None
+    type_id       : int
+    user_id       : int
+    is_for_killer : bool | None
+
+
+class OfferingTypeOut(BaseModel):
+    """Offering type output schema."""
+    id            : int
+    name          : str
+    emoji         : str | None
+    is_for_killer : bool | None
 
 
 class AddonCreate(BaseModel):
-    """Addon creation schema"""
+    """Item-or-power addon creation schema."""
 
-    name: str
-    type_id: int
-    user_id: int
-    dbd_version_str: str | None = None
+    name            : str
+    type_id         : int
+    user_id         : int
+    dbd_version_str : str | None = None
 
 
 class AddonOut(BaseModel):
-    """Addon output schema"""
+    """Item-or-power addon output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    proba: Probability | None = None
-    type_id: int
-    user_id: int
-    dbd_version_id: int | None
+    id             : int
+    name           : str
+    proba          : Probability | None = None
+    type_id        : int
+    user_id        : int
+    dbd_version_id : int | None
+
+
+class AddonTypeOut(BaseModel):
+    """Item-or-power addon type output schema."""
+    id            : int
+    name          : str
+    emoji         : str | None
+    is_for_killer : bool | None
 
 
 class StatusCreate(BaseModel):
-    """Final player match status creation schema"""
+    """Final player match status creation schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    name: str
-    character_id: int
-    emoji: str | None = None
+    name         : str
+    character_id : int
+    emoji        : str | None = None
 
 
 class StatusOut(BaseModel):
-    """Final player match status output schema"""
+    """Final player match status output schema."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    proba: Probability | None = None
-    character_id: int
-    is_dead: bool | None
-    emoji: str | None
+    id           : int
+    name         : str
+    proba        : Probability | None = None
+    character_id : int
+    is_dead      : bool | None
+    emoji        : str | None
 
 
 class FullCharacterCreate(BaseModel):
@@ -168,13 +192,13 @@ class FullCharacterCreate(BaseModel):
     use base_char_id. Please use CharacterCreate instead.
     """
 
-    name: str
-    is_killer: bool
-    perk_names: list[str]
-    addon_names: Optional[list[str]]
-    dbd_version: DBDVersion
-    common_name: str
-    emoji: str
+    name        : str
+    is_killer   : bool
+    perk_names  : list[str]
+    addon_names : Optional[list[str]]
+    dbd_version : DBDVersion
+    common_name : str
+    emoji       : str
 
     @field_validator("perk_names")
     @classmethod
@@ -202,17 +226,17 @@ class FullCharacterCreate(BaseModel):
 
 
 class FullCharacterOut(BaseModel):
-    """Full character output schema"""
+    """Full character output schema."""
 
-    character: CharacterOut
-    perks: list[PerkOut]
-    addons: list[AddonOut]
-    common_name: str | None
-    # proba: Probability | None = None
-    is_killer: bool | None
-    base_char_id: int | None
-    dbd_version_id: int | None
-    emoji: str | None
+    character      : CharacterOut
+    perks          : list[PerkOut]
+    addons         : list[AddonOut]
+    common_name    : str | None
+    # proba        : Probability | None = None
+    is_killer      : bool | None
+    base_char_id   : int | None
+    dbd_version_id : int | None
+    emoji          : str | None
 
     @field_validator("perks")
     @classmethod
