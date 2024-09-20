@@ -6,26 +6,13 @@ from PIL import Image
 from torch.utils.data import Dataset
 from typing import TYPE_CHECKING, Optional
 
-from dbdie_ml.paths import absp, CROPS_MAIN_FD_RP, LABELS_FD_RP
+from dbdie_ml.paths import absp, CROPS_MAIN_FD_RP
 
 if TYPE_CHECKING:
     from numpy import int64 as np_int64
     from torch import Tensor
     from torchvision.transforms import Compose
     from dbdie_ml.classes.base import FullModelType
-
-
-def get_total_classes(selected_fd: "FullModelType") -> int:
-    """Calculate total classes from the corresponding `label_ref.csv`"""
-    class_df = pd.read_csv(
-        os.path.join(
-            absp(LABELS_FD_RP),
-            selected_fd,
-            "label_ref.csv",
-        )
-    )
-    assert (class_df.label_id == class_df.index).all()
-    return class_df.shape[0]
 
 
 class DatasetClass(Dataset):

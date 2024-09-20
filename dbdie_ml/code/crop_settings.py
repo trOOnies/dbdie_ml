@@ -2,7 +2,7 @@
 
 from itertools import combinations
 
-from dbdie_ml.classes.base import CropCoords
+from dbdie_ml.classes.extract import CropCoords
 
 
 def check_overboard(name, allow, img_size, crops) -> None:

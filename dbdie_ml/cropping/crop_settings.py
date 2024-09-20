@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal
 
 import yaml
 
-from dbdie_ml.classes.base import CropCoords
+from dbdie_ml.classes.extract import CropCoords
 from dbdie_ml.classes.version import DBDVersionRange
 from dbdie_ml.code.crop_settings import (
     check_overboard, check_overlap, check_positivity, check_shapes
@@ -123,8 +123,8 @@ PLAYER_KILLER_CS = CropSettings.from_config(
 
 ALL_CS = [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]
 ALL_CS_DICT = {
-    "img_surv_cs": IMG_SURV_CS,
-    "img_killer_cs": IMG_KILLER_CS,
-    "player_surv_cs": PLAYER_SURV_CS,
-    "player_killer_cs": PLAYER_KILLER_CS,
+    "surv": IMG_SURV_CS,
+    "killer": IMG_KILLER_CS,
+    "surv_player": PLAYER_SURV_CS,
+    "killer_player": PLAYER_KILLER_CS,
 }

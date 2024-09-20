@@ -15,7 +15,7 @@ from dbdie_ml.code.extractor import (
 
 class MockModel:
     def __init__(self, selected_fd: str, version_range: DBDVersionRange):
-        self.selected_fd = selected_fd
+        self.fmt = selected_fd
         self.version_range = version_range
 
 

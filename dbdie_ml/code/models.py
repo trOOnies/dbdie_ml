@@ -25,9 +25,13 @@ def is_str_like(v: Any) -> bool:
 def load_metadata_and_model(model_fd: "PathToFolder"):
     with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
         metadata: dict = yaml.safe_load(f)
+    total_classes = metadata["total_classes"]
+    del metadata["total_classes"]
+
     with open(os.path.join(model_fd, "model.pt"), "rb") as f:
         model = load(f)
-    return metadata, model
+
+    return metadata, model, total_classes
 
 
 def process_metadata(metadata: dict) -> dict:
@@ -87,7 +91,7 @@ def print_memory(device) -> None:
 def save_metadata(model, dst: "Path") -> None:
     assert dst.endswith(".yaml")
     metadata = {
-        k: getattr(model, k) for k in ["name", "model_type", "is_for_killer", "version"]
+        k: getattr(model, k) for k in ["name", "model_type", "is_for_killer", "version", "total_classes"]
     }
     metadata["img_size"] = list(model.img_size)
     metadata.update({k: getattr(model, f"_{k}") for k in ["norm_means", "norm_std"]})

@@ -17,7 +17,7 @@ def check_killer_consistency(
     is_killer,
     obj: Union["OfferingOut", "PerkOut"],
 ) -> bool:
-    return obj.is_for_killer is None or (obj.is_for_killer == is_killer)
+    return obj.ifk is None or (obj.ifk == is_killer)
 
 
 def check_item_consistency(is_killer: bool, item_type_id: int) -> bool:

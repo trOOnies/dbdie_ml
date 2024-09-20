@@ -31,21 +31,23 @@ from dbdie_ml.code.training import (
     predict_process,
     train_process,
 )
-from dbdie_ml.data import DatasetClass, get_total_classes
-from dbdie_ml.options.PLAYER_TYPE import ifk_to_pt
+from dbdie_ml.data import DatasetClass
+from dbdie_ml.options.PLAYER_TYPE import ifk_to_pt, to_fmt
 
 if TYPE_CHECKING:
     from pandas import DataFrame
     from torch.nn import Sequential
 
     from dbdie_ml.classes.base import (
-        CropCoords,
+        FullModelType,
         ImgSize,
         LabelName,
         ModelType,
         Path,
         PathToFolder,
+        PlayerType,
     )
+    from dbdie_ml.classes.extract import CropCoords
 
 
 class IEModel:
@@ -90,34 +92,35 @@ class IEModel:
         self,
         metadata: dict,
         model: "Sequential",
+        total_classes: int,
     ) -> None:
+        assert total_classes > 1
         metadata = process_metadata(metadata)
 
-        self.name: str                 = metadata["name"]
-        self.is_for_killer: str | None = metadata["is_for_killer"]
-        self.model_type: "ModelType"   = metadata["model_type"]
-        self.img_size: "ImgSize"       = metadata["img_size"]  # replaces cs & crop
-        self.version_range             = metadata["version_range"]
-        self._norm_means: list[float]  = metadata["norm_means"]
-        self._norm_std: list[float]    = metadata["norm_std"]
-        self.training_params           = metadata["training"]
+        self.name            :        str  = metadata["name"]
+        self.ifk             : str | None  = metadata["is_for_killer"]
+        self.mt              : "ModelType" = metadata["model_type"]
+        self.img_size        :   "ImgSize" = metadata["img_size"]  # replaces cs & crop
+        self.version_range                 = metadata["version_range"]
+        self._norm_means     : list[float] = metadata["norm_means"]
+        self._norm_std       : list[float] = metadata["norm_std"]
+        self.training_params               = metadata["training"]
+
+        self.pt:     "PlayerType" = ifk_to_pt(self.ifk)
+        self.fmt: "FullModelType" = to_fmt(self.mt, self.ifk)
 
         self.flushed: bool = False
-        self.selected_fd: str = (
-            self.model_type
-            + ("" if self.is_for_killer is None else ifk_to_pt(self.is_for_killer))
-        )
         self._model = model
         self.model_is_trained: bool = False
+        self.total_classes: int = total_classes
 
     def __repr__(self) -> str:
         """IEModel(...)"""
-        total_classes = getattr(self, "total_classes", "none")
         vals = {
-            "type": self.model_type,
-            "for_killer": self.is_for_killer,
+            "type": self.mt,
+            "for_killer": self.ifk,
             "version": self.version_range,
-            "classes": total_classes if total_classes != "none" else None,
+            "classes": self.total_classes,
             "trained": self.model_is_trained,
         }
         vals = ", ".join(
@@ -146,7 +149,6 @@ class IEModel:
         assert cuda_is_available()
         self._device = get_device("cuda")
 
-        self.total_classes = get_total_classes(self.selected_fd)
         self._model = self._model.cuda()
 
         self.cfg = load_training_config(self)
@@ -176,9 +178,9 @@ class IEModel:
     def from_folder(cls, model_fd: "PathToFolder") -> IEModel:
         """Loads a DBDIE model using its metadata and the actual model"""
         # TODO: Check if any other PT object needs to be saved
-        metadata, model = load_metadata_and_model(model_fd)
+        metadata, model, total_classes = load_metadata_and_model(model_fd)
 
-        iem = cls(metadata, model=model)
+        iem = cls(metadata, model=model, total_classes=total_classes)
 
         # Init the already trained model
         iem.init_model()
@@ -233,7 +235,7 @@ class IEModel:
         ), "IEModel cannot be retrained without being flushed first"
         self.label_ref = load_label_ref_for_train(label_ref_path)
         train_loader, val_loader = load_process(
-            self.selected_fd,
+            self.fmt,
             train_dataset_path,
             val_dataset_path,
             cfg=self.cfg,
@@ -261,7 +263,7 @@ class IEModel:
         assert not self.flushed, "IEModel was flushed"
         assert self.model_is_trained, "IEModel is not trained"
 
-        dataset = DatasetClass(self.selected_fd, raw_dataset, self.cfg.transform)
+        dataset = DatasetClass(self.fmt, raw_dataset, self.cfg.transform)
         loader = DataLoader(dataset, batch_size=self.cfg.batch_size)
 
         if probas:

@@ -15,7 +15,7 @@ class MockAddon:
 
 class MockPredictable:
     def __init__(self, is_for_killer: bool | None) -> None:
-        self.is_for_killer = is_for_killer
+        self.ifk = is_for_killer
 
 
 class TestCodeSchemas:

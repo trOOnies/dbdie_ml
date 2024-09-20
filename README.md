@@ -60,7 +60,7 @@ Data folder
     │   │   └── 0
     │   │       ├── addons__killer
     │   │       ├── ...
-    │   │       └── status
+    │   │       └── status__surv
     │   ├── addons__killer
     │   ├── addons__surv
     │   ├── character__killer
@@ -75,7 +75,7 @@ Data folder
     │   ├── player__surv
     │   ├── points
     │   ├── prestige
-    │   └── status
+    │   └── status__surv
     ├── img
     │   ├── _old_versions
     │   │   ├── ...
@@ -88,19 +88,17 @@ Data folder
         ├── _old_versions
         │   ├── ...
         │   └── 0
-        │       ├── labels
-        │       │   ├── perks__killer
-        │       │   └── perks__surv
-        │       ├── (ex.) project_dbdie_perks__killer-2023_11_20_19_58_04-cvat for images 1.1
-        │       └── (ex.) project_dbdie_perks__surv-2023_11_21_03_14_26-cvat for images 1.1
+        │       └── labels
+        │           ├── perks__killer
+        │           ├── perks__surv
+        │           └── ...
         ├── label_ref
-        ├── labels
-        │   ├── character__killer
-        │   ├── character__surv
-        │   ├── perks__killer
-        │   └── perks__surv
-        ⋮
-        └── (ex.) project_dbdie_character__killer-2024_07_10_22_25_03-cvat for images 1.1
+        └── labels
+            ├── character__killer
+            ├── character__surv
+            ├── perks__killer
+            ├── perks__surv
+            └── ...
 ```
 
 Inference folder (WIP)
@@ -144,9 +142,11 @@ No labels are needed but they are welcome nonetheless.
 
 I chose to link all the code I develop to a **GPL-3.0** license. You can see its details in the `LICENSE` file, but I find it easier to read its summary [here](https://choosealicense.com/licenses/gpl-3.0/).
 
+Disclaimer: This is a personal project and I have no affiliation with BHVR and/or Dead By Daylight's team.
+
 ## See also
 
-- [dbdie_api](https://github.com/trOOnies/dbdie_api)
-- [dbdie_ui](https://github.com/trOOnies/dbdie_ui)
+- [DBDIE API](https://github.com/trOOnies/dbdie_api)
+- [DBDIE UI](https://github.com/trOOnies/dbdie_ui)
 - [dbdie_info_extraction](https://github.com/trOOnies/dbd_info_extraction)
 - [dbdie_info_training](https://github.com/trOOnies/dbd_info_training)

@@ -1,6 +1,6 @@
 from pytest import mark
 
-from dbdie_ml.classes.base import CropCoords
+from dbdie_ml.classes.extract import CropCoords
 
 
 class TestClassesBase:

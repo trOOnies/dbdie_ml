@@ -1,4 +1,4 @@
-"""Pydantic schemas for the grouping classes"""
+"""Pydantic schemas for the grouping classes."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from dbdie_ml.classes.base import ModelType, PlayerId
 from dbdie_ml.classes.version import DBDVersion
+from dbdie_ml.code.groupings import check_strict, predictables_for_sqld
 from dbdie_ml.code.schemas import (
     check_addons_consistency,
     check_item_consistency,
@@ -25,7 +26,6 @@ from dbdie_ml.schemas.predictables import (
     StatusOut,
 )
 from dbdie_ml.options.MODEL_TYPES import ALL as ALL_MT
-from dbdie_ml.options import COLUMNS as SQL_COLS
 
 # * Players
 
@@ -33,33 +33,39 @@ from dbdie_ml.options import COLUMNS as SQL_COLS
 class PlayerIn(BaseModel):
     """Player input schema to be used for creating labels"""
     id: int
-    character_id: int | None = Field(None, ge=0)
+    character_id:       int | None = Field(None, ge=0)
     perk_ids:     list[int] | None = None
-    item_id:      int | None = Field(None, ge=0)
+    item_id:            int | None = Field(None, ge=0)
     addon_ids:    list[int] | None = None
-    offering_id:  int | None = Field(None, ge=0)
-    status_id:    int | None = Field(None, ge=0)
-    points:       int | None = Field(None, ge=0)
-    prestige:     int | None = Field(None, ge=0, le=100)
+    offering_id:        int | None = Field(None, ge=0)
+    status_id:          int | None = Field(None, ge=0)
+    points:             int | None = Field(None, ge=0)
+    prestige:           int | None = Field(None, ge=0, le=100)
 
     @classmethod
     def from_labels(cls, labels) -> PlayerIn:
-        perks = [labels.perk_0, labels.perk_1, labels.perk_2, labels.perk_3]
-        perks = perks if all(p is not None for p in perks) else None
+        try:
+            perks = [labels.perk_0, labels.perk_1, labels.perk_2, labels.perk_3]
+            perks = perks if all(p is not None for p in perks) else None
+        except AttributeError:
+            perks = None
 
-        addons = [labels.addon_0, labels.addon_1]
-        addons = addons if all(a is not None for a in addons) else None
+        try:
+            addons = [labels.addon_0, labels.addon_1]
+            addons = addons if all(a is not None for a in addons) else None
+        except AttributeError:
+            addons = None
 
         player = PlayerIn(
             id=labels.player_id,
-            character_id=labels.character,
+            character_id=getattr(labels, "character", None),
             perk_ids=perks,
-            item_id=labels.item,
+            item_id=getattr(labels, "item", None),
             addon_ids=addons,
-            offering_id=labels.offering,
-            status_id=labels.status,
-            points=labels.points,
-            prestige=labels.prestige,
+            offering_id=getattr(labels, "offering", None),
+            status_id=getattr(labels, "status", None),
+            points=getattr(labels, "points", None),
+            prestige=getattr(labels, "prestige", None),
         )
         return player
 
@@ -91,39 +97,8 @@ class PlayerIn(BaseModel):
     def to_sqla(self, fps: list[str], strict: bool) -> dict:
         """To dict for the 'Labels' SQLAlchemy model."""
         sqld = {"player_id": self.id}
-        single_ids = {
-            "character": self.character_id,
-            "item": self.item_id,
-            "offering": self.offering_id,
-            "status": self.status_id,
-        }
-        sqld = sqld | {k: v for k, v in single_ids.items() if f"{k}_id" in fps}
-        sqld = sqld | {f"{k}_mckd": True for k in single_ids if f"{k}_id" in fps}
-
-        if "points" in fps:
-            sqld = sqld | {"points": self.points, "points_mckd": True}
-        if "prestige" in fps:
-            sqld = sqld | {"prestige": self.prestige, "prestige_mckd": True}
-        if "perk_ids" in fps:
-            cond = self.perk_ids is not None
-            sqld = sqld | {
-                f"perk_{i}": pid if cond else None
-                for i, pid in enumerate(self.perk_ids)
-            } | {"perks_mckd": True}
-        if "addon_ids" in fps:
-            cond = self.addon_ids is not None
-            sqld = sqld | {
-                f"addon_{i}": aid if cond else None
-                for i, aid in enumerate(self.addon_ids)
-            } | {"addons_mckd": True}
-
-        if strict:
-            all_fps_cols = [
-                cols for cols in SQL_COLS.ALL
-                if any(c in sqld for c in cols)
-            ]
-            assert len(all_fps_cols) == 1, "There can't be different model types in strict mode"
-
+        sqld = sqld | predictables_for_sqld(self, fps)
+        check_strict(strict, sqld)
         return sqld
 
     @staticmethod

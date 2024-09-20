@@ -1,8 +1,11 @@
+"""Extra code for the InfoExtractor class."""
+
 from copy import deepcopy
 from os import listdir, mkdir
-from os.path import isdir, join
+from os.path import exists, isdir, join
 from shutil import rmtree
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Optional, Union
+import yaml
 
 import pandas as pd
 
@@ -13,7 +16,7 @@ from dbdie_ml.options import PLAYER_TYPE as PT
 if TYPE_CHECKING:
     from numpy import ndarray
 
-    from dbdie_ml.classes.base import FullModelType, PathToFolder
+    from dbdie_ml.classes.base import FullModelType, Path, PathToFolder
     from dbdie_ml.classes.version import DBDVersionRange
     from dbdie_ml.ml.models import IEModel
 
@@ -39,9 +42,8 @@ def process_model_names(
 
 
 def get_models(
-    name: str,
     trained_models: dict["FullModelType", "IEModel"] | None,
-    fmts: list["FullModelType"] | None,
+    fmts_with_counts: dict["FullModelType", int],
 ) -> dict["FullModelType", "IEModel"]:
     if trained_models is not None:
         return trained_models
@@ -59,36 +61,39 @@ def get_models(
 
         # TODO: This are the currently implemented models
         base_models = {
-            f"{mt}__{PT.ifk_to_pt(ifk)}": ifk
+            PT.to_fmt(mt, ifk): ifk
             for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
             for ifk in [True, False]
         } | {f"{MT.STATUS}__{PT.SURV}": False}
 
-        if fmts is not None:
-            try:
-                models = {k: base_models[k] for k in fmts}
-            except KeyError:
-                raise KeyError(
-                    "fmts must be one of the following implemented models: "
-                    + str(list(base_models.keys()))
-                )
+        try:
+            models = {
+                fmt: (base_models[fmt], total)
+                for fmt, total in fmts_with_counts.items()
+            }
+        except KeyError:
+            raise KeyError(
+                "fmts must be one of the following implemented models: "
+                + str(list(base_models.keys()))
+            )
+        del base_models
 
         return {
-            mt: TYPES_TO_MODELS[mt[: mt.index("")]](
-                name=f"{name}__m{i}" if name is not None else None,
+            fmt: TYPES_TO_MODELS[PT.extract_mt_and_pt(fmt)[0]](
                 is_for_killer=ifk,
+                total_classes=total,
             )
-            for i, (mt, ifk) in enumerate(models.items())
+            for fmt, (ifk, total) in models.items()
         }
 
 
 def get_version_range(
     models: dict["FullModelType", "IEModel"],
     mode: Literal["match_all", "intersection"] = "match_all",
-    expected: "DBDVersionRange" | None = None,
+    expected: Optional["DBDVersionRange"] = None,
 ) -> "DBDVersionRange":
     """Calculate DBDVersionRange from many IEModels."""
-    assert all(model.selected_fd == mt for mt, model in models.items())
+    assert all(model.fmt == mt for mt, model in models.items())
 
     vrs = [model.version_range for model in models.values()]
     if mode == "match_all":
@@ -138,7 +143,42 @@ def get_printable_info(models: dict) -> pd.DataFrame:
     return printable_info
 
 
+# * Training
+
+
+def check_datasets(
+    fmts: list["FullModelType"],
+    datasets: dict["FullModelType", "Path"] | dict["FullModelType", pd.DataFrame],
+) -> None:
+    fmts_set = set(fmts)
+    dataset_set = set(datasets.keys())
+    assert fmts_set == dataset_set, (
+        "Dataset keys and set keys don't match:\n"
+        + f"- FMTS: {fmts_set}\n"
+        + f"- DATA: {dataset_set}"
+    )
+    if isinstance(next(datasets.values()), str):
+        assert all(exists(p) for p in datasets.values())
+
+
 # * Saving
+
+
+def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
+    dst = join(extractor_fd, "metadata.yaml")
+    metadata = {
+        "name": obj.name,
+        "version_range": obj.version_range,
+        "models": list(obj._models.keys()),
+    }
+    with open(dst, "w") as f:
+        yaml.dump(metadata, f)
+
+
+def save_models(models, extractor_fd: "PathToFolder") -> None:
+    models_fd = join(extractor_fd, "models")
+    for mn, model in models.items():
+        model.save(join(models_fd, mn))
 
 
 def folder_save_logic(
@@ -177,8 +217,8 @@ def folder_save_logic(
 
 
 def match_preds_types(
-    preds: "ndarray" | dict["FullModelType", "ndarray"],
-    on: "FullModelType" | list["FullModelType"] | None,
+    preds: Union["ndarray", dict["FullModelType", "ndarray"]],
+    on: Union["FullModelType", list["FullModelType"], None],
 ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
     if isinstance(preds, dict):
         on_ = filter_multitype(
