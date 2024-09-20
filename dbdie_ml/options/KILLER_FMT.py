@@ -1,15 +1,16 @@
-"""Killer FullModelTypes"""
+"""Killer FullModelTypes."""
 
-from dbdie_ml.options import COMMON_FMT
+from dbdie_ml.options import MODEL_TYPES as MT
+from dbdie_ml.options.PLAYER_TYPE import KILLER
 
-ADDONS = "addons__killer"
-CHARACTER = "character__killer"
-ITEM = "item__killer"
-OFFERING = "offering__killer"
-PERKS = "perks__killer"
-POINTS = f"{COMMON_FMT.POINTS}__killer"
-PRESTIGE = f"{COMMON_FMT.PRESTIGE}__killer"
-STATUS = f"{COMMON_FMT.STATUS}__killer"
+ADDONS    = f"{MT.ADDONS}__{KILLER}"
+CHARACTER = f"{MT.CHARACTER}__{KILLER}"
+ITEM      = f"{MT.ITEM}__{KILLER}"
+OFFERING  = f"{MT.OFFERING}__{KILLER}"
+PERKS     = f"{MT.PERKS}__{KILLER}"
+POINTS    = f"{MT.POINTS}__{KILLER}"
+PRESTIGE  = f"{MT.PRESTIGE}__{KILLER}"
+STATUS    = f"{MT.STATUS}__{KILLER}"
 
 ALL = [
     ADDONS,

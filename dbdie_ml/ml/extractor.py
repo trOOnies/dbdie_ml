@@ -18,9 +18,8 @@ from dbdie_ml.code.extractor import (
     match_preds_types,
     process_model_names,
 )
-from dbdie_ml.ml.models import IEModel
-
 # from dbdie_ml.db import to_player
+from dbdie_ml.ml.models import IEModel
 from dbdie_ml.schemas.groupings import FullMatchOut
 
 if TYPE_CHECKING:
@@ -61,7 +60,7 @@ class InfoExtractor:
     Usage:
     >>> ie = InfoExtractor(name="my_info_extractor")
     >>> # ie.models = {"perks_surv": my_model, ...}  # ! only for super-users
-    >>> ie.init_extractor()  # this uses all standard models
+    >>> ie.init_extractor()  # this uses all available models
     >>> ie.train(...)
     >>> ie.save("/path/to/extractor/folder")
     >>> preds_dict = ie.predict_batch({"perks": "/path/to/dataset.csv", ...})
@@ -108,6 +107,7 @@ class InfoExtractor:
 
     def init_extractor(
         self,
+        fmts: list["FullModelType"] | None = None,
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
         expected_version_range: Optional["DBDVersionRange"] = None,
     ) -> None:
@@ -119,7 +119,7 @@ class InfoExtractor:
             not self.models_are_init
         ), "InfoExtractor can't be reinitialized before being flushed first"
 
-        self._models = get_models(self.name, trained_models)
+        self._models = get_models(self.name, trained_models, fmts)
         self.version_range = get_version_range(
             self._models,
             expected=expected_version_range,
@@ -240,15 +240,29 @@ class InfoExtractor:
         return {i: self.predict_on_crop(s) for i, s in player_crops.items()}
 
     def predict_batch(
-        self, datasets: dict["FullModelType", Path], probas: bool = False
+        self,
+        datasets: dict["FullModelType", Path],
+        fmts: list["FullModelType"] | None = None,
+        probas: bool = False,
     ) -> dict["FullModelType", "ndarray"]:
         assert not self.flushed, "InfoExtractor was flushed"
         assert self.models_are_trained
+        if fmts is not None:
+            assert fmts, "fmts can't be empty."
+            assert all(fmt in self._models for fmt in fmts)
+
         self._check_datasets(datasets)
-        return {
-            mt: model.predict_batch(datasets[mt], probas=probas)
-            for mt, model in self._models.items()
-        }
+
+        if fmts is not None:
+            return {
+                fmt: self._models[fmt].predict_batch(datasets[fmt], probas=probas)
+                for fmt in fmts
+            }
+        else:
+            return {
+                fmt: model.predict_batch(datasets[fmt], probas=probas)
+                for fmt, model in self._models.items()
+            }
 
     def convert_names(
         self,

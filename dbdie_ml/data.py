@@ -1,8 +1,11 @@
+"""Data related code."""
+
 import os
 import pandas as pd
-from typing import TYPE_CHECKING, Optional
 from PIL import Image
 from torch.utils.data import Dataset
+from typing import TYPE_CHECKING, Optional
+
 from dbdie_ml.paths import absp, CROPS_MAIN_FD_RP, LABELS_FD_RP
 
 if TYPE_CHECKING:
@@ -15,12 +18,10 @@ if TYPE_CHECKING:
 def get_total_classes(selected_fd: "FullModelType") -> int:
     """Calculate total classes from the corresponding `label_ref.csv`"""
     class_df = pd.read_csv(
-        absp(
-            os.path.join(
-                LABELS_FD_RP,
-                selected_fd,
-                "label_ref.csv",
-            )
+        os.path.join(
+            absp(LABELS_FD_RP),
+            selected_fd,
+            "label_ref.csv",
         )
     )
     assert (class_df.label_id == class_df.index).all()
@@ -28,16 +29,22 @@ def get_total_classes(selected_fd: "FullModelType") -> int:
 
 
 class DatasetClass(Dataset):
-    """DBDIE implementation of torch's `Dataset`"""
+    """DBDIE implementation of torch's `Dataset`."""
 
     def __init__(
         self,
         full_model_type: "FullModelType",
-        csv_path: str,
+        labels: str | pd.DataFrame,
         transform: Optional["Compose"] = None,
     ) -> None:
+        if isinstance(labels, str):
+            self.labels = pd.read_csv(labels, usecols=["name", "label_id"])
+        elif isinstance(labels, pd.DataFrame):
+            self.labels = labels[["name", "label_id"]].copy()
+        else:
+            raise TypeError("'labels' must be either a path (str) or a DataFrame.")
+
         self.full_model_type = full_model_type
-        self.labels = pd.read_csv(csv_path, usecols=["name", "label_id"])
         self.transform = transform
 
     def __len__(self) -> int:

@@ -1,15 +1,14 @@
+"""Extraction models (IEModel) code."""
+
 from __future__ import annotations
 
-import json
 import os
 from functools import partial
 from typing import TYPE_CHECKING
 
 import numpy as np
-import yaml
-from torch import load
 from torch.cuda import device as get_device
-from torch.cuda import empty_cache, mem_get_info
+from torch.cuda import empty_cache
 from torch.cuda import is_available as cuda_is_available
 from torch.utils.data import DataLoader
 from torchsummary import summary
@@ -17,7 +16,10 @@ from torchsummary import summary
 from dbdie_ml.code.models import (
     is_str_like,
     load_label_ref,
+    load_metadata_and_model,
+    print_memory,
     process_metadata,
+    save_label_ref,
     save_metadata,
     save_model,
 )
@@ -30,12 +32,15 @@ from dbdie_ml.code.training import (
     train_process,
 )
 from dbdie_ml.data import DatasetClass, get_total_classes
+from dbdie_ml.options.PLAYER_TYPE import ifk_to_pt
 
 if TYPE_CHECKING:
+    from pandas import DataFrame
     from torch.nn import Sequential
 
     from dbdie_ml.classes.base import (
         CropCoords,
+        ImgSize,
         LabelName,
         ModelType,
         Path,
@@ -53,7 +58,7 @@ class IEModel:
 
     Parameters:
         name (str): IEModel name.
-        is_for_killer (bool)
+        is_for_killer (bool | None)
         model_type (ModelType)
         img_size (tuple[int, int])
         version_range (DBDVersionRange): DBD game version range for which
@@ -88,18 +93,19 @@ class IEModel:
     ) -> None:
         metadata = process_metadata(metadata)
 
-        self.flushed: bool = False
-        self.name: str = metadata["name"]
-        self.is_for_killer: str = metadata["is_for_killer"]
-        self.model_type: "ModelType" = metadata["model_type"]
-        self.img_size: tuple[int, int] = metadata["img_size"]  # replaces cs & crop
-        self.version_range = metadata["version_range"]
-        self._norm_means: list[float] = metadata["norm_means"]
-        self._norm_std: list[float] = metadata["norm_std"]
-        self.training_params = metadata["training"]
+        self.name: str                 = metadata["name"]
+        self.is_for_killer: str | None = metadata["is_for_killer"]
+        self.model_type: "ModelType"   = metadata["model_type"]
+        self.img_size: "ImgSize"       = metadata["img_size"]  # replaces cs & crop
+        self.version_range             = metadata["version_range"]
+        self._norm_means: list[float]  = metadata["norm_means"]
+        self._norm_std: list[float]    = metadata["norm_std"]
+        self.training_params           = metadata["training"]
 
+        self.flushed: bool = False
         self.selected_fd: str = (
-            f"{self.model_type}{'killer' if self.is_for_killer else 'surv'}"
+            self.model_type
+            + ("" if self.is_for_killer is None else ifk_to_pt(self.is_for_killer))
         )
         self._model = model
         self.model_is_trained: bool = False
@@ -161,12 +167,7 @@ class IEModel:
             device="cuda",
         )
 
-        print("MEMORY")
-        print(
-            "- Free: {:,.2} GiB\n- Total: {:,.2} GiB".format(
-                *[v / (2**30) for v in mem_get_info(self._device)]
-            )
-        )
+        print_memory(self._device)
         print(64 * "-")
 
     # * Loading and saving
@@ -175,10 +176,7 @@ class IEModel:
     def from_folder(cls, model_fd: "PathToFolder") -> IEModel:
         """Loads a DBDIE model using its metadata and the actual model"""
         # TODO: Check if any other PT object needs to be saved
-        with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
-            metadata = yaml.safe_load(f)
-        with open(os.path.join(model_fd, "model.pt"), "rb") as f:
-            model = load(f)
+        metadata, model = load_metadata_and_model(model_fd)
 
         iem = cls(metadata, model=model)
 
@@ -199,9 +197,8 @@ class IEModel:
         mfd = partial(os.path.join, model_fd)
 
         save_metadata(self, mfd("metadata.yaml"))
-        with open(mfd("label_ref.json"), "w") as f:
-            json.dump(self.label_ref, f, indent=4)
-        save_model(self, mfd("model.pt"))
+        save_label_ref(self.label_ref, mfd("label_ref.json"))
+        save_model(self.model_is_trained, self._model, mfd("model.pt"))
 
         print("Model saved.")
 
@@ -226,7 +223,7 @@ class IEModel:
         train_dataset_path: "Path",
         val_dataset_path: "Path",
     ) -> None:
-        """Trains the 'IEModel'"""
+        """Trains the 'IEModel'."""
         assert not self.flushed, "IEModel was flushed"
 
         # TODO: Add training scores as attributes once trained
@@ -255,17 +252,16 @@ class IEModel:
         assert not self.flushed, "IEModel was flushed"
         raise NotImplementedError
 
-    def predict_batch(self, dataset_path: "Path", probas: bool = False) -> np.ndarray:
-        """Returns: preds or probas"""
+    def predict_batch(
+        self,
+        raw_dataset: "Path" | "DataFrame",
+        probas: bool = False,
+    ) -> np.ndarray:
+        """Returns: preds or probas."""
         assert not self.flushed, "IEModel was flushed"
         assert self.model_is_trained, "IEModel is not trained"
 
-        print("Predictions for:", dataset_path)
-        dataset = DatasetClass(
-            self.selected_fd,
-            dataset_path,
-            transform=self.cfg.transform,
-        )
+        dataset = DatasetClass(self.selected_fd, raw_dataset, self.cfg.transform)
         loader = DataLoader(dataset, batch_size=self.cfg.batch_size)
 
         if probas:
@@ -279,7 +275,7 @@ class IEModel:
             return predict_process(self._model, dataset, loader)
 
     def convert_names(self, preds: np.ndarray) -> list["LabelName"]:
-        """Convert integer predictions to named predictions"""
+        """Convert integer predictions to named predictions."""
         assert not self.flushed, "IEModel was flushed"
         assert isinstance(preds[0], (np.ushort, int))
         assert self.model_is_trained, "IEModel is not trained"
@@ -287,7 +283,7 @@ class IEModel:
 
     @staticmethod
     def save_preds(preds: np.ndarray, dst: "Path") -> None:
-        """Save predictions to the 'dst' path"""
+        """Save predictions to the 'dst' path."""
         print("Saving preds...", end=" ")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")

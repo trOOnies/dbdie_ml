@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import os
-from itertools import combinations
 from typing import TYPE_CHECKING, Literal
 
 import yaml
 
 from dbdie_ml.classes.base import CropCoords
 from dbdie_ml.classes.version import DBDVersionRange
+from dbdie_ml.code.crop_settings import (
+    check_overboard, check_overlap, check_positivity, check_shapes
+)
 from dbdie_ml.paths import absp, recursive_dirname
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import CropType, FullModelType, ImgSize, Path, RelPath
+    from dbdie_ml.classes.base import (
+        CropType, FullModelType, ImgSize, Path, RelPath
+    )
 
 CONFIGS_FD = os.path.join(recursive_dirname(__file__, n=2), "configs")
 
@@ -45,7 +49,10 @@ class CropSettings:
         self.dst_fd_rp, self.dst = self._setup_folder("dst")
         self._check_crop_shapes()
 
-    def _setup_folder(self, fd: Literal["src", "dst"]) -> tuple["RelPath", "Path"]:
+    def _setup_folder(
+        self,
+        fd: Literal["src", "dst"],
+    ) -> tuple["RelPath", "Path"]:
         """Initial processing of folder's attributes."""
         assert fd in {"src", "dst"}
 
@@ -60,30 +67,16 @@ class CropSettings:
 
     def _check_crop_shapes(self):
         """Sets crop sizes and checks if crop coordinates are feasible."""
-        if not self.allow["overboard"]:
-            img_crop = CropCoords(0, 0, self.img_size[0], self.img_size[1])
-            assert all(
-                crop.is_fully_inside(img_crop)
-                for crops in self.crops.values()
-                for crop in crops
-            ), f"[ct={self.name}] Crop out of bounds"
+        check_overboard(self.name, self.allow, self.img_size, self.crops)
 
-        self.crop_shapes = {name: crops[0].shape for name, crops in self.crops.items()}
-        assert all(
-            (cs[0] > 0) and (cs[1] > 0) for cs in self.crop_shapes.values()
-        ), f"[ct={self.name}] Coord sizes must be positive"
-        assert all(
-            c.shape == self.crop_shapes[name]
+        self.crop_shapes = {
+            name: crops[0].shape
             for name, crops in self.crops.items()
-            for c in crops
-        ), f"[ct={self.name}] All crops must have the same shape"
+        }
+        check_positivity(self.name, self.crop_shapes)
+        check_shapes(self.name, self.crops, self.crop_shapes)
 
-        if not self.allow["overlap"]:
-            assert all(
-                not c1.check_overlap(c2)
-                for crops in self.crops.values()
-                for c1, c2 in combinations(crops, 2)
-            ), f"[ct={self.name}] Crops cannot overlap"
+        check_overlap(self.name, self.allow, self.crops)
 
     # * Instantiation
 
@@ -129,3 +122,9 @@ PLAYER_KILLER_CS = CropSettings.from_config(
 )
 
 ALL_CS = [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]
+ALL_CS_DICT = {
+    "img_surv_cs": IMG_SURV_CS,
+    "img_killer_cs": IMG_KILLER_CS,
+    "player_surv_cs": PLAYER_SURV_CS,
+    "player_killer_cs": PLAYER_KILLER_CS,
+}

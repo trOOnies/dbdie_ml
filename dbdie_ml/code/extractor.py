@@ -1,13 +1,14 @@
-import os
 from copy import deepcopy
-from os import mkdir
+from os import listdir, mkdir
 from os.path import isdir, join
 from shutil import rmtree
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 
 from dbdie_ml.utils import filter_multitype
+from dbdie_ml.options import MODEL_TYPES as MT
+from dbdie_ml.options import PLAYER_TYPE as PT
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -29,7 +30,7 @@ def process_model_names(
     ), "Duplicated model names in the metadata YAML file"
 
     assert model_names == set(
-        fd for fd in os.listdir(models_fd) if os.path.isdir(os.path.join(models_fd, fd))
+        fd for fd in listdir(models_fd) if isdir(join(models_fd, fd))
     ), "The model subfolders do not match the metadata YAML file"
     return list(model_names)
 
@@ -39,23 +40,39 @@ def process_model_names(
 
 def get_models(
     name: str,
-    trained_models: Optional[dict["FullModelType", "IEModel"]],
+    trained_models: dict["FullModelType", "IEModel"] | None,
+    fmts: list["FullModelType"] | None,
 ) -> dict["FullModelType", "IEModel"]:
     if trained_models is not None:
         return trained_models
     else:
-        from dbdie_ml.ml.models.custom import CharacterModel, PerkModel
+        from dbdie_ml.ml.models.custom import (
+            CharacterModel, ItemModel, PerkModel, StatusModel
+        )
 
         TYPES_TO_MODELS = {
-            "character": CharacterModel,
-            "perks": PerkModel,
+            MT.CHARACTER: CharacterModel,
+            MT.ITEM: ItemModel,
+            MT.PERKS: PerkModel,
+            MT.STATUS: StatusModel,
         }
-        models = {
-            "character__killer": True,
-            "character__surv": False,
-            "perks__killer": True,
-            "perks__surv": False,
-        }
+
+        # TODO: This are the currently implemented models
+        base_models = {
+            f"{mt}__{PT.ifk_to_pt(ifk)}": ifk
+            for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
+            for ifk in [True, False]
+        } | {f"{MT.STATUS}__{PT.SURV}": False}
+
+        if fmts is not None:
+            try:
+                models = {k: base_models[k] for k in fmts}
+            except KeyError:
+                raise KeyError(
+                    "fmts must be one of the following implemented models: "
+                    + str(list(base_models.keys()))
+                )
+
         return {
             mt: TYPES_TO_MODELS[mt[: mt.index("")]](
                 name=f"{name}__m{i}" if name is not None else None,
@@ -68,7 +85,7 @@ def get_models(
 def get_version_range(
     models: dict["FullModelType", "IEModel"],
     mode: Literal["match_all", "intersection"] = "match_all",
-    expected: Optional["DBDVersionRange"] = None,
+    expected: "DBDVersionRange" | None = None,
 ) -> "DBDVersionRange":
     """Calculate DBDVersionRange from many IEModels."""
     assert all(model.selected_fd == mt for mt, model in models.items())
@@ -160,8 +177,8 @@ def folder_save_logic(
 
 
 def match_preds_types(
-    preds: Union["ndarray", dict["FullModelType", "ndarray"]],
-    on: Optional[Union["FullModelType", list["FullModelType"]]],
+    preds: "ndarray" | dict["FullModelType", "ndarray"],
+    on: "FullModelType" | list["FullModelType"] | None,
 ) -> tuple[dict["FullModelType", "ndarray"], list["FullModelType"]]:
     if isinstance(preds, dict):
         on_ = filter_multitype(

@@ -1,4 +1,4 @@
-"""Base DBDIE classes mainly for typing reasons"""
+"""Base DBDIE classes mainly for typing reasons."""
 
 from dataclasses import dataclass
 from typing import Literal
@@ -8,6 +8,7 @@ PlayerId = Literal[0, 1, 2, 3, 4]
 ModelType = Literal[
     "character", "perks", "item", "addons", "offering", "status", "points", "prestige"
 ]
+PlayerType = Literal["killer", "surv"]
 FullModelType = str  # i.e. character__killer
 Probability = float  # 0.0 to 1.0
 
@@ -63,7 +64,7 @@ class CropCoords:
         return (self.right - self.left) * (self.bottom - self.top)
 
     def is_fully_inside(self, cc) -> bool:
-        """Checks if the crop is fully inside the 'cc' crop"""
+        """Checks if the crop is fully inside the 'cc' crop."""
         return (
             (cc.left <= self.left)
             and (self.right <= cc.right)
@@ -83,7 +84,7 @@ class CropCoords:
 
 @dataclass
 class PlayerInfo:
-    """Integer-encoded DBD information of a player snippet"""
+    """Integer-encoded DBD information of a player snippet."""
 
     character_id: int
     perks_ids: tuple[int, int, int, int]

@@ -25,6 +25,7 @@ from dbdie_ml.schemas.predictables import (
     StatusOut,
 )
 from dbdie_ml.options.MODEL_TYPES import ALL as ALL_MT
+from dbdie_ml.options import COLUMNS as SQL_COLS
 
 # * Players
 
@@ -87,7 +88,7 @@ class PlayerIn(BaseModel):
         del d["id"]
         return [k for k, v in d.items() if v is not None]
 
-    def to_sqla(self, fps: list[str]) -> dict:
+    def to_sqla(self, fps: list[str], strict: bool) -> dict:
         """To dict for the 'Labels' SQLAlchemy model."""
         sqld = {"player_id": self.id}
         single_ids = {
@@ -96,33 +97,32 @@ class PlayerIn(BaseModel):
             "offering": self.offering_id,
             "status": self.status_id,
         }
-        sqld = sqld | {
-            k: v for k, v in single_ids.items()
-            if getattr(self, f"{k}_id") in fps
-        }
-        sqld = sqld | {
-            f"{k}_mckd": True for k in single_ids
-            if getattr(self, f"{k}_id") in fps
-        }
+        sqld = sqld | {k: v for k, v in single_ids.items() if f"{k}_id" in fps}
+        sqld = sqld | {f"{k}_mckd": True for k in single_ids if f"{k}_id" in fps}
 
         if "points" in fps:
             sqld = sqld | {"points": self.points, "points_mckd": True}
         if "prestige" in fps:
             sqld = sqld | {"prestige": self.prestige, "prestige_mckd": True}
         if "perk_ids" in fps:
+            cond = self.perk_ids is not None
             sqld = sqld | {
-                "perk_0": self.perk_ids[0] if self.perk_ids is not None else None,
-                "perk_1": self.perk_ids[1] if self.perk_ids is not None else None,
-                "perk_2": self.perk_ids[2] if self.perk_ids is not None else None,
-                "perk_3": self.perk_ids[3] if self.perk_ids is not None else None,
-                "perks_mckd": True,
-            }
+                f"perk_{i}": pid if cond else None
+                for i, pid in enumerate(self.perk_ids)
+            } | {"perks_mckd": True}
         if "addon_ids" in fps:
+            cond = self.addon_ids is not None
             sqld = sqld | {
-                "addon_0": self.addon_ids[0] if self.addon_ids is not None else None,
-                "addon_1": self.addon_ids[1] if self.addon_ids is not None else None,
-                "addons_mckd": True,
-            }
+                f"addon_{i}": aid if cond else None
+                for i, aid in enumerate(self.addon_ids)
+            } | {"addons_mckd": True}
+
+        if strict:
+            all_fps_cols = [
+                cols for cols in SQL_COLS.ALL
+                if any(c in sqld for c in cols)
+            ]
+            assert len(all_fps_cols) == 1, "There can't be different model types in strict mode"
 
         return sqld
 

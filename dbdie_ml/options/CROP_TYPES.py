@@ -1,9 +1,11 @@
-"""Types of crops made by the Croppers"""
+"""Types of crops made by the Croppers."""
 
-SURV = "surv"
-KILLER = "killer"
-SURV_PLAYER = "surv_player"
-KILLER_PLAYER = "killer_player"
+from dbdie_ml.options import PLAYER_TYPE as PT
+
+SURV = PT.SURV
+KILLER = PT.KILLER
+SURV_PLAYER = f"{PT.SURV}_player"
+KILLER_PLAYER = f"{PT.KILLER}_player"
 
 ALL = [SURV, KILLER, SURV_PLAYER, KILLER_PLAYER]
 DEFAULT_CROP_TYPES_SEQ = [[SURV, KILLER], [SURV_PLAYER, KILLER_PLAYER]]

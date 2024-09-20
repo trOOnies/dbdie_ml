@@ -1,13 +1,14 @@
-"""Extra code for the IEModel models Python file"""
+"""Extra code for the IEModel models Python file."""
 
 import json
 import os
+import yaml
 from typing import TYPE_CHECKING, Any
 
-import yaml
-from torch import save
+from torch import load, save
+from torch.cuda import mem_get_info
 
-from dbdie_ml.cropping.crop_settings import ALL_CS
+from dbdie_ml.cropping.crop_settings import ALL_CS_DICT
 from dbdie_ml.options import MODEL_TYPES
 
 if TYPE_CHECKING:
@@ -21,12 +22,41 @@ def is_str_like(v: Any) -> bool:
 # * Loading
 
 
+def load_metadata_and_model(model_fd: "PathToFolder"):
+    with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
+        metadata: dict = yaml.safe_load(f)
+    with open(os.path.join(model_fd, "model.pt"), "rb") as f:
+        model = load(f)
+    return metadata, model
+
+
 def process_metadata(metadata: dict) -> dict:
     """Process IEModel raw metadata dict (straight from the YAML file)."""
     assert metadata["model_type"] in MODEL_TYPES.ALL
 
-    cs = [cs_i for cs_i in ALL_CS if cs_i.name == metadata["cs"]][0]
-    metadata["img_size"] = cs.crop_shapes[metadata["crop"]]
+    if metadata["is_for_killer"] is not None:
+        assert isinstance(metadata["cs"], str)
+        assert isinstance(metadata["crop"], str)
+
+        cs = ALL_CS_DICT[metadata["cs"]]
+        crop = metadata["crop"]
+
+        metadata["img_size"] = cs.crop_shapes[crop]
+    else:
+        assert isinstance(metadata["cs"], list)
+        assert isinstance(metadata["crop"], list)
+        assert len(metadata["cs"]) == 2
+        assert len(metadata["crop"]) == 2
+
+        both_cs = [ALL_CS_DICT[cs_str] for cs_str in metadata["cs"]]
+        crop_shapes = [
+            cs.crop_shapes[crop]
+            for cs, crop in zip(both_cs, metadata["crop"])
+        ]
+        assert crop_shapes[0] == crop_shapes[1]
+
+        metadata["img_size"] = crop_shapes[0]
+
     del metadata["cs"], metadata["crop"]
 
     metadata["version_range"] = cs.version_range
@@ -40,6 +70,15 @@ def load_label_ref(model_fd: "PathToFolder") -> "LabelRef":
         label_ref = json.load(f)
     label_ref = {int(k): v for k, v in label_ref.items()}
     return label_ref
+
+
+def print_memory(device) -> None:
+    print("MEMORY")
+    print(
+        "- Free: {:,.2} GiB\n- Total: {:,.2} GiB".format(
+            *[v / (2**30) for v in mem_get_info(device)]
+        )
+    )
 
 
 # * Saving
@@ -56,8 +95,13 @@ def save_metadata(model, dst: "Path") -> None:
         yaml.dump(metadata, f)
 
 
-def save_model(obj, dst: "Path") -> None:
-    assert obj.model_is_trained, "IEModel is not trained"
+def save_label_ref(label_ref, dst: "Path") -> None:
+    with open(dst, "w") as f:
+        json.dump(label_ref, f, indent=4)
+
+
+def save_model(model_is_trained, model, dst: "Path") -> None:
+    assert model_is_trained, "IEModel is not trained"
     assert dst.endswith(".pt")
-    save(obj._model, dst)
-    # save(obj._model.state_dict(), dst)
+    save(model, dst)
+    # save(model.state_dict(), dst)

@@ -1,0 +1,11 @@
+name: md-item-killer
+is_for_killer: true
+model_type: item
+cs: killer_player
+crop: item__killer
+norm_means: [0.485, 0.456, 0.406]
+norm_std: [0.229, 0.224, 0.225]
+training:
+  epochs: 30
+  batch_size: 64
+  adam_lr: 1.0e-3
