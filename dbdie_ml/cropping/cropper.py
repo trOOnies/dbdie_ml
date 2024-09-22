@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 from PIL import Image
 
 from dbdie_ml.cropping.crop_settings import ALL_CS
-from dbdie_ml.utils import filter_multitype, pls
+from dbdie_classes.utils import filter_multitype, pls
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
-    from dbdie_ml.classes.base import CropType, FullModelType, Path
+    from dbdie_classes.base import CropType, FullModelType, Path
     from dbdie_ml.cropping.crop_settings import CropSettings
 
 CS_DICT: dict["CropType", "CropSettings"] = {cs.name: cs for cs in ALL_CS}

@@ -32,13 +32,13 @@ from dbdie_ml.code.training import (
     train_process,
 )
 from dbdie_ml.data import DatasetClass
-from dbdie_ml.options.PLAYER_TYPE import ifk_to_pt, to_fmt
+from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt, to_fmt
 
 if TYPE_CHECKING:
     from pandas import DataFrame
     from torch.nn import Sequential
 
-    from dbdie_ml.classes.base import (
+    from dbdie_classes.base import (
         FullModelType,
         ImgSize,
         LabelName,
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
         PathToFolder,
         PlayerType,
     )
-    from dbdie_ml.classes.extract import CropCoords
+    from dbdie_classes.extract import CropCoords
 
 
 class IEModel:

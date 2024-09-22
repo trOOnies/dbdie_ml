@@ -9,9 +9,9 @@ from uuid import uuid4
 from copy import deepcopy
 import yaml
 
-from dbdie_ml.classes.base import Path, PathToFolder
-from dbdie_ml.classes.extract import PlayerInfo
-from dbdie_ml.classes.version import DBDVersion
+from dbdie_classes.base import Path, PathToFolder
+from dbdie_classes.extract import PlayerInfo
+from dbdie_classes.version import DBDVersion
 from dbdie_ml.code.extractor import (
     check_datasets,
     folder_save_logic,
@@ -25,17 +25,17 @@ from dbdie_ml.code.extractor import (
 )
 # from dbdie_ml.db import to_player
 from dbdie_ml.ml.models import IEModel
-from dbdie_ml.options.MODEL_TYPES import MTS_TO_ID_NAMES
-from dbdie_ml.schemas.groupings import FullMatchOut
+from dbdie_classes.options.MODEL_TYPE import MTS_TO_ID_NAMES
+from dbdie_classes.schemas.groupings import FullMatchOut
 
 if TYPE_CHECKING:
     from numpy import ndarray
     from pandas import DataFrame
 
-    from dbdie_ml.classes.base import FullModelType
-    from dbdie_ml.classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
-    from dbdie_ml.classes.version import DBDVersionRange
-    from dbdie_ml.schemas.groupings import PlayerOut
+    from dbdie_classes.base import FullModelType
+    from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
+    from dbdie_classes.version import DBDVersionRange
+    from dbdie_classes.schemas.groupings import PlayerOut
 
 
 class InfoExtractor:

@@ -9,15 +9,15 @@ import yaml
 
 import pandas as pd
 
-from dbdie_ml.utils import filter_multitype
-from dbdie_ml.options import MODEL_TYPES as MT
-from dbdie_ml.options import PLAYER_TYPE as PT
+from dbdie_classes.utils import filter_multitype
+from dbdie_classes.options import MODEL_TYPE as MT
+from dbdie_classes.options import PLAYER_TYPE as PT
 
 if TYPE_CHECKING:
     from numpy import ndarray
 
-    from dbdie_ml.classes.base import FullModelType, Path, PathToFolder
-    from dbdie_ml.classes.version import DBDVersionRange
+    from dbdie_classes.base import FullModelType, Path, PathToFolder
+    from dbdie_classes.version import DBDVersionRange
     from dbdie_ml.ml.models import IEModel
 
 # * Loading

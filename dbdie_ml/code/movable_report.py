@@ -3,10 +3,10 @@
 import os
 from typing import TYPE_CHECKING
 
-from dbdie_ml.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp
+from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import Filename
+    from dbdie_classes.base import Filename
 
 MAX_PRINT_LEN = 10
 

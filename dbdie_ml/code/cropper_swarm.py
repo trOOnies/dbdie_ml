@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING
 
 from PIL import Image
 
-from dbdie_ml.paths import absp
-from dbdie_ml.utils import filter_multitype
+from dbdie_classes.paths import absp
+from dbdie_classes.utils import filter_multitype
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
-    from dbdie_ml.classes.base import Filename, FullModelType
+    from dbdie_classes.base import Filename, FullModelType
     from dbdie_ml.cropping.cropper import Cropper
     from dbdie_ml.cropping.movable_report import MovableReport
 

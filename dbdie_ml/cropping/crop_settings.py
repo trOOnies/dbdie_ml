@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING, Literal
 
 import yaml
 
-from dbdie_ml.classes.extract import CropCoords
-from dbdie_ml.classes.version import DBDVersionRange
+from dbdie_classes.extract import CropCoords
+from dbdie_classes.version import DBDVersionRange
 from dbdie_ml.code.crop_settings import (
     check_overboard, check_overlap, check_positivity, check_shapes
 )
-from dbdie_ml.paths import absp, recursive_dirname
+from dbdie_classes.paths import absp, recursive_dirname
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import (
+    from dbdie_classes.base import (
         CropType, FullModelType, ImgSize, Path, RelPath
     )
 

@@ -11,10 +11,10 @@ from dbdie_ml.code.cropper_swarm import (
 )
 from dbdie_ml.cropping.cropper import Cropper
 from dbdie_ml.cropping.movable_report import MovableReport
-from dbdie_ml.utils import pls
+from dbdie_classes.utils import pls
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import CropType, FullModelType, RelPath
+    from dbdie_classes.base import CropType, FullModelType, RelPath
 
 
 class CropperAlignments:

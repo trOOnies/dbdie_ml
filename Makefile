@@ -33,6 +33,8 @@ venv: ## Create venv
 
 install: ## Install the dependencies
 	python3 -m pip install -r requirements.txt
+	python3 -m pip install -r requirements_test.txt
+	python3 -m pip install ../dbdie_classes
 
 folders: ## Create the DBDIE folder structure
 	python3 -m folder_structure

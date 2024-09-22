@@ -3,7 +3,7 @@
 from os.path import dirname, join
 from dotenv import load_dotenv
 
-from dbdie_ml.classes.paths import DBDIEFolderStructure
+from dbdie_classes.paths import DBDIEFolderStructure
 
 load_dotenv()
 

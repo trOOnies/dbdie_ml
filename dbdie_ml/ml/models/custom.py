@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING
 
 from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 
-from dbdie_ml.options import MODEL_TYPES as MT
-from dbdie_ml.options.PLAYER_TYPE import to_fmt
-from dbdie_ml.paths import recursive_dirname
+from dbdie_classes.options import MODEL_TYPE as MT
+from dbdie_classes.options.PLAYER_TYPE import to_fmt
+from dbdie_classes.paths import recursive_dirname
 from dbdie_ml.ml.models import IEModel
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import ModelType
+    from dbdie_classes.base import ModelType
 
 CONFIGS_FD = os.path.join(recursive_dirname(__file__, 3), "configs")
 

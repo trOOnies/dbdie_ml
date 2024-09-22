@@ -9,10 +9,10 @@ from torch import load, save
 from torch.cuda import mem_get_info
 
 from dbdie_ml.cropping.crop_settings import ALL_CS_DICT
-from dbdie_ml.options import MODEL_TYPES
+from dbdie_classes.options import MODEL_TYPE
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import LabelRef, Path, PathToFolder
+    from dbdie_classes.base import LabelRef, Path, PathToFolder
 
 
 def is_str_like(v: Any) -> bool:
@@ -36,7 +36,7 @@ def load_metadata_and_model(model_fd: "PathToFolder"):
 
 def process_metadata(metadata: dict) -> dict:
     """Process IEModel raw metadata dict (straight from the YAML file)."""
-    assert metadata["model_type"] in MODEL_TYPES.ALL
+    assert metadata["model_type"] in MODEL_TYPE.ALL
 
     if metadata["is_for_killer"] is not None:
         assert isinstance(metadata["cs"], str)

@@ -3,10 +3,10 @@ from shutil import move
 from typing import TYPE_CHECKING
 
 from dbdie_ml.code.movable_report import calculate_umvis
-from dbdie_ml.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
+from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
 
 if TYPE_CHECKING:
-    from dbdie_ml.classes.base import Filename, PathToFolder
+    from dbdie_classes.base import Filename, PathToFolder
 
 
 class MovableReport:
