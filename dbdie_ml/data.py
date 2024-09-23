@@ -1,18 +1,17 @@
 """Data related code."""
 
+from dbdie_classes.paths import absp, CROPS_MAIN_FD_RP
 import os
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
 from typing import TYPE_CHECKING, Optional
 
-from dbdie_classes.paths import absp, CROPS_MAIN_FD_RP
-
 if TYPE_CHECKING:
+    from dbdie_classes.base import FullModelType
     from numpy import int64 as np_int64
     from torch import Tensor
     from torchvision.transforms import Compose
-    from dbdie_classes.base import FullModelType
 
 
 class DatasetClass(Dataset):

@@ -1,9 +1,11 @@
 import os
 from shutil import move
 from typing import TYPE_CHECKING
+from dbdie_classes.paths import (
+    CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
+)
 
 from dbdie_ml.code.movable_report import calculate_umvis
-from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder
@@ -42,10 +44,14 @@ class MovableReport:
     def move_images(self) -> None:
         """Move movable images to the 'cropped' folder"""
         assert not self.obsolete
+
+        pending_fd = absp(CROP_PENDING_IMG_FD_RP)
+        cropped_fd = absp(CROPPED_IMG_FD_RP)
+
         for f in self.mvi:
             move(
-                absp(os.path.join(CROP_PENDING_IMG_FD_RP, f)),
-                absp(os.path.join(CROPPED_IMG_FD_RP, f)),
+                os.path.join(pending_fd, f),
+                os.path.join(cropped_fd, f),
             )
         self.obsolete = True
         print("[MovableReport] Images moved")

@@ -2,10 +2,9 @@ import os
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from PIL import Image
-
 from dbdie_classes.paths import absp
 from dbdie_classes.utils import filter_multitype
+from PIL import Image
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
