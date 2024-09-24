@@ -89,9 +89,9 @@ Data folder
         │   ├── ...
         │   └── 0
         │       └── labels
-        │           ├── perks__killer
-        │           ├── perks__surv
-        │           └── ...
+        │           ├── addons__killer
+        │           ├── ...
+        │           └── status__surv
         ├── label_ref
         └── labels
             ├── character__killer
