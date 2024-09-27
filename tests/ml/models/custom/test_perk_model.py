@@ -5,12 +5,12 @@ from dbdie_ml.ml.models.custom import PerkModel
 
 @fixture
 def mock_killer_pm():
-    return PerkModel(is_for_killer=True)
+    return PerkModel(is_for_killer=True, total_classes=100)
 
 
 @fixture
 def mock_surv_pm():
-    return PerkModel(is_for_killer=False)
+    return PerkModel(is_for_killer=False, total_classes=100)
 
 
 class TestPerkModel:
@@ -21,7 +21,7 @@ class TestPerkModel:
             + "type='perks', "
             + "for_killer=True, "
             + "version='>=7.5.0', "
-            + "classes=None, "
+            + "classes=100, "
             + "trained=False"
             + ")"
         )

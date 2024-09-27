@@ -32,7 +32,8 @@ from dbdie_ml.code.training import (
     train_process,
 )
 from dbdie_ml.data import DatasetClass
-from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt, to_fmt
+from dbdie_classes.options.FMT import to_fmt
+from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 
 if TYPE_CHECKING:
     from pandas import DataFrame
