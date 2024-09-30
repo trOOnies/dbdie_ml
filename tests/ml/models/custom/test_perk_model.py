@@ -1,6 +1,6 @@
 from pytest import fixture
 
-from dbdie_ml.ml.models.custom import PerkModel
+from backbone.ml.models.custom import PerkModel
 
 
 @fixture

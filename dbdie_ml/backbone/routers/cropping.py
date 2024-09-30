@@ -5,7 +5,7 @@ from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
 from traceback import print_exc
 
-from dbdie_ml.cropping.cropper_swarm import CropperSwarm
+from backbone.cropping.cropper_swarm import CropperSwarm
 
 router = APIRouter()
 

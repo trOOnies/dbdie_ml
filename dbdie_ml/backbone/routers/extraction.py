@@ -2,11 +2,11 @@
 
 from copy import deepcopy
 from dbdie_classes.base import FullModelType, PathToFolder
-from dbdie_classes.options.PLAYER_TYPE import extract_mts_and_pts
-from dbdie_ml.ml.extractor import InfoExtractor
+from dbdie_classes.options.FMT import from_fmts
 from fastapi import APIRouter, status
 
-from dbdie_ml.code.extraction import get_raw_dataset
+from backbone.code.extraction import get_raw_dataset
+from backbone.ml.extractor import InfoExtractor
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ def batch_extract(
 
     try:
         fmts_ = deepcopy(fmts) if fmts is not None else ie.fmts
-        mts, pts = extract_mts_and_pts(fmts_)
+        mts, pts = from_fmts(fmts_)
 
         raw_dataset = get_raw_dataset(fmts_, mts, pts)
         preds_dict = ie.predict_batch(raw_dataset, fmts_)

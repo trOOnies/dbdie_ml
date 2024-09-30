@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from dbdie_ml.fs.dbdie_folder_structure import DBDIEFolderStructure  # noqa: E402
+from backbone.fs.dbdie_folder_structure import DBDIEFolderStructure  # noqa: E402
 
 
 def main():

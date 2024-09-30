@@ -13,7 +13,7 @@ from torch.cuda import is_available as cuda_is_available
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
-from dbdie_ml.code.models import (
+from backbone.code.models import (
     is_str_like,
     load_label_ref,
     load_metadata_and_model,
@@ -23,7 +23,7 @@ from dbdie_ml.code.models import (
     save_metadata,
     save_model,
 )
-from dbdie_ml.code.training import (
+from backbone.code.training import (
     load_label_ref_for_train,
     load_process,
     load_training_config,
@@ -31,7 +31,7 @@ from dbdie_ml.code.training import (
     predict_process,
     train_process,
 )
-from dbdie_ml.data import DatasetClass
+from backbone.data import DatasetClass
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 
@@ -233,12 +233,16 @@ class IEModel:
         assert self.model_is_init, "IEModel is not initialized"
         assert (
             not self.model_is_trained
-        ), "IEModel cannot be retrained without being flushed first"
-        self.label_ref = load_label_ref_for_train(label_ref_path)
+        ), "IEModel cannot be retrained without being flushed first."
+
+        self.to_net_ids, self.to_label_ids, self.label_ref = load_label_ref_for_train(
+            label_ref_path
+        )
         train_loader, val_loader = load_process(
             self.fmt,
             train_dataset_path,
             val_dataset_path,
+            self.to_net_ids,
             cfg=self.cfg,
         )
         train_process(

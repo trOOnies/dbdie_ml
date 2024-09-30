@@ -12,7 +12,7 @@ import yaml
 from dbdie_classes.base import Path, PathToFolder
 from dbdie_classes.extract import PlayerInfo
 from dbdie_classes.version import DBDVersion
-from dbdie_ml.code.extractor import (
+from backbone.code.extractor import (
     check_datasets,
     folder_save_logic,
     get_models,
@@ -23,9 +23,9 @@ from dbdie_ml.code.extractor import (
     save_metadata,
     save_models,
 )
-# from dbdie_ml.db import to_player
-from dbdie_ml.ml.models import IEModel
-from dbdie_classes.options.MODEL_TYPE import MTS_TO_ID_NAMES
+# from backbone.db import to_player
+from backbone.ml.models import IEModel
+from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
 
 if TYPE_CHECKING:
@@ -161,7 +161,7 @@ class InfoExtractor:
     def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
         """Save all necessary objects of the InfoExtractor and all its IEModels."""
         self._check_flushed()
-        assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved"
+        assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved."
 
         folder_save_logic(self._models, extractor_fd, replace)
         save_metadata(self, extractor_fd)
@@ -201,11 +201,12 @@ class InfoExtractor:
         self._check_flushed()
         self.flushed = True
 
-        model_names = [mn for mn in self._models]
-        for mn in model_names:
-            self._models[mn].flush()
-            del self._models[mn]
-        del self._models
+        if self.models_are_init:
+            model_names = [mn for mn in self._models]
+            for mn in model_names:
+                self._models[mn].flush()
+                del self._models[mn]
+            del self._models
 
     def _check_flushed(self) -> None:
         assert not self.flushed, "InfoExtractor was flushed"
@@ -215,7 +216,7 @@ class InfoExtractor:
     def predict_on_crop(self, crop: "CropCoords") -> PlayerInfo:
         self._check_flushed()
         preds = {
-            MTS_TO_ID_NAMES[k]: model.predict(crop)
+            TO_ID_NAMES[k]: model.predict(crop)
             for k, model in self._models.items()
         }
         return PlayerInfo(**preds)

@@ -9,7 +9,7 @@ import yaml
 
 from dbdie_classes.extract import CropCoords
 from dbdie_classes.version import DBDVersionRange
-from dbdie_ml.code.crop_settings import (
+from backbone.code.crop_settings import (
     check_overboard, check_overlap, check_positivity, check_shapes
 )
 from dbdie_classes.paths import absp, recursive_dirname

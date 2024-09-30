@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from dbdie_ml.routers import cropping, extraction, training
+from backbone.routers import cropping, extraction, training
 
 app = FastAPI(
     title="DBDIE ML API",

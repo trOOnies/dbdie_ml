@@ -1,6 +1,6 @@
 from pytest import raises
 
-from dbdie_ml.code.cropper_swarm import cropper_fmts_nand, filter_use_croppers
+from backbone.code.cropper_swarm import cropper_fmts_nand, filter_use_croppers
 from dbdie_classes.options import CROP_TYPES
 
 

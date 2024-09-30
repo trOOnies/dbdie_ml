@@ -1,4 +1,4 @@
-from dbdie_ml.code.models import is_str_like
+from backbone.code.models import is_str_like
 
 
 class TestCodeModels:

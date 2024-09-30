@@ -9,16 +9,17 @@ import yaml
 
 import pandas as pd
 
-from dbdie_classes.utils import filter_multitype
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options import PLAYER_TYPE as PT
+from dbdie_classes.options.FMT import from_fmt, to_fmt
+from dbdie_classes.utils import filter_multitype
 
 if TYPE_CHECKING:
     from numpy import ndarray
 
     from dbdie_classes.base import FullModelType, Path, PathToFolder
     from dbdie_classes.version import DBDVersionRange
-    from dbdie_ml.ml.models import IEModel
+    from backbone.ml.models import IEModel
 
 # * Loading
 
@@ -48,7 +49,7 @@ def get_models(
     if trained_models is not None:
         return trained_models
     else:
-        from dbdie_ml.ml.models.custom import (
+        from backbone.ml.models.custom import (
             CharacterModel, ItemModel, PerkModel, StatusModel
         )
 
@@ -61,7 +62,7 @@ def get_models(
 
         # TODO: This are the currently implemented models
         base_models = {
-            PT.to_fmt(mt, ifk): ifk
+            to_fmt(mt, ifk): ifk
             for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
             for ifk in [True, False]
         } | {f"{MT.STATUS}__{PT.SURV}": False}
@@ -79,7 +80,7 @@ def get_models(
         del base_models
 
         return {
-            fmt: TYPES_TO_MODELS[PT.extract_mt_and_pt(fmt)[0]](
+            fmt: TYPES_TO_MODELS[from_fmt(fmt)[0]](
                 is_for_killer=ifk,
                 total_classes=total,
             )
@@ -150,6 +151,7 @@ def check_datasets(
     fmts: list["FullModelType"],
     datasets: dict["FullModelType", "Path"] | dict["FullModelType", pd.DataFrame],
 ) -> None:
+    """Check labeled dataset integrity."""
     fmts_set = set(fmts)
     dataset_set = set(datasets.keys())
     assert fmts_set == dataset_set, (
@@ -157,7 +159,7 @@ def check_datasets(
         + f"- FMTS: {fmts_set}\n"
         + f"- DATA: {dataset_set}"
     )
-    if isinstance(next(datasets.values()), str):
+    if isinstance(list(datasets.values())[0], str):
         assert all(exists(p) for p in datasets.values())
 
 
@@ -168,7 +170,10 @@ def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
     dst = join(extractor_fd, "metadata.yaml")
     metadata = {
         "name": obj.name,
-        "version_range": obj.version_range,
+        "version_range": [
+            obj.version_range.id,
+            obj.version_range.max_id,
+        ],
         "models": list(obj._models.keys()),
     }
     with open(dst, "w") as f:

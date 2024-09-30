@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dbdie_ml.code.cropper_swarm import (
+from backbone.code.cropper_swarm import (
     cropper_fmts_nand,
     filter_use_croppers,
     run_cropper,
     run_using_cropper_names,
     run_using_fmts,
 )
-from dbdie_ml.cropping.cropper import Cropper
-from dbdie_ml.cropping.movable_report import MovableReport
+from backbone.cropping.cropper import Cropper
+from backbone.cropping.movable_report import MovableReport
 from dbdie_classes.utils import pls
 
 if TYPE_CHECKING:

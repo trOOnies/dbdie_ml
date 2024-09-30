@@ -11,7 +11,7 @@ from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.paths import recursive_dirname
-from dbdie_ml.ml.models import IEModel
+from backbone.ml.models import IEModel
 
 if TYPE_CHECKING:
     from dbdie_classes.base import ModelType

@@ -1,4 +1,4 @@
-from dbdie_ml.code.training import EarlyStopper
+from backbone.code.training import EarlyStopper
 
 
 class TestModels:

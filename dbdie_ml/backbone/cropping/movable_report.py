@@ -5,7 +5,7 @@ from dbdie_classes.paths import (
     CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
 )
 
-from dbdie_ml.code.movable_report import calculate_umvis
+from backbone.code.movable_report import calculate_umvis
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder

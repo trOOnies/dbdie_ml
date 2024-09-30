@@ -1,8 +1,8 @@
 import builtins
 from pytest import fixture
 from dbdie_classes.options import CROP_TYPES, SURV_FMT
-from dbdie_ml.cropping.crop_settings import ALL_CS
-from dbdie_ml.cropping.cropper import Cropper
+from backbone.cropping.crop_settings import ALL_CS
+from backbone.cropping.cropper import Cropper
 
 
 @fixture

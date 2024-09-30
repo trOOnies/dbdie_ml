@@ -1,4 +1,4 @@
-.PHONY: help venv install folders fmt lint clean-lint test clean-test clean-pyc build clean-build clean
+.PHONY: help venv install folders fmt lint clean-lint test clean-test clean-pyc build clean-build clean api rr
 .DEFAULT_GOAL := help
 
 define PRINT_HELP_PYSCRIPT
@@ -73,3 +73,11 @@ clean: ## Remove all lint, test, coverage, compiled Python and build artifacts
 	make clean-test
 	make clean-pyc
 	make clean-build
+
+api: ## [fastapi] Run the API on localhost
+	uvicorn --host=127.0.0.1 --port 8001 --app-dir=dbdie_ml --env-file=.env main:app
+
+rr: ## Run the API after installing dependencies
+	clear
+	make install
+	make api

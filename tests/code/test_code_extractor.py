@@ -6,7 +6,7 @@ import numpy as np
 from pytest import mark, raises
 
 from dbdie_classes.version import DBDVersionRange
-from dbdie_ml.code.extractor import (
+from backbone.code.extractor import (
     folder_save_logic,
     get_version_range,
     match_preds_types,

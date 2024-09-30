@@ -12,12 +12,12 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dbdie_ml.data import DatasetClass
+from backbone.data import DatasetClass
 
 if TYPE_CHECKING:
     from torch.optim import Optimizer
 
-    from dbdie_classes.base import FullModelType, Path
+    from dbdie_classes.base import FullModelType, LabelId, LabelRef, NetId, Path
 
 
 class EarlyStopper:
@@ -89,48 +89,55 @@ def load_training_config(iem) -> TrainingConfig:
 # * Training
 
 
-def load_label_ref_for_train(path: "Path") -> dict[int, str]:
+def load_label_ref_for_train(
+    path: "Path"
+) -> tuple[dict["LabelId", "NetId"], np.ndarray, "LabelRef"]:
     label_ref = pd.read_csv(
         path,
-        usecols=["label_id", "name"],
-        dtype={"label_id": int, "name": str},
+        usecols=["id", "name", "net_id"],
+        dtype={"id": int, "name": str, "net_id": int},
     )
-
-    unique_vals = label_ref.label_id.unique()
-    assert unique_vals.min() == 0
-    assert unique_vals.max() + 1 == label_ref.shape[0]
-    assert unique_vals.size == label_ref.shape[0]
-
-    return {row["label_id"]: row["name"] for _, row in label_ref.iterrows()}
+    return (
+        {lid: i for i, lid in enumerate(label_ref["id"].values)},
+        label_ref.values.copy(),
+        {row["id"]: row["name"] for _, row in label_ref.iterrows()},
+    )
 
 
 def load_process(
     full_model_type: "FullModelType",
     train_ds_path: "Path",
     val_ds_path: "Path",
+    to_net_ids,
     cfg: TrainingConfig,
 ) -> tuple[DataLoader, DataLoader]:
     print("Loading data...", end=" ")
 
-    train_dataset = DatasetClass(
-        full_model_type,
-        train_ds_path,
-        transform=cfg.transform,
-    )
-    val_dataset = DatasetClass(
-        full_model_type,
-        val_ds_path,
-        transform=cfg.transform,
-    )
+    datasets = {
+        "train": DatasetClass(
+            full_model_type,
+            train_ds_path,
+            to_net_ids,
+            transform=cfg.transform,
+        ),
+        "val": DatasetClass(
+            full_model_type,
+            val_ds_path,
+            to_net_ids,
+            transform=cfg.transform,
+        ),
+    }
 
-    train_loader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=cfg.batch_size)
+    loaders = {
+        "train": DataLoader(datasets["train"], batch_size=cfg.batch_size, shuffle=True),
+        "val": DataLoader(datasets["val"], batch_size=cfg.batch_size),
+    }
 
     print("Data loaded.")
-    print("- Train datapoints:", len(train_dataset))
-    print("- Val datapoints:", len(val_dataset))
+    print("- Train datapoints:", len(datasets["train"]))
+    print("- Val datapoints:",   len(datasets["val"]))
 
-    return train_loader, val_loader
+    return loaders["train"], loaders["val"]
 
 
 def train_backprop(model, train_loader: DataLoader, cfg: TrainingConfig):

@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
     from dbdie_classes.base import Filename, FullModelType
-    from dbdie_ml.cropping.cropper import Cropper
-    from dbdie_ml.cropping.movable_report import MovableReport
+    from backbone.cropping.cropper import Cropper
+    from backbone.cropping.movable_report import MovableReport
 
 # * Cropping helpers
 

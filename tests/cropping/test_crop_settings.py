@@ -1,7 +1,7 @@
 from dbdie_classes.extract import CropCoords
 from pytest import mark, raises
 
-from dbdie_ml.cropping.crop_settings import CropSettings
+from backbone.cropping.crop_settings import CropSettings
 
 
 class TestCropSettings:
