@@ -89,18 +89,12 @@ def load_training_config(iem) -> TrainingConfig:
 # * Training
 
 
-def load_label_ref_for_train(
-    path: "Path"
-) -> tuple[dict["LabelId", "NetId"], np.ndarray, "LabelRef"]:
-    label_ref = pd.read_csv(
-        path,
-        usecols=["id", "name", "net_id"],
-        dtype={"id": int, "name": str, "net_id": int},
-    )
+def label_ref_transformations(
+    label_ref: "LabelRef",
+) -> tuple[dict["LabelId", "NetId"], np.ndarray]:
     return (
-        {lid: i for i, lid in enumerate(label_ref["id"].values)},
-        label_ref.values.copy(),
-        {row["id"]: row["name"] for _, row in label_ref.iterrows()},
+        {lid: i for i, lid in enumerate(label_ref.keys())},
+        np.fromiter((v for v in label_ref.keys()), dtype=int),
     )
 
 

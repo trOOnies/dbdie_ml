@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 from functools import partial
+import pandas as pd
 from typing import TYPE_CHECKING
 
+from dbdie_classes.options.FMT import to_fmt
+from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 import numpy as np
 from torch.cuda import device as get_device
 from torch.cuda import empty_cache
@@ -24,7 +27,7 @@ from backbone.code.models import (
     save_model,
 )
 from backbone.code.training import (
-    load_label_ref_for_train,
+    label_ref_transformations,
     load_process,
     load_training_config,
     predict_probas_process,
@@ -32,8 +35,6 @@ from backbone.code.training import (
     train_process,
 )
 from backbone.data import DatasetClass
-from dbdie_classes.options.FMT import to_fmt
-from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
         PlayerType,
     )
     from dbdie_classes.extract import CropCoords
+    from dbdie_classes.version import DBDVersionRange
 
 
 class IEModel:
@@ -98,14 +100,15 @@ class IEModel:
         assert total_classes > 1
         metadata = process_metadata(metadata)
 
-        self.name            :        str  = metadata["name"]
-        self.ifk             : str | None  = metadata["is_for_killer"]
-        self.mt              : "ModelType" = metadata["model_type"]
-        self.img_size        :   "ImgSize" = metadata["img_size"]  # replaces cs & crop
-        self.version_range                 = metadata["version_range"]
-        self._norm_means     : list[float] = metadata["norm_means"]
-        self._norm_std       : list[float] = metadata["norm_std"]
-        self.training_params               = metadata["training"]
+        self.id              :               int = metadata["id"]
+        self.name            :               str = metadata["name"]
+        self.ifk             :        str | None = metadata["is_for_killer"]
+        self.mt              :       "ModelType" = metadata["model_type"]
+        self.img_size        :         "ImgSize" = metadata["img_size"]  # replaces cs & crop
+        self.version_range   : "DBDVersionRange" = metadata["version_range"]
+        self._norm_means     :       list[float] = metadata["norm_means"]
+        self._norm_std       :       list[float] = metadata["norm_std"]
+        self.training_params                     = metadata["training"]
 
         self.pt:     "PlayerType" = ifk_to_pt(self.ifk)
         self.fmt: "FullModelType" = to_fmt(self.mt, self.ifk)
@@ -118,16 +121,13 @@ class IEModel:
     def __repr__(self) -> str:
         """IEModel(...)"""
         vals = {
-            "type": self.mt,
-            "for_killer": self.ifk,
             "version": self.version_range,
-            "classes": self.total_classes,
             "trained": self.model_is_trained,
         }
         vals = ", ".join(
             [f"{k}='{v}'" if is_str_like(v) else f"{k}={v}" for k, v in vals.items()]
         )
-        vals = f"'{self.name}', " + vals
+        vals = f"id={id.self}, name='{self.name}', cl={self.total_classes} {self.pt}" + vals
         return f"IEModel({vals})"
 
     @property
@@ -187,6 +187,7 @@ class IEModel:
         iem.init_model()
         iem.model_is_trained = True
         iem.label_ref = load_label_ref(model_fd)
+        iem.to_net_ids, iem.to_label_ids = label_ref_transformations(iem.label_ref)
 
         return iem
 
@@ -235,9 +236,16 @@ class IEModel:
             not self.model_is_trained
         ), "IEModel cannot be retrained without being flushed first."
 
-        self.to_net_ids, self.to_label_ids, self.label_ref = load_label_ref_for_train(
-            label_ref_path
+        label_ref = pd.read_csv(
+            label_ref_path,
+            usecols=["id", "name", "net_id"],
+            dtype={"id": int, "name": str, "net_id": int},
         )
+        self.label_ref = {row["id"]: row["name"] for _, row in label_ref.iterrows()}
+        del label_ref
+
+        self.to_net_ids, self.to_label_ids = label_ref_transformations(self.label_ref)
+
         train_loader, val_loader = load_process(
             self.fmt,
             train_dataset_path,
@@ -268,7 +276,12 @@ class IEModel:
         assert not self.flushed, "IEModel was flushed"
         assert self.model_is_trained, "IEModel is not trained"
 
-        dataset = DatasetClass(self.fmt, raw_dataset, self.cfg.transform)
+        dataset = DatasetClass(
+            self.fmt,
+            raw_dataset,
+            self.to_net_ids,
+            self.cfg.transform,
+        )
         loader = DataLoader(dataset, batch_size=self.cfg.batch_size)
 
         if probas:

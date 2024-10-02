@@ -43,6 +43,7 @@ def process_model_names(
 
 
 def get_models(
+    models_ids: dict["FullModelType", int],
     trained_models: dict["FullModelType", "IEModel"] | None,
     fmts_with_counts: dict["FullModelType", int],
 ) -> dict["FullModelType", "IEModel"]:
@@ -81,6 +82,7 @@ def get_models(
 
         return {
             fmt: TYPES_TO_MODELS[from_fmt(fmt)[0]](
+                id=models_ids[fmt],
                 is_for_killer=ifk,
                 total_classes=total,
             )
@@ -169,12 +171,16 @@ def check_datasets(
 def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
     dst = join(extractor_fd, "metadata.yaml")
     metadata = {
+        "id": obj.id,
         "name": obj.name,
         "version_range": [
             obj.version_range.id,
             obj.version_range.max_id,
         ],
-        "models": list(obj._models.keys()),
+        "models": {
+            model.fmt: model.id
+            for model in obj._models.values()
+        }
     }
     with open(dst, "w") as f:
         yaml.dump(metadata, f)

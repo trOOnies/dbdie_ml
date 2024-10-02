@@ -45,7 +45,7 @@ def parse_data(
     return pd.DataFrame(data)
 
 
-def get_split(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
+def get_relevant_cols(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     split = data.copy()
     return split[
         [
@@ -59,11 +59,23 @@ def get_split(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     ]
 
 
-def apply_ifk_filter(data: pd.DataFrame, ifk: bool) -> pd.DataFrame:
-    mask = data["is_killer"].values.copy()
-    if not ifk:
+def apply_mckd_filter(split: pd.DataFrame, mt: "ModelType", target_mckd: bool) -> pd.DataFrame:
+    mask = split[f"{mt}_mckd"]
+    if not target_mckd:
         mask = np.logical_not(mask)
-    return data[mask]
+    split = split[mask]
+    assert not split.empty
+    return split.drop(f"{mt}_mckd", axis=1)
+
+
+def apply_ifk_filter(split: pd.DataFrame, ifk: bool | None) -> pd.DataFrame:
+    if ifk is not None:
+        mask = split["is_killer"].values.copy()
+        if not ifk:
+            mask = np.logical_not(mask)
+        split = split[mask]
+        assert not split.empty, "No ifk related data."
+    return split.drop("is_killer", axis=1)
 
 
 def filter_ifk(
@@ -83,13 +95,20 @@ def filter_ifk(
 def filter_mckd(
     data: pd.DataFrame,
     mts: list["ModelType"],
+    target_mckd: bool,
 ) -> pd.DataFrame:
     """Filter manual checks."""
     mckd_cols = [f"{mt}_mckd" for mt in mts]
     for col in mckd_cols:
         data[col] = data[col].fillna(False)
-    data = data[data[mckd_cols].any(axis=1)]
+
+    data = (
+        data[data[mckd_cols].any(axis=1)]  # Any row that's at least partially filled
+        if target_mckd
+        else data[~data[mckd_cols].all(axis=1)]  # Any row that has at least 1 value not checked
+    )
     assert not data.empty, "No usable label was found for this specific extractor."
+
     return data
 
 
@@ -102,33 +121,6 @@ def get_matches() -> pd.DataFrame:
         for m in matches
     ]
     return pd.DataFrame(matches)
-
-
-def get_label_refs(pred_types: "PredictableTypes") -> dict["FullModelType", pd.DataFrame]:
-    """Get labels reference for selected mts."""
-    data = {
-        fmt: parse_or_raise(
-            requests.get(
-                bendp(f"/{mt}"),
-                params={
-                    "limit": 300_000,
-                    ("is_killer" if mt == CHARACTER else "ifk"): ifk
-                },
-            )
-        )
-        for fmt, mt, ifk in pred_types
-    }
-    data = {
-        fmt: pd.DataFrame([(d["id"], d["name"]) for d in ds], columns=["id", "name"])
-        for fmt, ds in data.items()
-    }
-    data = {
-        fmt: df.sort_values("id", ignore_index=True)
-        for fmt, df in data.items()
-    }
-    for fmt in data:
-        data[fmt]["net_id"] = np.arange(data[fmt].shape[0], dtype=int)
-    return data
 
 
 def flatten_multiple_mt(split: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
@@ -233,56 +225,88 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def get_raw_dataset(
     pred_types: "PredictableTypes",
-) -> tuple[pd.DataFrame, dict["FullModelType", pd.DataFrame]]:
+    target_mckd: bool,
+) -> pd.DataFrame:
     """Get raw dataset for the training of an InfoExtractor."""
     raw_data = parse_or_raise(requests.get(bendp("/labels"), params={"limit": 300_000}))
     data = parse_data(raw_data, pred_types.mts)
 
     data = filter_ifk(data, pred_types.ifks)
-    data = filter_mckd(data, pred_types.mts)
+    data = filter_mckd(data, pred_types.mts, target_mckd)
 
     matches = get_matches()
     data = data.merge(matches, how="inner", on="match_id")
     assert not data.empty, "No labeled match was found in the 'matches' table."
 
-    return (
-        data.sort_values(["match_id", "player_id"], ignore_index=True),
-        get_label_refs(pred_types),
-    )
+    return data.sort_values(["match_id", "player_id"], ignore_index=True)
 
 
 def split_and_save_dataset(
     data: pd.DataFrame,
     pred_types: "PredictableTypes",
-) -> tuple[dict["FullModelType", "Path"], dict["FullModelType", "Path"]]:
+    split_data: bool,
+) -> dict[str, dict["FullModelType", "Path"]]:
     splits_fd = "dbdie_ml/backbone/cache/splits"
 
-    train_paths = {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in pred_types.fmts}
-    val_paths   = {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in pred_types.fmts}
+    if split_data:
+        paths_dict = {
+            "train": {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in pred_types.fmts},
+            "val":   {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in pred_types.fmts},
+        }
+    else:
+        paths_dict = {
+            "pred": {fmt: f"{splits_fd}/{fmt}_pred.csv" for fmt in pred_types.fmts},
+        }
 
     for fmt, mt, ifk in pred_types:
-        split = get_split(data, mt)
+        split = get_relevant_cols(data, mt)
 
-        split = split[split[f"{mt}_mckd"]]
-        assert not split.empty
-        split = split.drop(f"{mt}_mckd", axis=1)
-
-        if ifk is not None:
-            split = apply_ifk_filter(split, ifk)
-            assert not split.empty, "No ifk related data."
-        split = split.drop("is_killer", axis=1)
+        split = apply_mckd_filter(split, mt, target_mckd=split_data)
+        split = apply_ifk_filter(split, ifk)
 
         split = process_label_ids(split, mt)
         split = suffix_filenames(split)
 
-        t_split, v_split = custom_tv_split(split)
-        del split
+        if split_data:
+            t_split, v_split = custom_tv_split(split)
+            del split
 
-        t_split.to_csv(train_paths[fmt], index=False)
-        v_split.to_csv(val_paths[fmt], index=False)
-        del t_split, v_split
+            t_split.to_csv(paths_dict["train"][fmt], index=False)
+            v_split.to_csv(paths_dict["val"][fmt], index=False)
+            del t_split, v_split
+        else:
+            split.to_csv(paths_dict["pred"][fmt], index=False)
+            del split
 
-    return train_paths, val_paths
+    return paths_dict
+
+
+def get_label_refs(pred_types: "PredictableTypes") -> dict["FullModelType", pd.DataFrame]:
+    """Get labels reference for selected mts."""
+    data = {
+        fmt: parse_or_raise(
+            requests.get(
+                bendp(f"/{mt}"),
+                params={
+                    "limit": 300_000,
+                    ("is_killer" if mt == CHARACTER else "ifk"): ifk
+                },
+            )
+        )
+        for fmt, mt, ifk in pred_types
+    }
+    assert all(len(ds) for ds in data.values()), "ModelType data is empty."
+    data = {
+        fmt: pd.DataFrame([(d["id"], d["name"]) for d in ds], columns=["id", "name"])
+        for fmt, ds in data.items()
+    }
+    data = {
+        fmt: df.sort_values("id", ignore_index=True)
+        for fmt, df in data.items()
+    }
+    for fmt in data:
+        data[fmt]["net_id"] = np.arange(data[fmt].shape[0], dtype=int)
+    return data
 
 
 def save_label_refs(

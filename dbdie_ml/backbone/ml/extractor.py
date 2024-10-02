@@ -63,17 +63,17 @@ class InfoExtractor:
     >>> new_preds_dict = ie.predict_batch({"perks": "/path/to/other/dataset.csv", ...})
     """
 
-    def __init__(self, name: str = "") -> None:
-        self.flushed = False
+    def __init__(self, id: int, name: str = "") -> None:
+        self.id = id
         self.name = (
             str(uuid4()) if name == "" else name
         )  # TODO: fill with a random friendlier name if empty
 
+        self.flushed = False
+
     def __repr__(self) -> str:
         """InfoExtractor('my_info_extractor', version='7.5.0')"""
-        vals = f"version='{self.version_range}'"
-        if self.name is not None:
-            vals = f"'{self.name}', " + vals
+        vals = f"id={self.id}, name='{self.name}', version='{self.version_range}"
         return f"InfoExtractor({vals})"
 
     @property
@@ -100,6 +100,7 @@ class InfoExtractor:
 
     def init_extractor(
         self,
+        models_ids: dict["FullModelType", int],
         fmts_with_counts: dict["FullModelType", int],
         trained_models: Optional[dict["FullModelType", IEModel]] = None,
         expected_version_range: Optional["DBDVersionRange"] = None,
@@ -113,7 +114,7 @@ class InfoExtractor:
         ), "InfoExtractor can't be reinitialized before being flushed first"
         assert fmts_with_counts, "'fmts_with_counts' can't be empty"
 
-        self._models = get_models(trained_models, fmts_with_counts)
+        self._models = get_models(models_ids, trained_models, fmts_with_counts)
         self.version_range = get_version_range(
             self._models,
             expected=expected_version_range,
@@ -148,8 +149,12 @@ class InfoExtractor:
         exp_version_range = metadata["version-range"]
         del metadata["version-range"]
 
+        models_ids: dict["FullModelType", int] = metadata["models"]
+        del metadata["models"]
+
         ie = InfoExtractor(**metadata)
         ie.init_extractor(
+            models_ids,
             trained_models={
                 mn: IEModel.from_folder(os.path.join(models_fd, mn))
                 for mn in model_names
@@ -237,11 +242,11 @@ class InfoExtractor:
         if fmts is None:
             fmts_ = self.fmts
         else:
-            assert fmts, "fmts can't be empty."
+            assert fmts, "'fmts' can't be an empty list."
             assert all(fmt in self._models for fmt in fmts)
             fmts_ = deepcopy(fmts)
 
-        check_datasets(self.fmts, datasets)
+        check_datasets(fmts_, datasets)
 
         return {
             fmt: self._models[fmt].predict_batch(datasets[fmt], probas=probas)

@@ -10,6 +10,7 @@ from torch.cuda import mem_get_info
 
 from backbone.cropping.crop_settings import ALL_CS_DICT
 from dbdie_classes.options import MODEL_TYPE
+from dbdie_classes.version import DBDVersionRange
 
 if TYPE_CHECKING:
     from dbdie_classes.base import LabelRef, Path, PathToFolder
@@ -27,6 +28,9 @@ def load_metadata_and_model(model_fd: "PathToFolder"):
         metadata: dict = yaml.safe_load(f)
     total_classes = metadata["total_classes"]
     del metadata["total_classes"]
+    metadata["version_range"] = DBDVersionRange(
+        *[str(dbdv) for dbdv in metadata["version_range"]]
+    )
 
     with open(os.path.join(model_fd, "model.pt"), "rb") as f:
         model = load(f)
@@ -92,7 +96,7 @@ def save_metadata(model, dst: "Path") -> None:
     """Save `IEModel` metadata."""
     assert dst.endswith(".yaml")
     metadata = {
-        k: getattr(model, k) for k in ["name", "mt", "ifk", "total_classes"]
+        k: getattr(model, k) for k in ["id", "name", "mt", "ifk", "total_classes"]
     } | {"version_range": [model.version_range.id, model.version_range.max_id]}
     metadata["img_size"] = list(model.img_size)
     metadata.update({k: getattr(model, f"_{k}") for k in ["norm_means", "norm_std"]})

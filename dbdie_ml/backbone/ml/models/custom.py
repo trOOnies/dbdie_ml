@@ -32,9 +32,10 @@ def process_metadata(mt: "ModelType", is_for_killer: bool) -> dict:
 class AddonsModel(IEModel):
     """Recommended custom IEModel with an addon-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.ADDONS, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -59,9 +60,10 @@ class AddonsModel(IEModel):
 class CharacterModel(IEModel):
     """Recommended custom IEModel with a character-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.CHARACTER, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
@@ -89,9 +91,10 @@ class CharacterModel(IEModel):
 class ItemModel(IEModel):
     """Recommended custom IEModel with an item-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.ITEM, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -116,9 +119,10 @@ class ItemModel(IEModel):
 class OfferingModel(IEModel):
     """Recommended custom IEModel with an offering-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.OFFERING, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -143,9 +147,10 @@ class OfferingModel(IEModel):
 class PerkModel(IEModel):
     """Recommended custom IEModel with a perk-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.PERKS, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -173,9 +178,10 @@ class PerkModel(IEModel):
 class PrestigeModel(IEModel):
     """Recommended custom IEModel with a prestige-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
-        _, metadata = process_metadata(MT.PRESTIGE, is_for_killer)
+        metadata = process_metadata(MT.PRESTIGE, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
@@ -203,9 +209,10 @@ class PrestigeModel(IEModel):
 class StatusModel(IEModel):
     """Recommended custom IEModel with a status-based non-trained model."""
 
-    def __init__(self, is_for_killer: bool, total_classes: int) -> None:
+    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
         assert total_classes > 1
         metadata = process_metadata(MT.STATUS, is_for_killer)
+        metadata["id"] = id
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
