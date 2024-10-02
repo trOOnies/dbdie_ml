@@ -61,7 +61,7 @@ class CropSettings:
         rp = rp[:-1] if rp.endswith("/") else rp
 
         path = absp(rp)
-        assert os.path.isdir(path)
+        assert os.path.isdir(path), f"Folder doesn't exist: {path}"
 
         return rp, path
 

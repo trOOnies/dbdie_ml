@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dbdie_classes.utils import pls
 from typing import TYPE_CHECKING
 
 from backbone.code.cropper_swarm import (
@@ -11,10 +12,12 @@ from backbone.code.cropper_swarm import (
 )
 from backbone.cropping.cropper import Cropper
 from backbone.cropping.movable_report import MovableReport
-from dbdie_classes.utils import pls
+from backbone.options.COLORS import make_cprint_with_header, OKCYAN
 
 if TYPE_CHECKING:
     from dbdie_classes.base import CropType, FullModelType, RelPath
+
+csw_print = make_cprint_with_header(OKCYAN, "[CropperSwarm]")
 
 
 class CropperAlignments:
@@ -219,6 +222,7 @@ class CropperSwarm:
 
         self._movable_report = MovableReport()
 
+        csw_print("Generating crops...")
         if use_fmts is not None:
             run_using_fmts(self.cropper_alignments, self._movable_report, use_fmts)
         else:
@@ -227,6 +231,7 @@ class CropperSwarm:
             run_using_cropper_names(
                 self.cropper_alignments, self._movable_report, cpp_to_use
             )
+        csw_print("Crops generated.")
 
         if move:
             self.move_images()

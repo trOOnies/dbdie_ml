@@ -91,6 +91,7 @@ def run_using_fmts(
 ) -> None:
     """Run filtering on `FullModelTypes`"""
     for cpa in cpas:
+        print("-", cpa.show_mapping())
         # TODO: Different alignments but at-same-level could be parallelized
         for src_rp, croppers in cpa.items():
             src = absp(src_rp)
@@ -119,6 +120,7 @@ def run_using_cropper_names(
 ) -> None:
     """Run filtering on `Cropper` names"""
     for cpa in cpas:
+        print("-", cpa.show_mapping())
         # TODO: Different alignments but at-same-level could be parallelized
         for src_rp, croppers in cpa.items():
             src = absp(src_rp)

@@ -1,14 +1,19 @@
-import os
-from shutil import move
-from typing import TYPE_CHECKING
+"""MovableReport class code."""
+
 from dbdie_classes.paths import (
     CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
 )
+import os
+from shutil import move
+from typing import TYPE_CHECKING
 
 from backbone.code.movable_report import calculate_umvis
+from backbone.options.COLORS import OKBLUE, make_cprint_with_header
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder
+
+mr_print = make_cprint_with_header(OKBLUE, "[MovableReport]")
 
 
 class MovableReport:
@@ -43,6 +48,7 @@ class MovableReport:
 
     def move_images(self) -> None:
         """Move movable images to the 'cropped' folder"""
+        mr_print("Moving images...")
         assert not self.obsolete
 
         pending_fd = absp(CROP_PENDING_IMG_FD_RP)
@@ -54,4 +60,4 @@ class MovableReport:
                 os.path.join(cropped_fd, f),
             )
         self.obsolete = True
-        print("[MovableReport] Images moved")
+        mr_print("Images moved.")

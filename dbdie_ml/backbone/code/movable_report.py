@@ -1,14 +1,16 @@
-"""Extra code for the movable_report Python file"""
+"""Extra code for the MovableReport class file."""
 
+from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp
 import os
 from typing import TYPE_CHECKING
 
-from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp
+from backbone.options.COLORS import OKBLUE, make_cprint_with_header
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename
 
 MAX_PRINT_LEN = 10
+mr_print = make_cprint_with_header(OKBLUE, "[MovableReport]")
 
 
 def print_umvi_verdict(umvi: list[str]) -> None:
@@ -19,9 +21,9 @@ def print_umvi_verdict(umvi: list[str]) -> None:
         msg += str(umvi) if cond else str(umvi[:MAX_PRINT_LEN])
         if not cond:
             msg = f"{msg[:-1]}, ...]"
-        print(msg)
+        mr_print(msg)
     else:
-        print("[MovableReport] All images can be moved")
+        mr_print("All images can be moved.")
 
 
 def calculate_umvis() -> tuple[list["Filename"], list["Filename"]]:
@@ -31,6 +33,8 @@ def calculate_umvis() -> tuple[list["Filename"], list["Filename"]]:
     """
     cropped_fd = absp(CROPPED_IMG_FD_RP)
     fs = os.listdir(absp(CROP_PENDING_IMG_FD_RP))
+
+    assert fs, "There are no images in the pending folder."
 
     list_is_movable = [not os.path.exists(os.path.join(cropped_fd, f)) for f in fs]
 

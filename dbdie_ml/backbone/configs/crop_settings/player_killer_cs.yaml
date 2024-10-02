@@ -31,4 +31,4 @@ crops:
 allow:
   overlap: false
   overboard: true
-offset: 4
+offset: null
