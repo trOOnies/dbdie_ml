@@ -17,7 +17,7 @@ from backbone.endpoints import bendp, parse_or_raise
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, IsForKiller, ModelType, Path
-    from dbdie_classes.options.FMT import PredictableTypes
+    from dbdie_classes.groupings import PredictableTuples
 
 
 def parse_data(
@@ -224,15 +224,15 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def get_raw_dataset(
-    pred_types: "PredictableTypes",
+    pred_tuples: "PredictableTuples",
     target_mckd: bool,
 ) -> pd.DataFrame:
     """Get raw dataset for the training of an InfoExtractor."""
     raw_data = parse_or_raise(requests.get(bendp("/labels"), params={"limit": 300_000}))
-    data = parse_data(raw_data, pred_types.mts)
+    data = parse_data(raw_data, pred_tuples.mts)
 
-    data = filter_ifk(data, pred_types.ifks)
-    data = filter_mckd(data, pred_types.mts, target_mckd)
+    data = filter_ifk(data, pred_tuples.ifks)
+    data = filter_mckd(data, pred_tuples.mts, target_mckd)
 
     matches = get_matches()
     data = data.merge(matches, how="inner", on="match_id")
@@ -243,57 +243,57 @@ def get_raw_dataset(
 
 def split_and_save_dataset(
     data: pd.DataFrame,
-    pred_types: "PredictableTypes",
+    pred_tuples: "PredictableTuples",
     split_data: bool,
 ) -> dict[str, dict["FullModelType", "Path"]]:
     splits_fd = "dbdie_ml/backbone/cache/splits"
 
     if split_data:
         paths_dict = {
-            "train": {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in pred_types.fmts},
-            "val":   {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in pred_types.fmts},
+            "train": {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in pred_tuples.fmts},
+            "val":   {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in pred_tuples.fmts},
         }
     else:
         paths_dict = {
-            "pred": {fmt: f"{splits_fd}/{fmt}_pred.csv" for fmt in pred_types.fmts},
+            "pred": {fmt: f"{splits_fd}/{fmt}_pred.csv" for fmt in pred_tuples.fmts},
         }
 
-    for fmt, mt, ifk in pred_types:
-        split = get_relevant_cols(data, mt)
+    for ptup in pred_tuples:
+        split = get_relevant_cols(data, ptup.mt)
 
-        split = apply_mckd_filter(split, mt, target_mckd=split_data)
-        split = apply_ifk_filter(split, ifk)
+        split = apply_mckd_filter(split, ptup.mt, target_mckd=split_data)
+        split = apply_ifk_filter(split, ptup.ifk)
 
-        split = process_label_ids(split, mt)
+        split = process_label_ids(split, ptup.mt)
         split = suffix_filenames(split)
 
         if split_data:
             t_split, v_split = custom_tv_split(split)
             del split
 
-            t_split.to_csv(paths_dict["train"][fmt], index=False)
-            v_split.to_csv(paths_dict["val"][fmt], index=False)
+            t_split.to_csv(paths_dict["train"][ptup.fmt], index=False)
+            v_split.to_csv(paths_dict["val"][ptup.fmt], index=False)
             del t_split, v_split
         else:
-            split.to_csv(paths_dict["pred"][fmt], index=False)
+            split.to_csv(paths_dict["pred"][ptup.fmt], index=False)
             del split
 
     return paths_dict
 
 
-def get_label_refs(pred_types: "PredictableTypes") -> dict["FullModelType", pd.DataFrame]:
+def get_label_refs(pred_tuples: "PredictableTuples") -> dict["FullModelType", pd.DataFrame]:
     """Get labels reference for selected mts."""
     data = {
-        fmt: parse_or_raise(
+        ptup.fmt: parse_or_raise(
             requests.get(
-                bendp(f"/{mt}"),
+                bendp(f"/{ptup.mt}"),
                 params={
                     "limit": 300_000,
-                    ("is_killer" if mt == CHARACTER else "ifk"): ifk
+                    ("is_killer" if ptup.mt == CHARACTER else "ifk"): ptup.ifk
                 },
             )
         )
-        for fmt, mt, ifk in pred_types
+        for ptup in pred_tuples
     }
     assert all(len(ds) for ds in data.values()), "ModelType data is empty."
     data = {

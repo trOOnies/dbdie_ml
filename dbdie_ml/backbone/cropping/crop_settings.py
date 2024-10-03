@@ -8,11 +8,17 @@ from typing import TYPE_CHECKING, Literal
 import yaml
 
 from dbdie_classes.extract import CropCoords
-from dbdie_classes.version import DBDVersionRange
-from backbone.code.crop_settings import (
-    check_overboard, check_overlap, check_positivity, check_shapes
-)
+from dbdie_classes.options import CROP_TYPES
 from dbdie_classes.paths import absp, recursive_dirname
+from dbdie_classes.version import DBDVersionRange
+
+from backbone.code.crop_settings import (
+    check_overboard,
+    check_overlap,
+    check_positivity,
+    check_shapes,
+    process_img_size,
+)
 
 if TYPE_CHECKING:
     from dbdie_classes.base import (
@@ -81,50 +87,47 @@ class CropSettings:
     # * Instantiation
 
     @classmethod
-    def from_config(
+    def from_register(
         cls,
-        cfg_name: str,
-        depends_on=None,
+        cps_name: str,
+        cs_name: str,
+        depends_on: CropSettings | None,
     ) -> CropSettings:
         """Instantiate CropSettings from a config file."""
-        path = os.path.join(CONFIGS_FD, "crop_settings", f"{cfg_name}.yaml")
+        path = os.path.join(CONFIGS_FD, f"crop_settings/{cps_name}/{cs_name}.yaml")
         with open(path) as f:
             data = yaml.safe_load(f)
 
         data["version_range"] = DBDVersionRange(*data["version_range"])
-
-        if depends_on is not None:
-            assert isinstance(data["img_size"], dict)
-            assert depends_on.name == data["img_size"]["cs"]
-            data["img_size"] = depends_on.crop_shapes[data["img_size"]["crop"]]
-        else:
-            assert isinstance(data["img_size"], list)
-            assert len(data["img_size"]) == 2
-            data["img_size"] = tuple(data["img_size"])
-
+        data = process_img_size(data, depends_on)
         data["crops"] = {
-            fmt: [CropCoords(*c) for c in crops] for fmt, crops in data["crops"].items()
+            fmt: [CropCoords(*c) for c in crops]
+            for fmt, crops in data["crops"].items()
         }
 
         cs = CropSettings(**data)
         return cs
 
+    # * Many CropSettings
 
-IMG_SURV_CS = CropSettings.from_config("img_surv_cs")
-IMG_KILLER_CS = CropSettings.from_config("img_killer_cs")
-PLAYER_SURV_CS = CropSettings.from_config(
-    "player_surv_cs",
-    depends_on=IMG_SURV_CS,
-)
-PLAYER_KILLER_CS = CropSettings.from_config(
-    "player_killer_cs",
-    depends_on=IMG_KILLER_CS,
-)
+    @classmethod
+    def make_cs_dict(cls, cps_name: str) -> dict[str, CropSettings]:
+        IMG_SURV_CS = cls.from_register(cps_name, "img_surv_cs", depends_on=None)
+        IMG_KILLER_CS = cls.from_register(cps_name, "img_killer_cs", depends_on=None)
+        PLAYER_SURV_CS = cls.from_register(
+            cps_name,
+            "player_surv_cs",
+            depends_on=IMG_SURV_CS,
+        )
+        PLAYER_KILLER_CS = cls.from_register(
+            cps_name,
+            "player_killer_cs",
+            depends_on=IMG_KILLER_CS,
+        )
 
-ALL_CS = [IMG_SURV_CS, IMG_KILLER_CS, PLAYER_SURV_CS, PLAYER_KILLER_CS]
-ALL_CS_DICT = {
-    "surv": IMG_SURV_CS,
-    "killer": IMG_KILLER_CS,
-    "surv_player": PLAYER_SURV_CS,
-    "killer_player": PLAYER_KILLER_CS,
-}
+        return {
+            CROP_TYPES.SURV: IMG_SURV_CS,
+            CROP_TYPES.KILLER: IMG_KILLER_CS,
+            CROP_TYPES.SURV_PLAYER: PLAYER_SURV_CS,
+            CROP_TYPES.KILLER_PLAYER: PLAYER_KILLER_CS,
+        }

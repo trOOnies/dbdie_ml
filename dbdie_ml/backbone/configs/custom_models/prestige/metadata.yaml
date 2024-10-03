@@ -1,8 +1,6 @@
+cs_name: [killer_player, surv_player]
+fmt: [prestige__killer, prestige__surv]
 name: md-prestige
-is_for_killer: null
-model_type: prestige
-cs: [killer_player, surv_player]
-crop: [prestige__killer, prestige__surv]
 norm_means: [0.485, 0.456, 0.406]
 norm_std: [0.229, 0.224, 0.225]
 training:

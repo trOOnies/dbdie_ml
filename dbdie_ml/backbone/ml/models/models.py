@@ -16,12 +16,12 @@ from torch.cuda import is_available as cuda_is_available
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
+from backbone.classes.metadata import SavedModelMetadata
 from backbone.code.models import (
     is_str_like,
     load_label_ref,
     load_metadata_and_model,
     print_memory,
-    process_metadata,
     save_label_ref,
     save_metadata,
     save_model,
@@ -35,6 +35,7 @@ from backbone.code.training import (
     train_process,
 )
 from backbone.data import DatasetClass
+from backbone.options.COLORS import OKGREEN, make_cprint_with_header
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -51,6 +52,8 @@ if TYPE_CHECKING:
     )
     from dbdie_classes.extract import CropCoords
     from dbdie_classes.version import DBDVersionRange
+
+iem_print = make_cprint_with_header(OKGREEN, "[IEModel]")
 
 
 class IEModel:
@@ -93,22 +96,22 @@ class IEModel:
 
     def __init__(
         self,
-        metadata: dict,
+        metadata: SavedModelMetadata,
         model: "Sequential",
         total_classes: int,
     ) -> None:
         assert total_classes > 1
-        metadata = process_metadata(metadata)
+        md = metadata.to_model_class_metadata()
 
-        self.id              :               int = metadata["id"]
-        self.name            :               str = metadata["name"]
-        self.ifk             :        str | None = metadata["is_for_killer"]
-        self.mt              :       "ModelType" = metadata["model_type"]
-        self.img_size        :         "ImgSize" = metadata["img_size"]  # replaces cs & crop
-        self.version_range   : "DBDVersionRange" = metadata["version_range"]
-        self._norm_means     :       list[float] = metadata["norm_means"]
-        self._norm_std       :       list[float] = metadata["norm_std"]
-        self.training_params                     = metadata["training"]
+        self.id              :               int = md["id"]
+        self.name            :               str = md["name"]
+        self.ifk             :        str | None = md["is_for_killer"]
+        self.mt              :       "ModelType" = md["model_type"]
+        self.img_size        :         "ImgSize" = md["img_size"]  # replaces cs & crop
+        self.version_range   : "DBDVersionRange" = md["version_range"]
+        self._norm_means     :       list[float] = md["norm_means"]
+        self._norm_std       :       list[float] = md["norm_std"]
+        self.training_params                     = md["training"]
 
         self.pt:     "PlayerType" = ifk_to_pt(self.ifk)
         self.fmt: "FullModelType" = to_fmt(self.mt, self.ifk)
@@ -141,9 +144,9 @@ class IEModel:
     # * Base
 
     def init_model(self) -> None:
-        """Initialize model to allow it to be trained"""
-        assert not self.flushed, "IEModel was flushed"
-        assert not self.model_is_init, "IEModel can't be initialized more than once"
+        """Initialize model to allow it to be trained."""
+        assert not self.flushed, "IEModel was flushed."
+        assert not self.model_is_init, "IEModel can't be initialized more than once."
 
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
@@ -155,8 +158,8 @@ class IEModel:
         self.cfg = load_training_config(self)
 
     def get_summary(self) -> None:
-        """Get underlying model summary"""
-        assert not self.flushed, "IEModel was flushed"
+        """Get underlying model summary."""
+        assert not self.flushed, "IEModel was flushed."
         assert self.model_is_init
 
         summary(
@@ -177,7 +180,7 @@ class IEModel:
 
     @classmethod
     def from_folder(cls, model_fd: "PathToFolder") -> IEModel:
-        """Loads a DBDIE model using its metadata and the actual model"""
+        """Loads a DBDIE model using its metadata and the actual model."""
         # TODO: Check if any other PT object needs to be saved
         metadata, model, total_classes = load_metadata_and_model(model_fd)
 
@@ -192,9 +195,9 @@ class IEModel:
         return iem
 
     def save(self, model_fd: "PathToFolder") -> None:
-        """Save all necessary objects of the IEModel"""
-        assert not self.flushed, "IEModel was flushed"
-        print("Saving model...", end=" ")
+        """Save all necessary objects of the IEModel."""
+        assert not self.flushed, "IEModel was flushed."
+        iem_print("Saving model...")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
 
@@ -204,13 +207,13 @@ class IEModel:
         save_label_ref(self.label_ref, mfd("label_ref.json"))
         save_model(self.model_is_trained, self._model, mfd("model.pt"))
 
-        print("Model saved.")
+        iem_print("Model saved.")
 
     def flush(self) -> None:
         """Flush IEModel params so as to free space.
         A flushed IEModel shouldn't be reused, but deleted and reinstantiated.
         """
-        assert not self.flushed, "IEModel was flushed"
+        assert not self.flushed, "IEModel was flushed."
         self.flushed = True
         if not self.model_is_init:
             return
@@ -228,7 +231,7 @@ class IEModel:
         val_dataset_path: "Path",
     ) -> None:
         """Trains the 'IEModel'."""
-        assert not self.flushed, "IEModel was flushed"
+        assert not self.flushed, "IEModel was flushed."
 
         # TODO: Add training scores as attributes once trained
         assert self.model_is_init, "IEModel is not initialized"
@@ -264,7 +267,7 @@ class IEModel:
     # * Prediction
 
     def predict(self, crop: "CropCoords"):
-        assert not self.flushed, "IEModel was flushed"
+        assert not self.flushed, "IEModel was flushed."
         raise NotImplementedError
 
     def predict_batch(
@@ -273,7 +276,7 @@ class IEModel:
         probas: bool = False,
     ) -> np.ndarray:
         """Returns: preds or probas."""
-        assert not self.flushed, "IEModel was flushed"
+        assert not self.flushed, "IEModel was flushed."
         assert self.model_is_trained, "IEModel is not trained"
 
         dataset = DatasetClass(
@@ -296,7 +299,7 @@ class IEModel:
 
     def convert_names(self, preds: np.ndarray) -> list["LabelName"]:
         """Convert integer predictions to named predictions."""
-        assert not self.flushed, "IEModel was flushed"
+        assert not self.flushed, "IEModel was flushed."
         assert isinstance(preds[0], (np.ushort, int))
         assert self.model_is_trained, "IEModel is not trained"
         return [self.label_ref[lbl] for lbl in preds]
@@ -304,7 +307,7 @@ class IEModel:
     @staticmethod
     def save_preds(preds: np.ndarray, dst: "Path") -> None:
         """Save predictions to the 'dst' path."""
-        print("Saving preds...", end=" ")
+        iem_print("Saving preds...")
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
-        print("Preds saved.")
+        iem_print("Preds saved.")

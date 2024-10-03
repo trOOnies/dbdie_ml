@@ -2,40 +2,24 @@
 Mainly default IEModels for each (implemented) predictable.
 """
 
-import os
-import yaml
-from typing import TYPE_CHECKING
-
-from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
-
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options.FMT import to_fmt
-from dbdie_classes.paths import recursive_dirname
+from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
+
+from backbone.classes.metadata import SavedModelMetadata
 from backbone.ml.models import IEModel
-
-if TYPE_CHECKING:
-    from dbdie_classes.base import ModelType
-
-CONFIGS_FD = os.path.join(recursive_dirname(__file__, 3), "configs")
-
-
-def process_metadata(mt: "ModelType", is_for_killer: bool) -> dict:
-    fmt = to_fmt(mt, is_for_killer)
-
-    path = os.path.join(CONFIGS_FD, f"custom_models/{fmt}/metadata.yaml")
-    with open(path) as f:
-        metadata = yaml.safe_load(f)
-
-    return metadata
 
 
 class AddonsModel(IEModel):
     """Recommended custom IEModel with an addon-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.ADDONS, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-addons",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.ADDONS, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -60,10 +44,13 @@ class AddonsModel(IEModel):
 class CharacterModel(IEModel):
     """Recommended custom IEModel with a character-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.CHARACTER, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-character",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.CHARACTER, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
@@ -91,10 +78,13 @@ class CharacterModel(IEModel):
 class ItemModel(IEModel):
     """Recommended custom IEModel with an item-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.ITEM, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-item",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.ITEM, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -119,10 +109,13 @@ class ItemModel(IEModel):
 class OfferingModel(IEModel):
     """Recommended custom IEModel with an offering-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.OFFERING, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-offering",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.OFFERING, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -147,10 +140,13 @@ class OfferingModel(IEModel):
 class PerkModel(IEModel):
     """Recommended custom IEModel with a perk-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.PERKS, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-perks",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.PERKS, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -178,10 +174,13 @@ class PerkModel(IEModel):
 class PrestigeModel(IEModel):
     """Recommended custom IEModel with a prestige-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.PRESTIGE, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-prestige",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.PRESTIGE, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
@@ -209,10 +208,13 @@ class PrestigeModel(IEModel):
 class StatusModel(IEModel):
     """Recommended custom IEModel with a status-based non-trained model."""
 
-    def __init__(self, id: int, is_for_killer: bool, total_classes: int) -> None:
-        assert total_classes > 1
-        metadata = process_metadata(MT.STATUS, is_for_killer)
-        metadata["id"] = id
+    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+        metadata = SavedModelMetadata.load(
+            extr_name="custom-status",
+            model_id=id,
+            total_classes=total_classes,
+            fmt=to_fmt(MT.STATUS, ifk),
+        )
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters

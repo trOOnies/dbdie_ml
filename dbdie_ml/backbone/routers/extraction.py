@@ -2,7 +2,8 @@
 
 from copy import deepcopy
 from dbdie_classes.base import PathToFolder
-from dbdie_classes.options.FMT import from_fmts, PredictableTypes
+from dbdie_classes.groupings import PredictableTuples
+from dbdie_classes.options.FMT import from_fmts
 from fastapi import APIRouter, status
 
 from backbone.code.extraction import get_raw_dataset, split_and_save_dataset
@@ -21,11 +22,11 @@ def batch_extract(
 
     fmts_ = deepcopy(ie.fmts)  # TODO
     mts, _, ifks = from_fmts(fmts_)
-    pred_types = PredictableTypes(fmts=fmts_, mts=mts, ifks=ifks)
+    pred_tuples = PredictableTuples.from_lists(fmts_, mts, ifks)
 
     try:
-        raw_dataset = get_raw_dataset(pred_types, target_mckd=False)
-        paths_dict = split_and_save_dataset(raw_dataset, pred_types, split_data=False)
+        raw_dataset = get_raw_dataset(pred_tuples, target_mckd=False)
+        paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=False)
 
         preds_dict = ie.predict_batch(paths_dict["pred"], fmts_)
         print("PREDS DICT:")

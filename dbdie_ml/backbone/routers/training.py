@@ -1,7 +1,8 @@
 """Endpoint for training related processes."""
 
 from dbdie_classes.base import FullModelType
-from dbdie_classes.options.FMT import from_fmts, PredictableTypes
+from dbdie_classes.groupings import PredictableTuples
+from dbdie_classes.options.FMT import from_fmts
 from fastapi import APIRouter, status
 from pydantic import BaseModel, field_validator
 
@@ -34,7 +35,7 @@ class TrainExtractor(BaseModel):
 def batch_train(extr_config: TrainExtractor):
     fmts = list(extr_config.full_model_types.keys())
     mts, _, ifks = from_fmts(fmts)
-    pred_types = PredictableTypes(fmts=fmts, mts=mts, ifks=ifks)
+    pred_tuples = PredictableTuples.from_lists(fmts, mts, ifks)
 
     ie = InfoExtractor(extr_config.id, extr_config.name)
     try:
@@ -43,11 +44,11 @@ def batch_train(extr_config: TrainExtractor):
             {fmt: d.total_classes for fmt, d in extr_config.full_model_types.items()},
         )
 
-        raw_dataset = get_raw_dataset(pred_types, target_mckd=True)
-        paths_dict = split_and_save_dataset(raw_dataset, pred_types, split_data=True)
+        raw_dataset = get_raw_dataset(pred_tuples, target_mckd=True)
+        paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=True)
         del raw_dataset
 
-        label_refs = get_label_refs(pred_types)
+        label_refs = get_label_refs(pred_tuples)
         label_ref_paths = save_label_refs(label_refs)
         del label_refs
 

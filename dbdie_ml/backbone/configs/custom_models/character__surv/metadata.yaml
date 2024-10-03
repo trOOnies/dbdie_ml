@@ -1,8 +1,6 @@
-name: md-surv-killer
-is_for_killer: false
-model_type: character
-cs: surv_player
-crop: perks__surv
+cs_name: surv_player
+fmt: character__surv
+name: md-character-surv
 norm_means: [0.485, 0.456, 0.406]
 norm_std: [0.229, 0.224, 0.225]
 training:

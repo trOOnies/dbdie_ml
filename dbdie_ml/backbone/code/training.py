@@ -1,9 +1,10 @@
+"""Extra for the training script."""
+
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
 import torch.nn.functional as F
 from torch import max as torch_max
 from torch import no_grad
@@ -13,11 +14,14 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from backbone.data import DatasetClass
+from backbone.options.COLORS import OKGREEN, make_cprint_with_header
 
 if TYPE_CHECKING:
     from torch.optim import Optimizer
 
     from dbdie_classes.base import FullModelType, LabelId, LabelRef, NetId, Path
+
+iem_print = make_cprint_with_header(OKGREEN, "[IEModel]")
 
 
 class EarlyStopper:
@@ -44,8 +48,7 @@ class EarlyStopper:
 
 @dataclass
 class TrainingConfig:
-    """Helper dataclass for training configuration"""
-
+    """Helper dataclass for training configuration."""
     epochs: int
     batch_size: int
     optimizer: "Optimizer"
@@ -105,7 +108,7 @@ def load_process(
     to_net_ids,
     cfg: TrainingConfig,
 ) -> tuple[DataLoader, DataLoader]:
-    print("Loading data...", end=" ")
+    iem_print("Loading data...")
 
     datasets = {
         "train": DatasetClass(
@@ -127,9 +130,9 @@ def load_process(
         "val": DataLoader(datasets["val"], batch_size=cfg.batch_size),
     }
 
-    print("Data loaded.")
-    print("- Train datapoints:", len(datasets["train"]))
-    print("- Val datapoints:",   len(datasets["val"]))
+    iem_print("Data loaded.")
+    iem_print("- Train datapoints:", len(datasets["train"]))
+    iem_print("- Val datapoints:",   len(datasets["val"]))
 
     return loaders["train"], loaders["val"]
 
@@ -173,7 +176,7 @@ def train_process(
     val_loader: DataLoader,
     cfg: TrainingConfig,
 ) -> None:
-    print("Training initialized...")
+    iem_print("Training initialized...")
     epochs_clen = len(str(cfg.epochs))
     for epoch in range(1, cfg.epochs + 1):
         model.train()
@@ -182,7 +185,7 @@ def train_process(
         model.eval()
         with no_grad():
             val_acc_pp = train_eval(model, val_loader)
-            print(
+            iem_print(
                 f"- Epoch [{epoch:>{epochs_clen}}/{cfg.epochs}]",
                 f"Loss: {loss.item():.4f}",
                 f"Val Acc: {val_acc_pp:.2f}%",
@@ -190,7 +193,7 @@ def train_process(
             if cfg.estop.early_stop(100.0 - val_acc_pp):
                 break
 
-    print("Training complete.")
+    iem_print("Training complete.")
     model.eval()
 
 

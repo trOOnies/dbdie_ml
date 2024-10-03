@@ -1,7 +1,7 @@
 # Project
 .vscode
 dbdie_ml/backbone/cache
-extractors
+extractors/*/*
 
 
 # Byte-compiled / optimized / DLL files

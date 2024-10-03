@@ -36,3 +36,15 @@ def check_overlap(name, allow, crops) -> None:
             for crops in crops.values()
             for c1, c2 in combinations(crops, 2)
         ), f"[ct={name}] Crops cannot overlap"
+
+
+def process_img_size(data: dict, depends_on) -> dict:
+    if depends_on is not None:
+        assert isinstance(data["img_size"], dict)
+        assert depends_on.name == data["img_size"]["cs"]
+        data["img_size"] = depends_on.crop_shapes[data["img_size"]["crop"]]
+    else:
+        assert isinstance(data["img_size"], list)
+        assert len(data["img_size"]) == 2
+        data["img_size"] = tuple(data["img_size"])
+    return data

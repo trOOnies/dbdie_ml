@@ -1,8 +1,6 @@
+cs_name: surv_player
+fmt: status__surv
 name: md-status-surv
-is_for_killer: false
-model_type: status
-cs: surv_player
-crop: status__surv
 norm_means: [0.485, 0.456, 0.406]
 norm_std: [0.229, 0.224, 0.225]
 training:

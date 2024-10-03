@@ -1,8 +1,6 @@
+cs_name: killer_player
+fmt: perks__killer
 name: md-perks-killer
-is_for_killer: true
-model_type: perks
-cs: killer_player
-crop: perks__killer
 norm_means: [0.485, 0.456, 0.406]
 norm_std: [0.229, 0.224, 0.225]
 training:

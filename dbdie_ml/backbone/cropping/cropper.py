@@ -4,16 +4,14 @@ from typing import TYPE_CHECKING
 
 from PIL import Image
 
-from backbone.cropping.crop_settings import ALL_CS
 from dbdie_classes.utils import filter_multitype, pls
+
+from backbone.cropping.crop_settings import CropSettings
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
     from dbdie_classes.base import CropType, FullModelType, Path
-    from backbone.cropping.crop_settings import CropSettings
-
-CS_DICT: dict["CropType", "CropSettings"] = {cs.name: cs for cs in ALL_CS}
 
 
 class Cropper:
@@ -30,7 +28,7 @@ class Cropper:
     >>> ans["player__surv"][3].show()  # shows the 4th surv player snippet
     """
 
-    def __init__(self, settings: "CropSettings") -> None:
+    def __init__(self, settings: CropSettings) -> None:
         self.settings = settings
         self.name = self.settings.name
 
@@ -58,7 +56,7 @@ class Cropper:
         return f"Cropper('{self.settings.name}', {s})"
 
     def print_crops(self) -> None:
-        """Print all crop boxes from the Cropper settings"""
+        """Print all crop boxes from the Cropper settings."""
         for k, vs in self.settings.crops.items():
             print(k)
             for v in vs:
@@ -67,9 +65,10 @@ class Cropper:
     # * Instantiate
 
     @classmethod
-    def from_type(cls, t: "CropType") -> Cropper:
-        """Load a certain type of DBDIE Cropper"""
-        cpp = Cropper(settings=CS_DICT[t])
+    def from_register(cls, cps_name: str, t: "CropType") -> Cropper:
+        """Load a certain type of Cropper."""
+        cs_dict = CropSettings.make_cs_dict(cps_name)
+        cpp = Cropper(settings=cs_dict[t])
         return cpp
 
     # * Cropping

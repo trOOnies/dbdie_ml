@@ -1,0 +1,14 @@
+name: killer
+src_fd_rp: data/img/pending
+dst_fd_rp: data/crops
+version_range:
+  - "7.4.0-ptb"  # the Banner and Badge patch
+  - "8.1.0-ptb"  # the 2v8 adaptation
+img_size: [1920, 1080]
+crops:
+  player__killer:
+    - [66, 716, 896, 833]
+allow:
+  overlap: false
+  overboard: false
+offset: 4

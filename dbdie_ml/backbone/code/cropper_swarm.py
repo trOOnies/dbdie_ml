@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from dbdie_classes.paths import absp
 from dbdie_classes.utils import filter_multitype
@@ -9,9 +9,39 @@ from PIL import Image
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImage
 
-    from dbdie_classes.base import Filename, FullModelType
+    from dbdie_classes.base import CropType, Filename, FullModelType
     from backbone.cropping.cropper import Cropper
     from backbone.cropping.movable_report import MovableReport
+
+# * Instantiate
+
+
+def flatten_cpas(cpas):
+    """Flatten CropperAligments into a Cropper list."""
+    return [
+        cpp
+        for cpa in cpas
+        for cpp_list in cpa.values()
+        for cpp in cpp_list
+    ]
+
+
+def check_croppers_dbdvr(croppers_flat, version_range) -> None:
+    assert all(
+        cpp.settings.version_range == version_range
+        for cpp in croppers_flat
+    ), "All croppers version ranges must exactly coincide"
+
+
+def check_cropper_types(ts: list[Union["CropType", list["CropType"]]]) -> None:
+    assert all(
+        isinstance(t, str) or all(isinstance(t_i, str) for t_i in t) for t in ts
+    )
+
+    ts_flattened = [(t if isinstance(t, list) else [t]) for t in ts]
+    ts_flattened = sum(ts_flattened, [])
+    assert len(ts_flattened) == len(set(ts_flattened))
+
 
 # * Cropping helpers
 

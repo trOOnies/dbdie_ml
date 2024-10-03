@@ -1,6 +1,6 @@
 """Endpoint for cropping related purposes."""
 
-from dbdie_classes.options.CROP_TYPES import DEFAULT_CROP_TYPES_SEQ
+from dbdie_classes.base import FullModelType
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
 from traceback import print_exc
@@ -9,14 +9,13 @@ from backbone.cropping.cropper_swarm import CropperSwarm
 
 router = APIRouter()
 
-cps = CropperSwarm.from_types(DEFAULT_CROP_TYPES_SEQ)
-
 
 @router.post("/batch", status_code=status.HTTP_201_CREATED)
 def batch_crop(
+    cropper_swarm_name: str,
     move: bool = True,
     use_croppers: list[str] | None = None,
-    use_fmts: list[str] | None = None,
+    use_fmts: list[FullModelType] | None = None,
 ):
     """[NEW] Run all Croppers iterating on images first.
 
@@ -29,6 +28,7 @@ def batch_crop(
     - use_fmt: Filter cropping using FullModelTypes names (level=crop type).
     """
     try:
+        cps = CropperSwarm.from_register(cropper_swarm_name)
         cps.run(
             move=move,
             use_croppers=use_croppers,

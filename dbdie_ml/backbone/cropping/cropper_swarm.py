@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from copy import deepcopy
+from dbdie_classes.options.CROP_TYPES import DEFAULT_CROP_TYPES_SEQ
 from dbdie_classes.utils import pls
 from typing import TYPE_CHECKING
 
 from backbone.code.cropper_swarm import (
+    check_croppers_dbdvr,
+    check_cropper_types,
     cropper_fmts_nand,
     filter_use_croppers,
+    flatten_cpas,
     run_cropper,
     run_using_cropper_names,
     run_using_fmts,
@@ -15,7 +20,7 @@ from backbone.cropping.movable_report import MovableReport
 from backbone.options.COLORS import make_cprint_with_header, OKCYAN
 
 if TYPE_CHECKING:
-    from dbdie_classes.base import CropType, FullModelType, RelPath
+    from dbdie_classes.base import FullModelType, RelPath
 
 csw_print = make_cprint_with_header(OKCYAN, "[CropperSwarm]")
 
@@ -101,17 +106,9 @@ class CropperSwarm:
         self.croppers = croppers
         self.cropper_alignments = [CropperAlignments(cpp) for cpp in croppers]
 
-        self._croppers_flat = [
-            cpp
-            for cpa in self.cropper_alignments
-            for cpp_list in cpa.values()
-            for cpp in cpp_list
-        ]
+        self._croppers_flat = flatten_cpas(self.cropper_alignments)
         self.version_range = self._croppers_flat[0].settings.version_range
-        assert all(
-            cpp.settings.version_range == self.version_range
-            for cpp in self._croppers_flat
-        ), "All croppers version ranges must exactly coincide"
+        check_croppers_dbdvr(self._croppers_flat, self.version_range)
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
         self._movable_report = None
@@ -149,40 +146,33 @@ class CropperSwarm:
                     print(f"- '{cpp.settings.name}'")
 
     def get_all_fmts(self) -> list:
-        """Get all FullModelTypes present in its Croppers"""
+        """Get all FullModelTypes present in its Croppers."""
         return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
 
     # * Instantiate
 
     @classmethod
-    def from_types(cls, ts: list["CropType" | list["CropType"]]) -> CropperSwarm:
-        """Loads certain types of DBDIE Croppers"""
-        assert all(
-            isinstance(t, str) or all(isinstance(t_i, str) for t_i in t) for t in ts
-        )
-
-        ts_flattened = [(t if isinstance(t, list) else [t]) for t in ts]
-        ts_flattened = sum(ts_flattened, [])
-        assert len(ts_flattened) == len(set(ts_flattened))
-
-        cppsw = CropperSwarm(
+    def from_register(cls, name: str) -> CropperSwarm:
+        """Loads a registered `CropperSwarm` with name `name`."""
+        ts = deepcopy(DEFAULT_CROP_TYPES_SEQ)
+        check_cropper_types(ts)
+        return CropperSwarm(
             [
                 (
-                    Cropper.from_type(t)
+                    Cropper.from_register(name, t)
                     if isinstance(t, str)
-                    else [Cropper.from_type(t_i) for t_i in t]
+                    else [Cropper.from_register(name, t_i) for t_i in t]
                 )
                 for t in ts
             ]
         )
-        return cppsw
 
     def run_in_sequence(
         self,
         move: bool = True,
         use_croppers: list[str] | None = None,
     ) -> None:
-        """[OLD] Run all Croppers in their preset order"""
+        """[OLD] Run all Croppers in their preset order."""
         cpp_to_use = filter_use_croppers(self.cropper_flat_names, use_croppers)
 
         self._movable_report = MovableReport()
