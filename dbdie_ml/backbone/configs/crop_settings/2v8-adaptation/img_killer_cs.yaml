@@ -7,7 +7,7 @@ version_range:
 img_size: [1920, 1080]
 crops:
   player__killer:
-    - [66, 716, 896, 833]
+    - [72, 730, 992, 851]
 allow:
   overlap: false
   overboard: false
