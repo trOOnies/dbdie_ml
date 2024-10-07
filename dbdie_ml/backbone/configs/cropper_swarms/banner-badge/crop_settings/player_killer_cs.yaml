@@ -6,7 +6,7 @@ version_range:
   - "8.1.0-ptb"  # the 2v8 adaptation
 img_size:
   cs: killer
-  crop: player__killer
+  fmt: player__killer
 crops:
   addons__killer:
     - [483, 67, 524, 108]

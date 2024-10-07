@@ -20,22 +20,22 @@ EXTRACTORS_FD = os.path.join(recursive_dirname(__file__, 2), "extractors")
 
 def process_metadata_ifk(metadata: dict) -> tuple:
     assert isinstance(metadata["cs"], str)
-    assert isinstance(metadata["crop"], str)
+    assert isinstance(metadata["fmt"], str)
 
     cs_dict = CropSettings.make_cs_dict(metadata["cs_name"])
     cs = cs_dict[metadata["cs"]]
-    crop = metadata["crop"]
+    crop = metadata["fmt"]
 
     metadata["img_size"] = cs.crop_shapes[crop]
-    del metadata["cs"], metadata["crop"]
+    del metadata["cs"], metadata["fmt"]
     return metadata, cs
 
 
 def process_metadata_ifk_none(metadata: dict) -> tuple:
     assert isinstance(metadata["cs"], list)
-    assert isinstance(metadata["crop"], list)
+    assert isinstance(metadata["fmt"], list)
     assert len(metadata["cs"]) == 2
-    assert len(metadata["crop"]) == 2
+    assert len(metadata["fmt"]) == 2
 
     cs_dict = CropSettings.make_cs_dict(metadata["cs_name"])
     both_cs = [
@@ -44,12 +44,12 @@ def process_metadata_ifk_none(metadata: dict) -> tuple:
     ]
     crop_shapes = [
         cs.crop_shapes[crop]
-        for cs, crop in zip(both_cs, metadata["crop"])
+        for cs, crop in zip(both_cs, metadata["fmt"])
     ]
     assert crop_shapes[0] == crop_shapes[1]
 
     metadata["img_size"] = crop_shapes[0]
-    del metadata["cs"], metadata["crop"]
+    del metadata["cs"], metadata["fmt"]
 
     return metadata, both_cs[0]
 

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dbdie_classes.options.CROP_TYPES import DEFAULT_CROP_TYPES_SEQ
+from dbdie_classes.paths import recursive_dirname
 from dbdie_classes.utils import pls
+import os
 from typing import TYPE_CHECKING
+import yaml
 
 from backbone.code.cropper_swarm import (
     check_croppers_dbdvr,
@@ -20,9 +23,10 @@ from backbone.cropping.movable_report import MovableReport
 from backbone.options.COLORS import make_cprint_with_header, OKCYAN
 
 if TYPE_CHECKING:
-    from dbdie_classes.base import FullModelType, RelPath
+    from dbdie_classes.base import Filename, FullModelType, RelPath
 
 csw_print = make_cprint_with_header(OKCYAN, "[CropperSwarm]")
+CONFIGS_FD = os.path.join(recursive_dirname(__file__, n=2), "configs")
 
 
 class CropperAlignments:
@@ -97,11 +101,23 @@ class CropperSwarm:
     See CropperAlignments for more information.
     """
 
-    def __init__(self, croppers: list[Cropper | list[Cropper]]) -> None:
+    def __init__(
+        self,
+        id: int,
+        name: str,
+        dbdv_min_id: int,
+        dbdv_max_id: int | None,
+        croppers: list[Cropper | list[Cropper]],
+    ) -> None:
         assert all(
             isinstance(cpp, Cropper) or all(isinstance(cpp_i, Cropper) for cpp_i in cpp)
             for cpp in croppers
         ), "'croppers' list can only have Croppers and/or lists of Croppers."
+
+        self.id = id
+        self.name = name
+        self.dbdv_min_id = dbdv_min_id
+        self.dbdv_max_id = dbdv_max_id
 
         self.croppers = croppers
         self.cropper_alignments = [CropperAlignments(cpp) for cpp in croppers]
@@ -156,15 +172,25 @@ class CropperSwarm:
         """Loads a registered `CropperSwarm` with name `name`."""
         ts = deepcopy(DEFAULT_CROP_TYPES_SEQ)
         check_cropper_types(ts)
+
+        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{name}/metadata.yaml")
+        with open(path) as f:
+            metadata = yaml.safe_load(f)
+        assert metadata["name"] == name
+
         return CropperSwarm(
-            [
+            id=metadata["id"],
+            name=name,
+            dbdv_min_id=metadata["dbdv_min_id"],
+            dbdv_max_id=metadata["dbdv_max_id"],
+            croppers=[
                 (
                     Cropper.from_register(name, t)
                     if isinstance(t, str)
                     else [Cropper.from_register(name, t_i) for t_i in t]
                 )
                 for t in ts
-            ]
+            ],
         )
 
     def run_in_sequence(
@@ -194,6 +220,7 @@ class CropperSwarm:
 
     def run(
         self,
+        fs: list["Filename"],
         move: bool = True,
         use_croppers: list[str] | None = None,
         use_fmts: list["FullModelType"] | None = None,
@@ -210,7 +237,7 @@ class CropperSwarm:
         """
         cropper_fmts_nand(use_croppers, use_fmts)
 
-        self._movable_report = MovableReport()
+        self._movable_report = MovableReport(fs)
 
         csw_print("Generating crops...")
         if use_fmts is not None:
@@ -219,7 +246,9 @@ class CropperSwarm:
             # This will use the full list of Croppers if use_croppers is None
             cpp_to_use = filter_use_croppers(self.cropper_flat_names, use_croppers)
             run_using_cropper_names(
-                self.cropper_alignments, self._movable_report, cpp_to_use
+                self.cropper_alignments,
+                self._movable_report,
+                cpp_to_use,
             )
         csw_print("Crops generated.")
 
@@ -228,6 +257,21 @@ class CropperSwarm:
         self._movable_report = None
 
     # * Moving
+
+    def filter_images_with_dbdv(self, matches: list[dict]) -> list["Filename"]:
+        if self.dbdv_max_id is None:
+            return [
+                m["filename"] for m in matches
+                if m["dbd_version"]["id"] >= self.dbdv_min_id
+            ]
+        else:
+            return [
+                m["filename"] for m in matches
+                if (
+                    (m["dbd_version"]["id"] >= self.dbdv_min_id)
+                    and (m["dbd_version"]["id"] < self.dbdv_max_id)
+                )
+            ]
 
     def move_images(self) -> None:
         """Move movable images to the 'cropped' folder"""

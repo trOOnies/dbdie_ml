@@ -42,7 +42,7 @@ def process_img_size(data: dict, depends_on) -> dict:
     if depends_on is not None:
         assert isinstance(data["img_size"], dict)
         assert depends_on.name == data["img_size"]["cs"]
-        data["img_size"] = depends_on.crop_shapes[data["img_size"]["crop"]]
+        data["img_size"] = depends_on.crop_shapes[data["img_size"]["fmt"]]
     else:
         assert isinstance(data["img_size"], list)
         assert len(data["img_size"]) == 2

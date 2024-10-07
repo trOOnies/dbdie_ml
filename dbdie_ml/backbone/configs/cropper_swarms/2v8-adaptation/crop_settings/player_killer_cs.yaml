@@ -6,7 +6,7 @@ version_range:
   - null
 img_size:
   cs: killer
-  crop: player__killer
+  fmt: player__killer
 crops:
   addons__killer:
     - [479, 65, 520, 106]

@@ -2,32 +2,32 @@ name: surv_player
 src_fd_rp: data/crops/player__surv
 dst_fd_rp: data/crops
 version_range:
+  - "7.4.0-ptb"  # the Banner and Badge patch
   - "8.1.0-ptb"  # the 2v8 adaptation
-  - null
 img_size:
   cs: surv
-  crop: player__surv
+  fmt: player__surv
 crops:
   addons__surv:
-    - [479, 58, 520, 99]
-    - [525, 58, 566, 99]
+    - [483, 58, 524, 99]
+    - [524, 58, 565, 99]
   character__surv:
-    - [120, 5, 600, 38]
+    - [124, 5, 600, 38]
   item__surv:
-    - [411, 57, 454, 100]
+    - [422, 59, 465, 101]
   offering__surv:
-    - [350, 55, 394, 103]
+    - [356, 54, 405, 107]
   perks__surv:
-    - [110, 52, 166, 107]
-    - [166, 52, 222, 107]
-    - [222, 52, 278, 107]
-    - [278, 52, 334, 107]
+    - [123, 50, 178, 106]
+    - [178, 50, 233, 106]
+    - [233, 50, 288, 106]
+    - [288, 50, 343, 106]
   points__surv:
     - [580, 54, 750, 104]
   prestige__surv:
-    - [0, 19, 96, 111]
+    - [0, 0, 117, 116]
   status__surv:
-    - [117, 5, 146, 40]
+    - [124, 5, 155, 46]
 allow:
   overlap: false
   overboard: false

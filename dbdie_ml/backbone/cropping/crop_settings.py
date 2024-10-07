@@ -94,7 +94,7 @@ class CropSettings:
         depends_on: CropSettings | None,
     ) -> CropSettings:
         """Instantiate CropSettings from a config file."""
-        path = os.path.join(CONFIGS_FD, f"crop_settings/{cps_name}/{cs_name}.yaml")
+        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{cps_name}/crop_settings/{cs_name}.yaml")
         with open(path) as f:
             data = yaml.safe_load(f)
 
