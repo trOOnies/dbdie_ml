@@ -4,22 +4,47 @@ Mainly default IEModels for each (implemented) predictable.
 
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options.FMT import to_fmt
+from typing import TYPE_CHECKING
 from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 
 from backbone.classes.metadata import SavedModelMetadata
 from backbone.ml.models import IEModel
 
+if TYPE_CHECKING:
+    from dbdie_classes.base import ImgSize
+
+
+def max_pool_round(int_tuple: tuple[int, int]) -> tuple[int, int]:
+    return (
+        round(0.5 * int_tuple[0] - 0.01),
+        round(0.5 * int_tuple[1] - 0.01),
+    )
+
 
 class AddonsModel(IEModel):
     """Recommended custom IEModel with an addon-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-addons",
+            fmt=to_fmt(MT.ADDONS, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.ADDONS, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -29,7 +54,7 @@ class AddonsModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 64x10x10
             Flatten(),  # Output size: 64*10*10
-            Linear(64 * 10 * 10, 128),
+            Linear(64 * img_size_4[0] * img_size_4[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )
@@ -44,26 +69,41 @@ class AddonsModel(IEModel):
 class CharacterModel(IEModel):
     """Recommended custom IEModel with a character-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-character",
+            fmt=to_fmt(MT.CHARACTER, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.CHARACTER, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
+        img_size_8 = max_pool_round(img_size_4)
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 32x238x16  (rounded down)
+            MaxPool2d((2, 2)),  # Output size: 32x(W/2)x(W/2)  (rounded down)
             Conv2d(32, 64, (5, 5), padding=2),  # 64 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 64x119x8
+            MaxPool2d((2, 2)),  # Output size: 64x(W/4)x(W/4)
             Conv2d(64, 128, (5, 5), padding=2),  # 128 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 128x59x4
-            Flatten(),  # Output size: 128*59*4
-            Linear(128 * 59 * 4, 256),
+            MaxPool2d((2, 2)),  # Output size: 128x(W/8)x(W/8)
+            Flatten(),  # Output size: 128*(W/8)*(W/8)
+            Linear(128 * img_size_8[0] * img_size_8[1], 256),
             ReLU(),
             Linear(256, total_classes),
         )
@@ -78,13 +118,27 @@ class CharacterModel(IEModel):
 class ItemModel(IEModel):
     """Recommended custom IEModel with an item-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-item",
+            fmt=to_fmt(MT.ITEM, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.ITEM, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -94,7 +148,7 @@ class ItemModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 64x10x10
             Flatten(),  # Output size: 64*10*10
-            Linear(64 * 10 * 10, 128),
+            Linear(64 * img_size_4[0] * img_size_4[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )
@@ -109,13 +163,27 @@ class ItemModel(IEModel):
 class OfferingModel(IEModel):
     """Recommended custom IEModel with an offering-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-offering",
+            fmt=to_fmt(MT.OFFERING, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.OFFERING, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -125,7 +193,7 @@ class OfferingModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 64x12x13
             Flatten(),  # Output size: 64*12*13
-            Linear(64 * 12 * 13, 128),
+            Linear(64 * img_size_4[0] * img_size_4[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )
@@ -140,13 +208,27 @@ class OfferingModel(IEModel):
 class PerkModel(IEModel):
     """Recommended custom IEModel with a perk-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-perks",
+            fmt=to_fmt(MT.PERKS, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.PERKS, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -156,7 +238,7 @@ class PerkModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 64x13x14
             Flatten(),  # Output size: 64*13*14
-            Linear(64 * 13 * 14, 128),
+            Linear(64 * img_size_4[0] * img_size_4[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )
@@ -174,13 +256,28 @@ class PerkModel(IEModel):
 class PrestigeModel(IEModel):
     """Recommended custom IEModel with a prestige-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-prestige",
+            fmt=to_fmt(MT.PRESTIGE, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.PRESTIGE, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
+        img_size_8 = max_pool_round(img_size_4)
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
@@ -193,7 +290,7 @@ class PrestigeModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 128x14x14
             Flatten(),  # Output size: 128*14*14
-            Linear(128 * 14 * 14, 128),
+            Linear(128 * img_size_8[0] * img_size_8[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )
@@ -208,13 +305,27 @@ class PrestigeModel(IEModel):
 class StatusModel(IEModel):
     """Recommended custom IEModel with a status-based non-trained model."""
 
-    def __init__(self, id: int, ifk: bool, total_classes: int) -> None:
+    def __init__(
+        self,
+        id: int,
+        ifk: bool,
+        total_classes: int,
+        img_size: "ImgSize",
+        version_range: list[str],
+        cps_name: str,
+    ) -> None:
         metadata = SavedModelMetadata.load(
-            extr_name="custom-status",
+            fmt=to_fmt(MT.STATUS, ifk),
+            extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            fmt=to_fmt(MT.STATUS, ifk),
+            img_size=img_size,
+            version_range=version_range,
+            cps_name=cps_name,
         )
+
+        img_size_2 = max_pool_round(img_size)
+        img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
             Conv2d(3, 32, (3, 3), padding=1),  # 32 filters
@@ -224,7 +335,7 @@ class StatusModel(IEModel):
             ReLU(),
             MaxPool2d((2, 2)),  # Output size: 64x7x10
             Flatten(),  # Output size: 64*7*10
-            Linear(64 * 7 * 10, 128),
+            Linear(64 * img_size_4[0] * img_size_4[1], 128),
             ReLU(),
             Linear(128, total_classes),
         )

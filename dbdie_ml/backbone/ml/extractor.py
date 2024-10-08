@@ -10,8 +10,12 @@ from copy import deepcopy
 import yaml
 
 from dbdie_classes.base import Path, PathToFolder
+from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
+from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
+from dbdie_classes.schemas.groupings import FullMatchOut
 from dbdie_classes.version import DBDVersion
+
 from backbone.code.extractor import (
     check_datasets,
     folder_save_logic,
@@ -25,8 +29,7 @@ from backbone.code.extractor import (
 )
 # from backbone.db import to_player
 from backbone.ml.models import IEModel
-from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
-from dbdie_classes.schemas.groupings import FullMatchOut
+from backbone.options.COLORS import make_cprint_with_header, OKCYAN
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -36,6 +39,10 @@ if TYPE_CHECKING:
     from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
     from dbdie_classes.version import DBDVersionRange
     from dbdie_classes.schemas.groupings import PlayerOut
+
+    from backbone.classes.training import TrainExtractor
+
+ie_print = make_cprint_with_header(OKCYAN, "[InfoExtractor]")
 
 
 class InfoExtractor:
@@ -63,7 +70,11 @@ class InfoExtractor:
     >>> new_preds_dict = ie.predict_batch({"perks": "/path/to/other/dataset.csv", ...})
     """
 
-    def __init__(self, id: int, name: str = "") -> None:
+    def __init__(
+        self,
+        id: int,
+        name: str = "",
+    ) -> None:
         self.id = id
         self.name = (
             str(uuid4()) if name == "" else name
@@ -108,6 +119,7 @@ class InfoExtractor:
         """Initialize the InfoExtractor and its IEModels.
         Can be provided with already trained models.
         """
+        ie_print("Initializing...")
         self._check_flushed()
         assert (
             not self.models_are_init
@@ -122,6 +134,7 @@ class InfoExtractor:
         if trained_models is None:
             for model in self._models.values():
                 model.init_model()
+        ie_print("Initialized.")
 
     def print_models(self) -> None:
         print("EXTRACTOR:", str(self))
@@ -135,6 +148,15 @@ class InfoExtractor:
             print(" NONE")
 
     # * Loading and saving
+
+    @classmethod
+    def from_train_config(cls, cfg: "TrainExtractor") -> InfoExtractor:
+        ie = InfoExtractor(cfg.id, cfg.name)
+        ie.init_extractor(
+            {fmt: d.model_id for fmt, d in cfg.full_model_types.items()},
+            {fmt: d.total_classes for fmt, d in cfg.full_model_types.items()},
+        )
+        return ie
 
     @classmethod
     def from_folder(cls, extractor_fd: "PathToFolder") -> InfoExtractor:
@@ -174,6 +196,12 @@ class InfoExtractor:
 
     # * Training
 
+    def filter_matches_with_dbdv(self, matches: list[dict]) -> list[dict[str, int | str]]:
+        return [
+            {"id": m["id"], "filename": m["filename"]}
+            for m in filter_images_with_dbdv(matches, self.dbdv_min_id, self.dbdv_max_id)
+        ]
+
     def train(
         self,
         label_ref_paths: dict["FullModelType", Path],
@@ -181,6 +209,7 @@ class InfoExtractor:
         val_datasets: dict["FullModelType", Path],
     ) -> None:
         """Train all models one after the other."""
+        ie_print("Training extractor...")
         self._check_flushed()
         assert not self.models_are_trained
 
@@ -190,14 +219,13 @@ class InfoExtractor:
 
         print(50 * "-")
         for mt, model in self._models.items():
-            print(f"Training {mt} model...")
             model.train(
                 label_ref_path=label_ref_paths[mt],
                 train_dataset_path=train_datasets[mt],
                 val_dataset_path=val_datasets[mt],
             )
             print(50 * "-")
-        print("All models have been trained.")
+        ie_print("All models have been trained.")
 
     def flush(self) -> None:
         """Flush InfoExtractor and its IEModels so as to free space.

@@ -49,7 +49,7 @@ class DatasetClass(Dataset):
         )
         label = self.labels["net_id"].iat[idx]
 
-        if self.transform:
+        if self.transform is not None:
             image = self.transform(image)
 
         return image, label

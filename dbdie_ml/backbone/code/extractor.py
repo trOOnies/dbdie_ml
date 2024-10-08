@@ -5,7 +5,6 @@ from os import listdir, mkdir
 from os.path import exists, isdir, join
 from shutil import rmtree
 from typing import TYPE_CHECKING, Literal, Optional, Union
-import yaml
 
 import pandas as pd
 
@@ -13,6 +12,8 @@ from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options import PLAYER_TYPE as PT
 from dbdie_classes.options.FMT import from_fmt, to_fmt
 from dbdie_classes.utils import filter_multitype
+
+from backbone.classes.metadata import SavedExtractorMetadata
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -60,6 +61,15 @@ def get_models(
             MT.PERKS: PerkModel,
             MT.STATUS: StatusModel,
         }
+        TYPES_TO_IMG_SIZES = {
+            to_fmt(MT.CHARACTER, True):  (480, 33),
+            to_fmt(MT.CHARACTER, False): (480, 33),
+            to_fmt(MT.ITEM, True):        (43, 42),
+            to_fmt(MT.ITEM, False):       (43, 43),
+            to_fmt(MT.PERKS, True):       (55, 55),
+            to_fmt(MT.PERKS, False):      (56, 55),
+            to_fmt(MT.STATUS, False):     (29, 35),
+        }
 
         # TODO: This are the currently implemented models
         base_models = {
@@ -83,8 +93,11 @@ def get_models(
         return {
             fmt: TYPES_TO_MODELS[from_fmt(fmt)[0]](
                 id=models_ids[fmt],
-                is_for_killer=ifk,
+                ifk=ifk,
                 total_classes=total,
+                img_size=TYPES_TO_IMG_SIZES[fmt],  # TODO: MAKE IT DEPEND ON CPS
+                version_range=["7.4.0-ptb", "8.1.0-ptb"],  # TODO: PARAMETRIZE
+                cps_name="banner-badge",  # TODO: PARAMETRIZE
             )
             for fmt, (ifk, total) in models.items()
         }
@@ -101,7 +114,7 @@ def get_version_range(
     vrs = [model.version_range for model in models.values()]
     if mode == "match_all":
         version_range = vrs[0]
-        assert all(vr == version_range for vr in vrs), "All model versions must match"
+        assert all(vr == version_range for vr in vrs), "All model versions must match."
     elif mode == "intersection":
         if len(vrs) == 1:
             version_range = vrs[0]
@@ -116,7 +129,7 @@ def get_version_range(
     if expected is not None:
         assert (
             version_range == expected
-        ), f"Seen version ('{version_range}') is different from expected version ('{expected}')"
+        ), f"Seen version ('{version_range}') is different from expected version ('{expected}')."
 
     return version_range
 
@@ -170,20 +183,17 @@ def check_datasets(
 
 def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
     dst = join(extractor_fd, "metadata.yaml")
-    metadata = {
-        "id": obj.id,
-        "name": obj.name,
-        "version_range": [
-            obj.version_range.id,
-            obj.version_range.max_id,
-        ],
-        "models": {
+    metadata = SavedExtractorMetadata(
+        cropper_swarm_id=obj.cropper_swarm_id,
+        id=obj.id,
+        models={
             model.fmt: model.id
             for model in obj._models.values()
-        }
-    }
-    with open(dst, "w") as f:
-        yaml.dump(metadata, f)
+        },
+        name=obj.name,
+        version_range=[obj.version_range.id, obj.version_range.max_id],
+    )
+    metadata.save(dst)
 
 
 def save_models(models, extractor_fd: "PathToFolder") -> None:

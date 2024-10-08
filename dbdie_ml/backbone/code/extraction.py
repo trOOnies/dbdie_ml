@@ -112,17 +112,6 @@ def filter_mckd(
     return data
 
 
-def get_matches() -> pd.DataFrame:
-    """Get matches' information."""
-    matches = parse_or_raise(requests.get(bendp("/matches"), params={"limit": 300_000}))
-    assert matches, "No matches could be retrieved."
-    matches = [
-        {"match_id": m["id"], "filename": m["filename"]}
-        for m in matches
-    ]
-    return pd.DataFrame(matches)
-
-
 def flatten_multiple_mt(split: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     if mt == PERKS:
         total_ids = 4
@@ -224,17 +213,20 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def get_raw_dataset(
+    matches: pd.DataFrame,
     pred_tuples: "PredictableTuples",
     target_mckd: bool,
 ) -> pd.DataFrame:
-    """Get raw dataset for the training of an InfoExtractor."""
+    """Get raw dataset for an InfoExtractor."""
     raw_data = parse_or_raise(requests.get(bendp("/labels"), params={"limit": 300_000}))
+    raw_data = [m for m in raw_data if m["match_id"] in matches["match_id"].values]
+    assert raw_data, "No labels of selected matches were found."
+
     data = parse_data(raw_data, pred_tuples.mts)
 
     data = filter_ifk(data, pred_tuples.ifks)
     data = filter_mckd(data, pred_tuples.mts, target_mckd)
 
-    matches = get_matches()
     data = data.merge(matches, how="inner", on="match_id")
     assert not data.empty, "No labeled match was found in the 'matches' table."
 

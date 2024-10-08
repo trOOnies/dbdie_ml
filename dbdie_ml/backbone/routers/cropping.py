@@ -50,7 +50,7 @@ def batch_crop(
         matches = parse_or_raise(
             requests.get(bendp("/matches"), params={"limit": 300_000})
         )
-        fs = cps.filter_images_with_dbdv(matches)
+        fs = cps.filter_fs_with_dbdv(matches)
         del matches
 
         cps.run(

@@ -35,7 +35,7 @@ from backbone.code.training import (
     train_process,
 )
 from backbone.data import DatasetClass
-from backbone.options.COLORS import OKGREEN, make_cprint_with_header
+from backbone.options.COLORS import OKBLUE, make_cprint_with_header
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from dbdie_classes.extract import CropCoords
     from dbdie_classes.version import DBDVersionRange
 
-iem_print = make_cprint_with_header(OKGREEN, "[IEModel]")
+iem_print = make_cprint_with_header(OKBLUE, "[IEModel]")
 
 
 class IEModel:
@@ -105,8 +105,8 @@ class IEModel:
 
         self.id              :               int = md["id"]
         self.name            :               str = md["name"]
-        self.ifk             :        str | None = md["is_for_killer"]
-        self.mt              :       "ModelType" = md["model_type"]
+        self.ifk             :        str | None = md["ifk"]
+        self.mt              :       "ModelType" = md["mt"]
         self.img_size        :         "ImgSize" = md["img_size"]  # replaces cs & crop
         self.version_range   : "DBDVersionRange" = md["version_range"]
         self._norm_means     :       list[float] = md["norm_means"]
@@ -231,6 +231,7 @@ class IEModel:
         val_dataset_path: "Path",
     ) -> None:
         """Trains the 'IEModel'."""
+        iem_print(f"Training initialized: {self.fmt}")
         assert not self.flushed, "IEModel was flushed."
 
         # TODO: Add training scores as attributes once trained

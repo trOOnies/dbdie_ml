@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.options.CROP_TYPES import DEFAULT_CROP_TYPES_SEQ
 from dbdie_classes.paths import recursive_dirname
 from dbdie_classes.utils import pls
@@ -258,20 +259,11 @@ class CropperSwarm:
 
     # * Moving
 
-    def filter_images_with_dbdv(self, matches: list[dict]) -> list["Filename"]:
-        if self.dbdv_max_id is None:
-            return [
-                m["filename"] for m in matches
-                if m["dbd_version"]["id"] >= self.dbdv_min_id
-            ]
-        else:
-            return [
-                m["filename"] for m in matches
-                if (
-                    (m["dbd_version"]["id"] >= self.dbdv_min_id)
-                    and (m["dbd_version"]["id"] < self.dbdv_max_id)
-                )
-            ]
+    def filter_fs_with_dbdv(self, matches: list[dict]) -> list["Filename"]:
+        return [
+            m["filename"]
+            for m in filter_images_with_dbdv(matches, self.dbdv_min_id, self.dbdv_max_id)
+        ]
 
     def move_images(self) -> None:
         """Move movable images to the 'cropped' folder"""
