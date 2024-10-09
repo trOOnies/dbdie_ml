@@ -51,6 +51,7 @@ def batch_crop(
             requests.get(bendp("/matches"), params={"limit": 300_000})
         )
         fs = cps.filter_fs_with_dbdv(matches)
+        print(len(fs))
         del matches
 
         cps.run(

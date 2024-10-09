@@ -76,8 +76,8 @@ class CropSettings:
         check_overboard(self.name, self.allow, self.img_size, self.crops)
 
         self.crop_shapes = {
-            name: crops[0].shape
-            for name, crops in self.crops.items()
+            fmt: crops[0].shape
+            for fmt, crops in self.crops.items()
         }
         check_positivity(self.name, self.crop_shapes)
         check_shapes(self.name, self.crops, self.crop_shapes)
@@ -94,7 +94,10 @@ class CropSettings:
         depends_on: CropSettings | None,
     ) -> CropSettings:
         """Instantiate CropSettings from a config file."""
-        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{cps_name}/crop_settings/{cs_name}.yaml")
+        path = os.path.join(
+            CONFIGS_FD,
+            f"cropper_swarms/{cps_name}/crop_settings/{cs_name}.yaml",
+        )
         with open(path) as f:
             data = yaml.safe_load(f)
 

@@ -19,7 +19,7 @@ class DatasetClass(Dataset):
 
     def __init__(
         self,
-        full_model_type: "FullModelType",
+        fmt: "FullModelType",
         labels: str | pd.DataFrame,
         to_net_ids: dict["LabelId", "NetId"],
         transform: Optional["Compose"] = None,
@@ -36,9 +36,9 @@ class DatasetClass(Dataset):
         self.labels["net_id"] = self.labels["label_id"].map(to_net_ids)
         self.labels = self.labels.drop("label_id", axis=1)
 
-        self.full_model_type = full_model_type
+        self.fmt = fmt
         self.transform = transform
-        self.fmt_fd = os.path.join(absp(CROPS_MAIN_FD_RP), self.full_model_type)
+        self.fmt_fd = os.path.join(absp(CROPS_MAIN_FD_RP), self.fmt)
 
     def __len__(self) -> int:
         return self.labels.shape[0]

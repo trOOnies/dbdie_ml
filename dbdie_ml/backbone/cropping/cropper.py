@@ -32,8 +32,8 @@ class Cropper:
         self.settings = settings
         self.name = self.settings.name
 
-        self.full_model_types = list(self.settings.crops.keys())
-        self.full_model_types_set = set(self.full_model_types)
+        self.fmts = list(self.settings.crops.keys())
+        self.fmts_set = set(self.fmts)
 
     def __len__(self) -> int:
         return len(self.settings.crops)
@@ -75,11 +75,11 @@ class Cropper:
 
     def _filter_fmts(
         self,
-        full_model_types: "FullModelType" | list["FullModelType"] | None,
+        fmts: "FullModelType" | list["FullModelType"] | None,
     ) -> list["FullModelType"]:
-        possible_values = self.full_model_types
+        possible_values = self.fmts
         return filter_multitype(
-            full_model_types,
+            fmts,
             default=possible_values,
             possible_values=possible_values,
         )
@@ -88,10 +88,10 @@ class Cropper:
         self,
         img: "PILImage",
         convert_to_rgb: bool = False,
-        full_model_types: "FullModelType" | list["FullModelType"] | None = None,
+        fmts: "FullModelType" | list["FullModelType"] | None = None,
     ) -> dict["FullModelType", list["PILImage"]]:
         """Make and return all the Cropper crops for a single in-memory image"""
-        fmts = self._filter_fmts(full_model_types)
+        fmts = self._filter_fmts(fmts)
         if convert_to_rgb:
             img = img.convert("RGB")
         return {
@@ -102,10 +102,10 @@ class Cropper:
     def apply_from_path(
         self,
         path: "Path",
-        full_model_types: "FullModelType" | list["FullModelType"] | None = None,
+        fmts: "FullModelType" | list["FullModelType"] | None = None,
     ) -> dict["FullModelType", list["PILImage"]]:
         """Make and return all the Cropper crops for a single in-memory image"""
-        fmts = self._filter_fmts(full_model_types)
+        fmts = self._filter_fmts(fmts)
         img = Image.open(path)
         img = img.convert("RGB")
         return {

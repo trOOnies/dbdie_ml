@@ -33,7 +33,9 @@ def calculate_umvis(fs: list["Filename"]) -> tuple[list["Filename"], list["Filen
     """
     cropped_fd = absp(CROPPED_IMG_FD_RP)
     pending_fs = os.listdir(absp(CROP_PENDING_IMG_FD_RP))
-    assert pending_fs, "There are no images in the pending folder."
+    total = len(pending_fs)
+    assert total > 0, "There are no images in the pending folder."
+    mr_print(f"Total images: {total}")
 
     # Filtering with our list
 
@@ -55,5 +57,7 @@ def calculate_umvis(fs: list["Filename"]) -> tuple[list["Filename"], list["Filen
     del fs_
     print_umvi_verdict(new_umvi, "Image duplication")
     umvi += new_umvi
+    mr_print(f"MVI: {len(mvi)} | UMVI: {len(umvi)}")
 
+    assert len(mvi) + len(umvi) == total
     return mvi, umvi

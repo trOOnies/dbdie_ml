@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import pandas as pd
 
+from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options import PLAYER_TYPE as PT
-from dbdie_classes.options.FMT import from_fmt, to_fmt
+from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.utils import filter_multitype
 
 from backbone.classes.metadata import SavedExtractorMetadata
@@ -18,8 +19,10 @@ from backbone.classes.metadata import SavedExtractorMetadata
 if TYPE_CHECKING:
     from numpy import ndarray
 
-    from dbdie_classes.base import FullModelType, Path, PathToFolder
+    from dbdie_classes.base import FullModelType, ModelType, Path, PathToFolder
     from dbdie_classes.version import DBDVersionRange
+
+    from backbone.classes.training import TrainModel
     from backbone.ml.models import IEModel
 
 # * Loading
@@ -43,86 +46,79 @@ def process_model_names(
 # * Base
 
 
-def get_models(
-    models_ids: dict["FullModelType", int],
-    trained_models: dict["FullModelType", "IEModel"] | None,
-    fmts_with_counts: dict["FullModelType", int],
-) -> dict["FullModelType", "IEModel"]:
-    if trained_models is not None:
-        return trained_models
-    else:
-        from backbone.ml.models.custom import (
-            CharacterModel, ItemModel, PerkModel, StatusModel
-        )
+def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
+    implemented_fmts = [
+        to_fmt(mt, ifk)
+        for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
+        for ifk in [True, False]
+    ] + [f"{MT.STATUS}__{PT.SURV}"]
 
-        TYPES_TO_MODELS = {
-            MT.CHARACTER: CharacterModel,
-            MT.ITEM: ItemModel,
-            MT.PERKS: PerkModel,
-            MT.STATUS: StatusModel,
-        }
-        TYPES_TO_IMG_SIZES = {
-            to_fmt(MT.CHARACTER, True):  (480, 33),
-            to_fmt(MT.CHARACTER, False): (480, 33),
-            to_fmt(MT.ITEM, True):        (43, 42),
-            to_fmt(MT.ITEM, False):       (43, 43),
-            to_fmt(MT.PERKS, True):       (55, 55),
-            to_fmt(MT.PERKS, False):      (56, 55),
-            to_fmt(MT.STATUS, False):     (29, 35),
-        }
+    implemented_pred_tuples = PredictableTuples.from_fmts(implemented_fmts)
+    assert all(mcfg.fmt in implemented_pred_tuples.fmts for mcfg in models_cfgs), (
+        f"fmts must be one of the following implemented models: {implemented_pred_tuples.fmts}"
+    )
 
-        # TODO: This are the currently implemented models
-        base_models = {
-            to_fmt(mt, ifk): ifk
-            for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
-            for ifk in [True, False]
-        } | {f"{MT.STATUS}__{PT.SURV}": False}
 
-        try:
-            models = {
-                fmt: (base_models[fmt], total)
-                for fmt, total in fmts_with_counts.items()
-            }
-        except KeyError:
-            raise KeyError(
-                "fmts must be one of the following implemented models: "
-                + str(list(base_models.keys()))
-            )
-        del base_models
-
+def get_models(models_cfgs: list["TrainModel"]) -> dict["FullModelType", "IEModel"]:
+    """Get IEModels from their train configs."""
+    if all(mcfg.trained_model is not None for mcfg in models_cfgs):
         return {
-            fmt: TYPES_TO_MODELS[from_fmt(fmt)[0]](
-                id=models_ids[fmt],
-                ifk=ifk,
-                total_classes=total,
-                img_size=TYPES_TO_IMG_SIZES[fmt],  # TODO: MAKE IT DEPEND ON CPS
-                version_range=["7.4.0-ptb", "8.1.0-ptb"],  # TODO: PARAMETRIZE
-                cps_name="banner-badge",  # TODO: PARAMETRIZE
-            )
-            for fmt, (ifk, total) in models.items()
+            mcfg.fmt: mcfg.trained_model
+            for mcfg in models_cfgs
         }
+
+    from backbone.ml.models.custom import CharacterModel, ItemModel, PerkModel, StatusModel
+
+    TYPES_TO_MODELS: dict["ModelType", "IEModel"] = {
+        MT.CHARACTER: CharacterModel,
+        MT.ITEM: ItemModel,
+        MT.PERKS: PerkModel,
+        MT.STATUS: StatusModel,
+    }
+
+    # TODO: This are the currently implemented models
+    check_implemented_models(models_cfgs)
+
+    pred_tuples = PredictableTuples.from_fmts([mcfg.fmt for mcfg in models_cfgs])
+
+    return {
+        mcfg.fmt: (
+            mcfg.trained_model
+            if mcfg.trained_model is not None
+            else TYPES_TO_MODELS[ptup.mt](
+                id=mcfg.model_id,
+                ifk=ptup.ifk,
+                total_classes=mcfg.total_classes,
+                cps_name=mcfg.cps_name,
+            )
+        )
+        for mcfg, ptup in zip(models_cfgs, pred_tuples)
+    }
 
 
 def get_version_range(
     models: dict["FullModelType", "IEModel"],
     mode: Literal["match_all", "intersection"] = "match_all",
     expected: Optional["DBDVersionRange"] = None,
-) -> "DBDVersionRange":
+) -> tuple["DBDVersionRange", list[int]]:
     """Calculate DBDVersionRange from many IEModels."""
     assert all(model.fmt == mt for mt, model in models.items())
 
     vrs = [model.version_range for model in models.values()]
+    vrs_ids = [model.version_range_ids for model in models.values()]
     if mode == "match_all":
         version_range = vrs[0]
         assert all(vr == version_range for vr in vrs), "All model versions must match."
+        version_range_ids = vrs_ids[0]
     elif mode == "intersection":
-        if len(vrs) == 1:
-            version_range = vrs[0]
-        else:
-            version_range = vrs[0] & vrs[1]
-            if len(vrs) > 2:
-                for vr in vrs[2:]:
-                    version_range = version_range & vr
+        raise NotImplementedError("Not implemented yet because of missing DBDV ids implementation.")
+        # if len(vrs) == 1:
+        #     version_range = vrs[0]
+        # else:
+        #     version_range = vrs[0] & vrs[1]
+        #     if len(vrs) > 2:
+        #         for vr in vrs[2:]:
+        #             version_range = version_range & vr
     else:
         raise ValueError(f"Mode '{mode}' not recognized")
 
@@ -131,7 +127,7 @@ def get_version_range(
             version_range == expected
         ), f"Seen version ('{version_range}') is different from expected version ('{expected}')."
 
-    return version_range
+    return version_range, version_range_ids
 
 
 def get_printable_info(models: dict) -> pd.DataFrame:
@@ -184,14 +180,15 @@ def check_datasets(
 def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
     dst = join(extractor_fd, "metadata.yaml")
     metadata = SavedExtractorMetadata(
-        cropper_swarm_id=obj.cropper_swarm_id,
+        cps_name=obj.cps_name,
         id=obj.id,
         models={
             model.fmt: model.id
             for model in obj._models.values()
         },
         name=obj.name,
-        version_range=[obj.version_range.id, obj.version_range.max_id],
+        version_range=obj.version_range.to_list(),
+        version_range_ids=obj.version_range_ids,
     )
     metadata.save(dst)
 

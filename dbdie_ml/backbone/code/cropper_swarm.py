@@ -61,13 +61,13 @@ def apply_cropper(
     cpp: "Cropper",
     img: "PILImage",
     src_filename: "Filename",
-    full_model_types: str | list[str] | None = None,
+    fmts: str | list[str] | None = None,
 ) -> None:
     """Make all the `Cropper` crops for a single in-memory image,
     and save them in the settings 'dst' folder,
     inside the corresponding subfolder
     """
-    fmts = cpp._filter_fmts(full_model_types)
+    fmts = cpp._filter_fmts(fmts)
 
     plain = src_filename[:-4]
     o = cpp.settings.offset if cpp.settings.offset is not None else 0
@@ -131,14 +131,14 @@ def run_using_fmts(
                 img = img.convert("RGB")
                 for cpp in croppers:
                     found_fmts = [
-                        fmt for fmt in use_fmts if fmt in cpp.full_model_types_set
+                        fmt for fmt in use_fmts if fmt in cpp.fmts_set
                     ]
                     if found_fmts:
                         apply_cropper(
                             cpp,
                             img,
                             src_filename=f,
-                            full_model_types=found_fmts,
+                            fmts=found_fmts,
                         )
                 del img
 

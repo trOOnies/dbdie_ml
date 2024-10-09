@@ -103,15 +103,18 @@ class IEModel:
         assert total_classes > 1
         md = metadata.to_model_class_metadata()
 
-        self.id              :               int = md["id"]
-        self.name            :               str = md["name"]
-        self.ifk             :        str | None = md["ifk"]
-        self.mt              :       "ModelType" = md["mt"]
-        self.img_size        :         "ImgSize" = md["img_size"]  # replaces cs & crop
-        self.version_range   : "DBDVersionRange" = md["version_range"]
-        self._norm_means     :       list[float] = md["norm_means"]
-        self._norm_std       :       list[float] = md["norm_std"]
-        self.training_params                     = md["training"]
+        self.id               :               int = md["id"]
+        self.name             :               str = md["name"]
+        self.ifk              :        str | None = md["ifk"]
+        self.mt               :       "ModelType" = md["mt"]
+        self.img_size         :         "ImgSize" = md["img_size"]  # replaces cs & crop
+        self.version_range    : "DBDVersionRange" = md["version_range"]
+        self.version_range_ids:         list[int] = md["version_range_ids"]
+        self._norm_means      :       list[float] = md["norm_means"]
+        self._norm_std        :       list[float] = md["norm_std"]
+        self.cps_name         :               str = md["cps_name"]
+        self.cs_name          :   str | list[str] = md["cs_name"]
+        self.training_params                      = md["training"]
 
         self.pt:     "PlayerType" = ifk_to_pt(self.ifk)
         self.fmt: "FullModelType" = to_fmt(self.mt, self.ifk)

@@ -125,6 +125,7 @@ class CropperSwarm:
 
         self._croppers_flat = flatten_cpas(self.cropper_alignments)
         self.version_range = self._croppers_flat[0].settings.version_range
+        self.version_range_ids = [self.dbdv_min_id, self.dbdv_max_id]
         check_croppers_dbdvr(self._croppers_flat, self.version_range)
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
@@ -162,9 +163,18 @@ class CropperSwarm:
                 else:
                     print(f"- '{cpp.settings.name}'")
 
-    def get_all_fmts(self) -> list:
+    def get_all_fmts(self) -> list["FullModelType"]:
         """Get all FullModelTypes present in its Croppers."""
-        return sum((cpp.full_model_types for cpp in self._croppers_flat), [])
+        return sum((cpp.fmts for cpp in self._croppers_flat), [])
+
+    def get_cs_that_contains_fmt(self, fmt: "FullModelType"):
+        for cpp in self._croppers_flat:
+            cs = cpp.settings
+            if fmt in cs.crops:
+                break
+        else:
+            raise AssertionError(f"No Cropper in the CropperSwarm contains the fmt '{fmt}'.")
+        return cs
 
     # * Instantiate
 

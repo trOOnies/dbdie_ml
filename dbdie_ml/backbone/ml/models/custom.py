@@ -4,14 +4,10 @@ Mainly default IEModels for each (implemented) predictable.
 
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options.FMT import to_fmt
-from typing import TYPE_CHECKING
 from torch.nn import Conv2d, Flatten, Linear, MaxPool2d, ReLU, Sequential
 
 from backbone.classes.metadata import SavedModelMetadata
 from backbone.ml.models import IEModel
-
-if TYPE_CHECKING:
-    from dbdie_classes.base import ImgSize
 
 
 def max_pool_round(int_tuple: tuple[int, int]) -> tuple[int, int]:
@@ -29,8 +25,6 @@ class AddonsModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -38,12 +32,10 @@ class AddonsModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
@@ -74,8 +66,6 @@ class CharacterModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -83,26 +73,24 @@ class CharacterModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
         img_size_8 = max_pool_round(img_size_4)
 
         model = Sequential(
             Conv2d(3, 32, (5, 5), padding=2),  # 32 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 32x(W/2)x(W/2)  (rounded down)
+            MaxPool2d((2, 2)),  # Output size: 32x(W/2)x(H/2)  (rounded down)
             Conv2d(32, 64, (5, 5), padding=2),  # 64 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 64x(W/4)x(W/4)
+            MaxPool2d((2, 2)),  # Output size: 64x(W/4)x(H/4)
             Conv2d(64, 128, (5, 5), padding=2),  # 128 filters
             ReLU(),
-            MaxPool2d((2, 2)),  # Output size: 128x(W/8)x(W/8)
-            Flatten(),  # Output size: 128*(W/8)*(W/8)
+            MaxPool2d((2, 2)),  # Output size: 128x(W/8)x(H/8)
+            Flatten(),  # Output size: 128*(W/8)*(H/8)
             Linear(128 * img_size_8[0] * img_size_8[1], 256),
             ReLU(),
             Linear(256, total_classes),
@@ -123,8 +111,6 @@ class ItemModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -132,12 +118,10 @@ class ItemModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
@@ -168,8 +152,6 @@ class OfferingModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -177,12 +159,10 @@ class OfferingModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
@@ -213,8 +193,6 @@ class PerkModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -222,12 +200,10 @@ class PerkModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(
@@ -261,8 +237,6 @@ class PrestigeModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -270,12 +244,10 @@ class PrestigeModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
         img_size_8 = max_pool_round(img_size_4)
 
@@ -310,8 +282,6 @@ class StatusModel(IEModel):
         id: int,
         ifk: bool,
         total_classes: int,
-        img_size: "ImgSize",
-        version_range: list[str],
         cps_name: str,
     ) -> None:
         metadata = SavedModelMetadata.load(
@@ -319,12 +289,10 @@ class StatusModel(IEModel):
             extr_name=None,
             model_id=id,
             total_classes=total_classes,
-            img_size=img_size,
-            version_range=version_range,
             cps_name=cps_name,
         )
 
-        img_size_2 = max_pool_round(img_size)
+        img_size_2 = max_pool_round(metadata.img_size)
         img_size_4 = max_pool_round(img_size_2)
 
         model = Sequential(

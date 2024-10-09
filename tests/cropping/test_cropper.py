@@ -51,8 +51,8 @@ class TestCropper:
             for cpp in [Cropper(cs), Cropper.from_type(cs.name)]:
                 assert cpp.settings == cs
                 assert cpp.name == cs.name
-                assert cpp.full_model_types == list(cs.crops.keys())
-                assert cpp.full_model_types_set == set(cpp.full_model_types)
+                assert cpp.fmts == list(cs.crops.keys())
+                assert cpp.fmts_set == set(cpp.fmts)
 
     def test_filter_fmts(self, mock_cropper):
         cpp: Cropper = mock_cropper

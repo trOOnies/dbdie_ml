@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 from backbone.classes.training import TrainingParams
-from backbone.cropping import CropSettings
+from backbone.cropping import CropSettings, CropperSwarm
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, Path, ImgSize
@@ -27,7 +27,7 @@ def process_metadata_ifk(metadata: dict) -> tuple:
     crop = metadata["fmt"]
 
     metadata["img_size"] = cs.crop_shapes[crop]
-    del metadata["cs_name"], metadata["fmt"]
+    del metadata["fmt"]
     return metadata, cs
 
 
@@ -49,7 +49,7 @@ def process_metadata_ifk_none(metadata: dict) -> tuple:
     assert crop_shapes[0] == crop_shapes[1]
 
     metadata["img_size"] = crop_shapes[0]
-    del metadata["cs_name"], metadata["fmt"]
+    del metadata["fmt"]
 
     return metadata, both_cs[0]
 
@@ -60,7 +60,7 @@ class SavedModelMetadata:
     total_classes: int
 
     cps_name: str
-    cs_name: str
+    cs_name: str | list[str]
     fmt: "FullModelType"
     img_size: "ImgSize"
     name: str
@@ -68,6 +68,7 @@ class SavedModelMetadata:
     norm_std: list[float]
     training: TrainingParams
     version_range: list[str]
+    version_range_ids: list[int]
 
     def __post_init__(self):
         assert self.total_classes > 1
@@ -81,6 +82,8 @@ class SavedModelMetadata:
             (str(dbdv) if dbdv is not None else None)
             for dbdv in self.version_range
         ]
+
+        assert len(self.version_range_ids) == 2
 
     def typed_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items()}
@@ -97,15 +100,13 @@ class SavedModelMetadata:
         extr_name: str | None,
         model_id: int | None,
         total_classes: int | None,
-        img_size: "ImgSize" | None,
-        version_range: list[str] | None,
-        cps_name: str,
+        cps_name: str | None,
     ) -> SavedModelMetadata:
         """Load `SavedModelMetadata` from config YAML file."""
         is_trained_model = extr_name is not None
         assert all(
             is_trained_model == (v is None)
-            for v in [model_id, total_classes, img_size, version_range]
+            for v in [model_id, total_classes, cps_name]
         ), "Model params should be passed iif the model is being created."
 
         path = (
@@ -116,12 +117,17 @@ class SavedModelMetadata:
 
         with open(path) as f:
             metadata = yaml.safe_load(f)
+
         if not is_trained_model:
+            cps = CropperSwarm.from_register(cps_name)
+            cs = cps.get_cs_that_contains_fmt(fmt)
+
             metadata["id"] = model_id
             metadata["total_classes"] = total_classes
-            metadata["img_size"] = img_size
-            metadata["version_range"] = version_range
+            metadata["img_size"] = cs.crop_shapes[fmt]
+            metadata["version_range"] = cps.version_range.to_list()
             metadata["cps_name"] = cps_name
+            metadata["version_range_ids"] = cps.version_range_ids
 
         metadata["training"] = TrainingParams(**metadata["training"])
 
@@ -131,15 +137,17 @@ class SavedModelMetadata:
     def from_model_class(cls, iem) -> SavedModelMetadata:
         metadata = (
             {
-                k: getattr(iem, k) for k in ["id", "name", "fmt", "total_classes"]
+                k: getattr(iem, k)
+                for k in [
+                    "id", "name", "fmt", "total_classes",
+                    "cps_name", "cs_name", "version_range_ids",
+                ]
             }
             | {k: getattr(iem, f"_{k}") for k in ["norm_means", "norm_std"]}
             | {
-                "version_range": [iem.version_range.id, iem.version_range.max_id],
+                "version_range": iem.version_range.to_list(),
                 "img_size": list(iem.img_size),
                 "training": TrainingParams(**iem.training_params),
-                "cps_name": "banner-badge",  # TODO: Pending
-                "cs_name": "...",  # TODO: Pending
             }
         )
         return cls(**metadata)
@@ -172,14 +180,14 @@ class SavedModelMetadata:
 
 @dataclass(kw_only=True)
 class SavedExtractorMetadata:
-    cropper_swarm_id: int
+    cps_name: str
     id: int
     models: dict["FullModelType", int]
     name: str
     version_range: list[str]
+    version_range_ids: list[int]
 
     def __post_init__(self):
-        assert self.cropper_swarm_id >= 0
         assert self.id >= 0
         assert self.models
 
@@ -188,6 +196,8 @@ class SavedExtractorMetadata:
             (str(dbdv) if dbdv is not None else None)
             for dbdv in self.version_range
         ]
+
+        assert len(self.version_range_ids) == 2
 
     def typed_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items()}

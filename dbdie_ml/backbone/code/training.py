@@ -102,7 +102,7 @@ def label_ref_transformations(
 
 
 def load_process(
-    full_model_type: "FullModelType",
+    fmt: "FullModelType",
     train_ds_path: "Path",
     val_ds_path: "Path",
     to_net_ids,
@@ -112,13 +112,13 @@ def load_process(
 
     datasets = {
         "train": DatasetClass(
-            full_model_type,
+            fmt,
             train_ds_path,
             to_net_ids,
             transform=cfg.transform,
         ),
         "val": DatasetClass(
-            full_model_type,
+            fmt,
             val_ds_path,
             to_net_ids,
             transform=cfg.transform,
@@ -130,9 +130,9 @@ def load_process(
         "val": DataLoader(datasets["val"], batch_size=cfg.batch_size),
     }
 
-    iem_print("Data loaded.")
-    iem_print(f"- Datapoints train: {len(datasets['train'])}")
-    iem_print(f"- Datapoints val:   {len(datasets['val'])}")
+    iem_print("Data loaded:")
+    iem_print(f"- Train: {len(datasets['train'])}")
+    iem_print(f"- Val:   {len(datasets['val'])}")
 
     return loaders["train"], loaders["val"]
 
@@ -188,7 +188,7 @@ def train_process(
             val_acc_pp = train_eval(model, val_loader)
             iem_print(
                 (
-                    f"- Epoch [{epoch:>{epochs_clen}}/{cfg.epochs}] "
+                    f"- [{epoch:>{epochs_clen}}/{cfg.epochs}] "
                     + f"Loss: {loss.item():.4f} "
                     + f"Val Acc: {val_acc_pp:.2f}%"
                 )

@@ -47,7 +47,7 @@ class MovableReport:
         )
         fs = os.listdir(src)
         sfx_cut = 4 if (relp(src) == CROP_PENDING_IMG_FD_RP) else 6  # TODO: Test
-        return [f for f in fs if f[:-sfx_cut] not in self.umvi_plain_set]
+        return [f for f in fs if f[:-sfx_cut] in self.mvi_plain_set]
 
     def move_images(self) -> None:
         """Move movable images to the 'cropped' folder"""

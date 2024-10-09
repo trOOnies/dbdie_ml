@@ -17,15 +17,12 @@ router = APIRouter()
 
 @router.post("/batch", status_code=status.HTTP_201_CREATED)
 def batch_train(extr_config: TrainExtractor):
-    fmts = list(extr_config.full_model_types.keys())
+    fmts = list(extr_config.fmts.keys())
     pred_tuples = PredictableTuples.from_fmts(fmts)
 
     ie = None
     try:
         ie = InfoExtractor.from_train_config(extr_config)
-        ie.dbdv_min_id = 306  # TODO: parametrize and put in instantiation
-        ie.dbdv_max_id = 327  # TODO: parametrize and put in instantiation
-        ie.cropper_swarm_id = 1  # TODO: parametrize and put in instantiation
 
         matches = parse_or_raise(
             requests.get(bendp("/matches"), params={"limit": 300_000})

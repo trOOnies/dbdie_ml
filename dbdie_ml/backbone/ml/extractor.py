@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING, Optional, Union
-from uuid import uuid4
 
 from copy import deepcopy
 import yaml
@@ -16,6 +15,7 @@ from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
 from dbdie_classes.version import DBDVersion
 
+from backbone.classes.metadata import SavedModelMetadata
 from backbone.code.extractor import (
     check_datasets,
     folder_save_logic,
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from dbdie_classes.version import DBDVersionRange
     from dbdie_classes.schemas.groupings import PlayerOut
 
-    from backbone.classes.training import TrainExtractor
+    from backbone.classes.training import TrainExtractor, TrainModel
 
 ie_print = make_cprint_with_header(OKCYAN, "[InfoExtractor]")
 
@@ -73,13 +73,10 @@ class InfoExtractor:
     def __init__(
         self,
         id: int,
-        name: str = "",
+        name: str,
     ) -> None:
         self.id = id
-        self.name = (
-            str(uuid4()) if name == "" else name
-        )  # TODO: fill with a random friendlier name if empty
-
+        self.name = name
         self.flushed = False
 
     def __repr__(self) -> str:
@@ -111,9 +108,8 @@ class InfoExtractor:
 
     def init_extractor(
         self,
-        models_ids: dict["FullModelType", int],
-        fmts_with_counts: dict["FullModelType", int],
-        trained_models: Optional[dict["FullModelType", IEModel]] = None,
+        cps_name: str,
+        models_cfgs: list[TrainModel],
         expected_version_range: Optional["DBDVersionRange"] = None,
     ) -> None:
         """Initialize the InfoExtractor and its IEModels.
@@ -123,16 +119,17 @@ class InfoExtractor:
         self._check_flushed()
         assert (
             not self.models_are_init
-        ), "InfoExtractor can't be reinitialized before being flushed first"
-        assert fmts_with_counts, "'fmts_with_counts' can't be empty"
+        ), "InfoExtractor can't be reinitialized before being flushed first."
+        assert models_cfgs, "'models_cfgs' can't be empty."
 
-        self._models = get_models(models_ids, trained_models, fmts_with_counts)
-        self.version_range = get_version_range(
+        self.cps_name = cps_name
+        self._models = get_models(models_cfgs)
+        self.version_range, self.version_range_ids = get_version_range(
             self._models,
             expected=expected_version_range,
         )
-        if trained_models is None:
-            for model in self._models.values():
+        for model in self._models.values():
+            if not model.model_is_trained:
                 model.init_model()
         ie_print("Initialized.")
 
@@ -151,11 +148,10 @@ class InfoExtractor:
 
     @classmethod
     def from_train_config(cls, cfg: "TrainExtractor") -> InfoExtractor:
+        if cfg.custom_dbdvr is not None:
+            raise NotImplementedError
         ie = InfoExtractor(cfg.id, cfg.name)
-        ie.init_extractor(
-            {fmt: d.model_id for fmt, d in cfg.full_model_types.items()},
-            {fmt: d.total_classes for fmt, d in cfg.full_model_types.items()},
-        )
+        ie.init_extractor(cfg.cps_name, [model for model in cfg.fmts.values()])
         return ie
 
     @classmethod
@@ -168,19 +164,18 @@ class InfoExtractor:
         model_names = process_model_names(metadata, models_fd)
         del metadata["models"]
 
-        exp_version_range = metadata["version-range"]
-        del metadata["version-range"]
+        exp_version_range = metadata["version_range"]
+        del metadata["version_range"]
 
-        models_ids: dict["FullModelType", int] = metadata["models"]
-        del metadata["models"]
-
+        # TODO: Untangle this implementation
         ie = InfoExtractor(**metadata)
+        trained_models = {
+            mn: IEModel.from_folder(os.path.join(models_fd, mn))
+            for mn in model_names
+        }
         ie.init_extractor(
-            models_ids,
-            trained_models={
-                mn: IEModel.from_folder(os.path.join(models_fd, mn))
-                for mn in model_names
-            },
+            metadata["cps_name"],
+            [SavedModelMetadata.from_model_class(iem) for iem in trained_models.values()],
             expected_version_range=exp_version_range,
         )
         return ie
@@ -199,7 +194,11 @@ class InfoExtractor:
     def filter_matches_with_dbdv(self, matches: list[dict]) -> list[dict[str, int | str]]:
         return [
             {"id": m["id"], "filename": m["filename"]}
-            for m in filter_images_with_dbdv(matches, self.dbdv_min_id, self.dbdv_max_id)
+            for m in filter_images_with_dbdv(
+                matches,
+                self.version_range_ids[0],
+                self.version_range_ids[1],
+            )
         ]
 
     def train(
