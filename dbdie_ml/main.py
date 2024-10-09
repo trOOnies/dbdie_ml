@@ -14,7 +14,10 @@ app.include_router(cropping.router, prefix="/crop")
 app.include_router(extraction.router, prefix="/extract")
 app.include_router(training.router, prefix="/train")
 
-
 @app.get("/health", summary="Health check")
 def health():
     return {"status": "OK"}
+
+
+with open("dbdie_ml/ascii_art.txt") as f:
+    print(f.read())
