@@ -5,12 +5,12 @@ from backbone.ml.models.custom import PerkModel
 
 @fixture
 def mock_killer_pm():
-    return PerkModel(is_for_killer=True, total_classes=100)
+    return PerkModel(ifk=True, total_classes=100)
 
 
 @fixture
 def mock_surv_pm():
-    return PerkModel(is_for_killer=False, total_classes=100)
+    return PerkModel(ifk=False, total_classes=100)
 
 
 class TestPerkModel:

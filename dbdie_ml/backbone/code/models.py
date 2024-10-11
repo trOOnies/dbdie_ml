@@ -9,8 +9,6 @@ from dbdie_classes.version import DBDVersionRange
 from torch import load, save
 from torch.cuda import mem_get_info
 
-from backbone.classes.metadata import SavedModelMetadata
-
 if TYPE_CHECKING:
     from dbdie_classes.base import LabelRef, Path, PathToFolder
 
@@ -59,7 +57,7 @@ def print_memory(device) -> None:
 
 def save_metadata(model, dst: "Path") -> None:
     """Save `IEModel` metadata."""
-    metadata = SavedModelMetadata.from_model_class(model)
+    metadata = model.to_metadata()
     metadata.save(dst)
 
 

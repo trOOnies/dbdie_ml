@@ -179,17 +179,7 @@ def check_datasets(
 
 def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
     dst = join(extractor_fd, "metadata.yaml")
-    metadata = SavedExtractorMetadata(
-        cps_name=obj.cps_name,
-        id=obj.id,
-        models={
-            model.fmt: model.id
-            for model in obj._models.values()
-        },
-        name=obj.name,
-        version_range=obj.version_range.to_list(),
-        version_range_ids=obj.version_range_ids,
-    )
+    metadata = obj.to_metadata()
     metadata.save(dst)
 
 

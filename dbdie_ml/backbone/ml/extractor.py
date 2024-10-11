@@ -13,9 +13,10 @@ from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
 from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
+from dbdie_classes.schemas.objects import ExtractorOut
 from dbdie_classes.version import DBDVersion
 
-from backbone.classes.metadata import SavedModelMetadata
+from backbone.classes.metadata import SavedExtractorMetadata, SavedModelMetadata
 from backbone.code.extractor import (
     check_datasets,
     folder_save_logic,
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
     from dbdie_classes.version import DBDVersionRange
     from dbdie_classes.schemas.groupings import PlayerOut
+    from dbdie_classes.schemas.objects import ModelOut
 
     from backbone.classes.training import TrainExtractor, TrainModel
 
@@ -180,6 +182,19 @@ class InfoExtractor:
         )
         return ie
 
+    def to_metadata(self) -> SavedExtractorMetadata:
+        return SavedExtractorMetadata(
+            cps_name=self.cps_name,
+            id=self.id,
+            models={
+                model.fmt: model.id
+                for model in self._models.values()
+            },
+            name=self.name,
+            version_range=self.version_range.to_list(),
+            version_range_ids=self.version_range_ids,
+        )
+
     def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
         """Save all necessary objects of the InfoExtractor and all its IEModels."""
         self._check_flushed()
@@ -303,7 +318,15 @@ class InfoExtractor:
         names = {k: self.models[k].convert_names(preds[k]) for k in on}
         return names[list(names.keys())[0]] if isinstance(on, str) else names
 
-    # * Match
+    # * Schemas
+
+    def to_schema(self) -> ExtractorOut:
+        """Convert to corresponding Pydantic schema."""
+        return ExtractorOut(self.to_metadata().typed_dict())
+
+    def models_to_schemas(self) -> dict["FullModelType", "ModelOut"]:
+        """Convert models to dict of corresponding Pydantic schemas."""
+        return {fmt: m.to_schema() for fmt, m in self._models.items()}
 
     def form_match(
         self, version: DBDVersion, players: list["PlayerOut"]

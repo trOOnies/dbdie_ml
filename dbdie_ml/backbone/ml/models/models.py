@@ -7,6 +7,7 @@ from functools import partial
 import pandas as pd
 from typing import TYPE_CHECKING
 
+from dbdie_classes.schemas.objects import ModelOut
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 import numpy as np
@@ -66,8 +67,8 @@ class IEModel:
 
     Parameters:
         name (str): IEModel name.
-        is_for_killer (bool | None)
-        model_type (ModelType)
+        ik (IsForKiller)
+        mt (ModelType)
         img_size (tuple[int, int])
         version_range (DBDVersionRange): DBD game version range for which
             the model works.
@@ -197,6 +198,9 @@ class IEModel:
 
         return iem
 
+    def to_metadata(self) -> SavedModelMetadata:
+        return SavedModelMetadata.from_model_class(self)
+
     def save(self, model_fd: "PathToFolder") -> None:
         """Save all necessary objects of the IEModel."""
         assert not self.flushed, "IEModel was flushed."
@@ -315,3 +319,9 @@ class IEModel:
         assert dst.endswith(".txt")
         np.savetxt(dst, preds, fmt="%d")
         iem_print("Preds saved.")
+
+    # * Schemas
+
+    def to_schema(self) -> ModelOut:
+        """Convert to corresponding Pydantic schema."""
+        return ModelOut(self.to_metadata().typed_dict())
