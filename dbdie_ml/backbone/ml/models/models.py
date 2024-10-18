@@ -36,7 +36,7 @@ from backbone.code.training import (
     train_process,
 )
 from backbone.data import DatasetClass
-from backbone.options.COLORS import OKBLUE, make_cprint_with_header
+from backbone.options.COLORS import get_class_cprint
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -52,9 +52,9 @@ if TYPE_CHECKING:
         PlayerType,
     )
     from dbdie_classes.extract import CropCoords
-    from dbdie_classes.version import DBDVersionRange
+    from dbdie_classes.schemas.helpers import DBDVersionRange
 
-iem_print = make_cprint_with_header(OKBLUE, "[IEModel]")
+iem_print = get_class_cprint("IEModel")
 
 
 class IEModel:
@@ -204,7 +204,6 @@ class IEModel:
     def save(self, model_fd: "PathToFolder") -> None:
         """Save all necessary objects of the IEModel."""
         assert not self.flushed, "IEModel was flushed."
-        iem_print("Saving model...")
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
 
@@ -214,7 +213,7 @@ class IEModel:
         save_label_ref(self.label_ref, mfd("label_ref.json"))
         save_model(self.model_is_trained, self._model, mfd("model.pt"))
 
-        iem_print("Model saved.")
+        iem_print(f"Model saved: {self.fmt}")
 
     def flush(self) -> None:
         """Flush IEModel params so as to free space.
@@ -322,6 +321,15 @@ class IEModel:
 
     # * Schemas
 
-    def to_schema(self) -> ModelOut:
+    def to_schema(self, extra_info: dict) -> ModelOut:
         """Convert to corresponding Pydantic schema."""
-        return ModelOut(self.to_metadata().typed_dict())
+        return ModelOut(
+            **(
+                self.to_metadata().typed_dict()
+                | {
+                    "dbdv_min_id": self.version_range_ids[0],
+                    "dbdv_max_id": self.version_range_ids[1],
+                }
+                | extra_info
+            )
+        )

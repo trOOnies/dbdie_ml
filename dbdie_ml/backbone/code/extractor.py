@@ -14,13 +14,11 @@ from dbdie_classes.options import PLAYER_TYPE as PT
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.utils import filter_multitype
 
-from backbone.classes.metadata import SavedExtractorMetadata
-
 if TYPE_CHECKING:
     from numpy import ndarray
 
     from dbdie_classes.base import FullModelType, ModelType, Path, PathToFolder
-    from dbdie_classes.version import DBDVersionRange
+    from dbdie_classes.schemas.helpers import DBDVersionRange
 
     from backbone.classes.training import TrainModel
     from backbone.ml.models import IEModel
@@ -86,7 +84,7 @@ def get_models(models_cfgs: list["TrainModel"]) -> dict["FullModelType", "IEMode
             mcfg.trained_model
             if mcfg.trained_model is not None
             else TYPES_TO_MODELS[ptup.mt](
-                id=mcfg.model_id,
+                id=mcfg.id,
                 ifk=ptup.ifk,
                 total_classes=mcfg.total_classes,
                 cps_name=mcfg.cps_name,

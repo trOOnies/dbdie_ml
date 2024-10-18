@@ -173,7 +173,7 @@ class SavedModelMetadata:
 
     def save(self, path: "Path") -> None:
         assert path.endswith(".yaml")
-        m = self.dict()
+        m = self.typed_dict()
         with open(path, "w") as f:
             yaml.dump(m, f)
 
@@ -207,6 +207,6 @@ class SavedExtractorMetadata:
 
     def save(self, path: "Path") -> None:
         assert path.endswith(".yaml")
-        m = self.dict()
+        m = self.typed_dict()
         with open(path, "w") as f:
             yaml.dump(m, f)

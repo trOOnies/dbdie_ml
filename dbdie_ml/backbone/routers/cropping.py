@@ -6,12 +6,11 @@ from dbdie_classes.schemas.objects import CropperSwarmOut
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
 import os
-import requests
 from traceback import print_exc
 import yaml
 
 from backbone.cropping.cropper_swarm import CropperSwarm
-from backbone.endpoints import bendp, parse_or_raise
+from backbone.endpoints import getr
 
 CONFIGS_FD = os.path.join(recursive_dirname(__file__, 2), "configs")
 
@@ -45,11 +44,9 @@ def batch_crop(
     """
     try:
         cps = CropperSwarm.from_register(cropper_swarm_name)
-        parse_or_raise(requests.get(bendp(f"/cropper-swarm/{cps.id}")))
+        getr(f"/cropper-swarm/{cps.id}", api=True)
 
-        matches = parse_or_raise(
-            requests.get(bendp("/matches"), params={"limit": 300_000})
-        )
+        matches = getr("/matches", api=True, params={"limit": 300_000})
         fs = cps.filter_fs_with_dbdv(matches)
         print(len(fs))
         del matches

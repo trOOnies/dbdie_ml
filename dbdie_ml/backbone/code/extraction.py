@@ -2,7 +2,6 @@
 
 from dbdie_classes.options.MODEL_TYPE import (
     ADDONS,
-    CHARACTER,
     MULTIPLE_PER_PLAYER,
     PERKS,
     TO_ID_NAMES,
@@ -13,7 +12,7 @@ import requests
 from sklearn.model_selection import train_test_split
 from typing import TYPE_CHECKING
 
-from backbone.endpoints import bendp, parse_or_raise
+from backbone.endpoints import bendp, getr, parse_or_raise
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, IsForKiller, ModelType, Path
@@ -29,7 +28,7 @@ def parse_data(
         {
             "match_id": d["match_id"],
             "player_id": d["player"]["id"],
-            "is_killer": d["player"]["id"] == 4,
+            "ifk": d["player"]["id"] == 4,
         }
         | {idn: d["player"][idn] for idn in id_names.values()}
         | {
@@ -51,7 +50,7 @@ def get_relevant_cols(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
         [
             "match_id",
             "player_id",
-            "is_killer",
+            "ifk",
             TO_ID_NAMES[mt],
             f"{mt}_mckd",
             "filename",
@@ -70,19 +69,19 @@ def apply_mckd_filter(split: pd.DataFrame, mt: "ModelType", target_mckd: bool) -
 
 def apply_ifk_filter(split: pd.DataFrame, ifk: bool | None) -> pd.DataFrame:
     if ifk is not None:
-        mask = split["is_killer"].values.copy()
+        mask = split["ifk"].values.copy()
         if not ifk:
             mask = np.logical_not(mask)
         split = split[mask]
         assert not split.empty, "No ifk related data."
-    return split.drop("is_killer", axis=1)
+    return split.drop("ifk", axis=1)
 
 
 def filter_ifk(
     data: pd.DataFrame,
     ifks: list["IsForKiller"],
 ) -> pd.DataFrame:
-    """Filter is_killer if all PTs are not None and identical (i.e. a single PT)."""
+    """Filter ifk if all PTs are not None and identical (i.e. a single PT)."""
     if all(ifk is not None for ifk in ifks):
         unique_ifks = list(set(ifks))
         if len(unique_ifks) == 1:
@@ -218,7 +217,14 @@ def get_raw_dataset(
     target_mckd: bool,
 ) -> pd.DataFrame:
     """Get raw dataset for an InfoExtractor."""
-    raw_data = parse_or_raise(requests.get(bendp("/labels"), params={"limit": 300_000}))
+    raw_data = parse_or_raise(
+        requests.post(
+            bendp("/labels/filter-many"),
+            params={"ifk": None, "limit": 300_000, "skip": 0},
+            json=None,
+        ),
+        exp_status_code=200,  # OK
+    )
     raw_data = [m for m in raw_data if m["match_id"] in matches["match_id"].values]
     assert raw_data, "No labels of selected matches were found."
 
@@ -276,15 +282,7 @@ def split_and_save_dataset(
 def get_label_refs(pred_tuples: "PredictableTuples") -> dict["FullModelType", pd.DataFrame]:
     """Get labels reference for selected mts."""
     data = {
-        ptup.fmt: parse_or_raise(
-            requests.get(
-                bendp(f"/{ptup.mt}"),
-                params={
-                    "limit": 300_000,
-                    ("is_killer" if ptup.mt == CHARACTER else "ifk"): ptup.ifk
-                },
-            )
-        )
+        ptup.fmt: getr(f"/{ptup.mt}", api=True, params={"limit": 300_000, "ifk": ptup.ifk})
         for ptup in pred_tuples
     }
     assert all(len(ds) for ds in data.values()), "ModelType data is empty."

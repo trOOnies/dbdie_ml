@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 from dbdie_classes.base import FullModelType
-from dbdie_classes.version import DBDVersionRange
+from dbdie_classes.schemas.helpers import DBDVersionRange
 from pydantic import BaseModel, field_validator
 from typing import Any
 
@@ -27,7 +27,7 @@ class TrainingParams:
 
 
 class TrainModel(BaseModel):
-    model_id: int
+    id: int
     fmt: FullModelType
     total_classes: int
     cps_name: str
@@ -39,10 +39,14 @@ class TrainExtractor(BaseModel):
     name: str
     cps_name: str
     fmts: dict[FullModelType, TrainModel]
-    custom_dbdvr: DBDVersionRange | None
+    custom_dbdvr: DBDVersionRange | None  # TODO: Not implemented
 
     @field_validator("fmts")
     @classmethod
     def fmt_not_empty(cls, fmts: dict) -> dict[FullModelType, TrainModel]:
         assert fmts, "fmts cannot be empty."
         return fmts
+
+    @property
+    def models_ids(self) -> dict[FullModelType, int]:
+        return {fmt: mcfg.id for fmt, mcfg in self.fmts.items()}

@@ -5,7 +5,7 @@ from shutil import rmtree
 import numpy as np
 from pytest import mark, raises
 
-from dbdie_classes.version import DBDVersionRange
+from dbdie_classes.schemas.helpers import DBDVersionRange
 from backbone.code.extractor import (
     folder_save_logic,
     get_version_range,

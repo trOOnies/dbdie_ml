@@ -1,6 +1,7 @@
 """Endpoints-related helper functions."""
 
 import re
+import requests
 from typing import TYPE_CHECKING
 
 from fastapi import status
@@ -34,3 +35,28 @@ def parse_or_raise(resp, exp_status_code: int = status.HTTP_200_OK):
             detail=resp.reason,
         )
     return resp.json()
+
+
+def getr(endpoint: "Endpoint", api: bool = False, **kwargs):
+    """Include the boilerplate for a GET request."""
+    f = bendp if api else endp
+    return parse_or_raise(
+        requests.get(f(endpoint), **kwargs)
+    )
+
+
+def postr(endpoint: "Endpoint", api: bool = False, **kwargs):
+    """Include the boilerplate for a POST request."""
+    f = bendp if api else endp
+    return parse_or_raise(
+        requests.post(f(endpoint), **kwargs),
+        exp_status_code=status.HTTP_201_CREATED,
+    )
+
+
+def putr(endpoint: "Endpoint", api: bool = False, **kwargs):
+    """Include the boilerplate for a PUT request."""
+    f = bendp if api else endp
+    return parse_or_raise(
+        requests.put(f(endpoint), **kwargs)
+    )

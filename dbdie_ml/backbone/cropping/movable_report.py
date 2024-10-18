@@ -8,12 +8,12 @@ from shutil import move
 from typing import TYPE_CHECKING
 
 from backbone.code.movable_report import calculate_umvis
-from backbone.options.COLORS import OKBLUE, make_cprint_with_header
+from backbone.options.COLORS import get_class_cprint
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder
 
-mr_print = make_cprint_with_header(OKBLUE, "[MovableReport]")
+mr_print = get_class_cprint("MovableReport")
 
 
 class MovableReport:

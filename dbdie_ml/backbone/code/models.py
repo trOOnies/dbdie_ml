@@ -5,7 +5,7 @@ import os
 import yaml
 from typing import TYPE_CHECKING, Any
 
-from dbdie_classes.version import DBDVersionRange
+from dbdie_classes.schemas.helpers import DBDVersionRange
 from torch import load, save
 from torch.cuda import mem_get_info
 

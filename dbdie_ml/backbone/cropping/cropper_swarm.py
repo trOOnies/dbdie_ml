@@ -21,12 +21,12 @@ from backbone.code.cropper_swarm import (
 )
 from backbone.cropping.cropper import Cropper
 from backbone.cropping.movable_report import MovableReport
-from backbone.options.COLORS import make_cprint_with_header, OKCYAN
+from backbone.options.COLORS import get_class_cprint
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, FullModelType, RelPath
 
-csw_print = make_cprint_with_header(OKCYAN, "[CropperSwarm]")
+csw_print = get_class_cprint("CropperSwarm")
 CONFIGS_FD = os.path.join(recursive_dirname(__file__, n=2), "configs")
 
 
@@ -179,15 +179,21 @@ class CropperSwarm:
     # * Instantiate
 
     @classmethod
+    def load_metadata(cls, name: str) -> dict:
+        assert all(ch not in name for ch in [".", "/", "\\"])
+        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{name}/metadata.yaml")
+        with open(path) as f:
+            metadata = yaml.safe_load(f)
+        assert metadata["name"] == name
+        return metadata
+
+    @classmethod
     def from_register(cls, name: str) -> CropperSwarm:
         """Loads a registered `CropperSwarm` with name `name`."""
         ts = deepcopy(DEFAULT_CROP_TYPES_SEQ)
         check_cropper_types(ts)
 
-        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{name}/metadata.yaml")
-        with open(path) as f:
-            metadata = yaml.safe_load(f)
-        assert metadata["name"] == name
+        metadata = cls.load_metadata(name)
 
         return CropperSwarm(
             id=metadata["id"],

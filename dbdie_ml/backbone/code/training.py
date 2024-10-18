@@ -14,14 +14,14 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from backbone.data import DatasetClass
-from backbone.options.COLORS import OKBLUE, make_cprint_with_header
+from backbone.options.COLORS import get_class_cprint
 
 if TYPE_CHECKING:
     from torch.optim import Optimizer
 
     from dbdie_classes.base import FullModelType, LabelId, LabelRef, NetId, Path
 
-iem_print = make_cprint_with_header(OKBLUE, "[IEModel]")
+iem_print = get_class_cprint("IEModel")
 
 
 class EarlyStopper:
@@ -108,8 +108,6 @@ def load_process(
     to_net_ids,
     cfg: TrainingConfig,
 ) -> tuple[DataLoader, DataLoader]:
-    iem_print("Loading data...")
-
     datasets = {
         "train": DatasetClass(
             fmt,
@@ -130,7 +128,6 @@ def load_process(
         "val": DataLoader(datasets["val"], batch_size=cfg.batch_size),
     }
 
-    iem_print("Data loaded:")
     iem_print(f"- Train: {len(datasets['train'])}")
     iem_print(f"- Val:   {len(datasets['val'])}")
 
@@ -177,6 +174,7 @@ def train_process(
     cfg: TrainingConfig,
 ) -> None:
     iem_print("Training model...")
+    iem_print(10 * " " + "Loss   Val Acc")
 
     epochs_clen = len(str(cfg.epochs))
     for epoch in range(1, cfg.epochs + 1):
@@ -189,11 +187,12 @@ def train_process(
             iem_print(
                 (
                     f"- [{epoch:>{epochs_clen}}/{cfg.epochs}] "
-                    + f"Loss: {loss.item():.4f} "
-                    + f"Val Acc: {val_acc_pp:.2f}%"
+                    + f"{loss.item():.4f} "
+                    + f"{val_acc_pp:6.2f}%"
                 )
             )
             if cfg.estop.early_stop(100.0 - val_acc_pp):
+                iem_print("Early stop condition met.")
                 break
 
     model.eval()

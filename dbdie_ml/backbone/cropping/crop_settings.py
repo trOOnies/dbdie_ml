@@ -10,7 +10,7 @@ import yaml
 from dbdie_classes.extract import CropCoords
 from dbdie_classes.options import CROP_TYPES
 from dbdie_classes.paths import absp, recursive_dirname
-from dbdie_classes.version import DBDVersionRange
+from dbdie_classes.schemas.helpers import DBDVersionRange
 
 from backbone.code.crop_settings import (
     check_overboard,
@@ -19,6 +19,7 @@ from backbone.code.crop_settings import (
     check_shapes,
     process_img_size,
 )
+from backbone.endpoints import getr
 
 if TYPE_CHECKING:
     from dbdie_classes.base import (
@@ -101,7 +102,24 @@ class CropSettings:
         with open(path) as f:
             data = yaml.safe_load(f)
 
-        data["version_range"] = DBDVersionRange(*data["version_range"])
+        dbdv_min, dbdv_max = tuple(data["version_range"])
+
+        dbdv_min = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_min})
+        dbdv_min = getr(f"/dbd-version/{dbdv_min}", api=True)
+
+        dbdv_max = (
+            None if dbdv_max is None
+            else getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_max})
+        )
+        dbdv_max = (
+            None if dbdv_max is None
+            else getr(f"/dbd-version/{dbdv_max}", api=True)
+        )
+
+        data["version_range"] = DBDVersionRange(
+            dbdv_min=dbdv_min,
+            dbdv_max=dbdv_max,
+        )
         data = process_img_size(data, depends_on)
         data["crops"] = {
             fmt: [CropCoords(*c) for c in crops]

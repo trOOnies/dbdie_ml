@@ -1,11 +1,13 @@
 """Endpoint for training related processes."""
 
+import datetime as dt
 from dbdie_classes.base import FullModelType
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.schemas.objects import ExtractorOut, ModelOut
 from fastapi import APIRouter, status
-import pandas as pd
-import requests
+from fastapi.exceptions import HTTPException
+from traceback import print_exc
+from shutil import rmtree
 
 from backbone.classes.training import TrainExtractor
 from backbone.code.extraction import (
@@ -14,14 +16,19 @@ from backbone.code.extraction import (
     save_label_refs,
     split_and_save_dataset,
 )
-from backbone.endpoints import bendp, parse_or_raise
+from backbone.code.routers.training import (
+    get_matches,
+    to_trained_ie_schema,
+    to_trained_model_schemas,
+)
+from backbone.cropping import CropperSwarm
 from backbone.ml.extractor import InfoExtractor
 
 router = APIRouter()
 
 
 @router.post(
-    "/batch",
+    "",
     status_code=status.HTTP_201_CREATED,
     response_model=dict[str, ExtractorOut | dict[FullModelType, ModelOut]],
 )
@@ -32,18 +39,7 @@ def batch_train(extr_config: TrainExtractor):
     ie = None
     try:
         ie = InfoExtractor.from_train_config(extr_config)
-
-        matches = parse_or_raise(
-            requests.get(bendp("/matches"), params={"limit": 300_000})
-        )
-        matches = ie.filter_matches_with_dbdv(matches)
-        assert matches, "No matches intersect with the extractor's DBDVersionRange."
-        matches = pd.DataFrame(
-                [
-                {"match_id": m["id"], "filename": m["filename"]}
-                for m in matches
-            ]
-        )
+        matches = get_matches(ie)
 
         raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=True)
         paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=True)
@@ -54,10 +50,20 @@ def batch_train(extr_config: TrainExtractor):
         del label_refs
 
         ie.train(label_ref_paths, paths_dict["train"], paths_dict["val"])
-        ie.save(f"extractors/{ie.name}")
+        ie.save()
 
-        ie_out = ie.to_schema()
-        models_out = ie.models_to_schemas()
+        now = dt.datetime.now()
+        today = dt.date.today().strftime("%Y-%m-%d")
+        cps_id = CropperSwarm.load_metadata(extr_config.cps_name)["id"]
+
+        ie_out = to_trained_ie_schema(ie, cps_id, now, today)
+        models_out = to_trained_model_schemas(ie, cps_id, now, today)
+    except Exception as e:
+        print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e
     finally:
         if ie is not None:
             ie.flush()
@@ -67,3 +73,10 @@ def batch_train(extr_config: TrainExtractor):
         "extractor": ie_out,
         "models": models_out,
     }
+
+
+@router.delete("")
+def delete_extractor(extr_name: str, delete_models: bool):
+    if not delete_models:
+        raise NotImplementedError  # TODO
+    rmtree(f"extractors/{extr_name}")

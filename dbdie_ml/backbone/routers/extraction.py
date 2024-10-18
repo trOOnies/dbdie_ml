@@ -1,7 +1,6 @@
 """Endpoint for extraction related processes."""
 
 from copy import deepcopy
-from dbdie_classes.base import PathToFolder
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.options.FMT import from_fmts
 from fastapi import APIRouter, status
@@ -14,11 +13,11 @@ router = APIRouter()
 
 @router.post("/batch", status_code=status.HTTP_201_CREATED)
 def batch_extract(
-    ie_folder_path: PathToFolder,
+    ie_name: str,
     # fmts: list[FullModelType] | None = None,  # TODO
 ):
     """IMPORTANT. If doing partial uploads, please use 'fmts'."""
-    ie = InfoExtractor.from_folder(ie_folder_path)
+    ie = InfoExtractor.from_folder(ie_name)
 
     fmts_ = deepcopy(ie.fmts)  # TODO
     mts, _, ifks = from_fmts(fmts_)

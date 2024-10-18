@@ -13,8 +13,7 @@ from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
 from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
-from dbdie_classes.schemas.objects import ExtractorOut
-from dbdie_classes.version import DBDVersion
+from dbdie_classes.schemas.objects import ExtractorModelsIds, ExtractorOut
 
 from backbone.classes.metadata import SavedExtractorMetadata, SavedModelMetadata
 from backbone.code.extractor import (
@@ -30,7 +29,7 @@ from backbone.code.extractor import (
 )
 # from backbone.db import to_player
 from backbone.ml.models import IEModel
-from backbone.options.COLORS import make_cprint_with_header, OKCYAN
+from backbone.options.COLORS import get_class_cprint
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -38,13 +37,13 @@ if TYPE_CHECKING:
 
     from dbdie_classes.base import FullModelType
     from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
-    from dbdie_classes.version import DBDVersionRange
     from dbdie_classes.schemas.groupings import PlayerOut
+    from dbdie_classes.schemas.helpers import DBDVersionRange, DBDVersionOut
     from dbdie_classes.schemas.objects import ModelOut
 
     from backbone.classes.training import TrainExtractor, TrainModel
 
-ie_print = make_cprint_with_header(OKCYAN, "[InfoExtractor]")
+ie_print = get_class_cprint("InfoExtractor")
 
 
 class InfoExtractor:
@@ -102,6 +101,10 @@ class InfoExtractor:
         else:
             return all(m.model_is_trained for m in self._models.values())
 
+    @property
+    def models_ids(self) -> dict["FullModelType", int]:
+        return {fmt: m.id for fmt, m in self._models.items()}
+
     # @staticmethod
     # def to_players(players_info: "PlayersInfoDict") -> list["PlayerOut"]:
     #     return [to_player(i, sn_info) for i, sn_info in players_info.items()]
@@ -150,6 +153,7 @@ class InfoExtractor:
 
     @classmethod
     def from_train_config(cls, cfg: "TrainExtractor") -> InfoExtractor:
+        """Load an untrained `InfoExtractor` from a training config."""
         if cfg.custom_dbdvr is not None:
             raise NotImplementedError
         ie = InfoExtractor(cfg.id, cfg.name)
@@ -157,8 +161,9 @@ class InfoExtractor:
         return ie
 
     @classmethod
-    def from_folder(cls, extractor_fd: "PathToFolder") -> InfoExtractor:
-        """Loads a DBDIE extractor using each model's metadata and the actual models"""
+    def from_folder(cls, ie_name: str) -> InfoExtractor:
+        """Loads a trained `InfoExtractor` using each model's metadata and the actual models."""
+        extractor_fd: "PathToFolder" = f"extractors/{ie_name}"
         with open(os.path.join(extractor_fd, "metadata.yaml"), "r") as f:
             metadata = yaml.safe_load(f)
 
@@ -183,6 +188,7 @@ class InfoExtractor:
         return ie
 
     def to_metadata(self) -> SavedExtractorMetadata:
+        """Return the extractor's `SavedExtractorMetadata`."""
         return SavedExtractorMetadata(
             cps_name=self.cps_name,
             id=self.id,
@@ -195,18 +201,21 @@ class InfoExtractor:
             version_range_ids=self.version_range_ids,
         )
 
-    def save(self, extractor_fd: "PathToFolder", replace: bool = True) -> None:
+    def save(self, replace: bool = True) -> None:
         """Save all necessary objects of the InfoExtractor and all its IEModels."""
         self._check_flushed()
         assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved."
 
+        extractor_fd: "PathToFolder" = f"extractors/{self.name}"
         folder_save_logic(self._models, extractor_fd, replace)
         save_metadata(self, extractor_fd)
         save_models(self._models, extractor_fd)
+        ie_print("All models have been saved.")
 
     # * Training
 
     def filter_matches_with_dbdv(self, matches: list[dict]) -> list[dict[str, int | str]]:
+        """Filter matches list with DBDVersion ids."""
         return [
             {"id": m["id"], "filename": m["filename"]}
             for m in filter_images_with_dbdv(
@@ -256,6 +265,7 @@ class InfoExtractor:
             del self._models
 
     def _check_flushed(self) -> None:
+        """Check whether the model has been flushed yet."""
         assert not self.flushed, "InfoExtractor was flushed"
 
     # * Prediction
@@ -320,16 +330,34 @@ class InfoExtractor:
 
     # * Schemas
 
-    def to_schema(self) -> ExtractorOut:
+    def to_schema(self, extra_info: dict) -> ExtractorOut:
         """Convert to corresponding Pydantic schema."""
-        return ExtractorOut(self.to_metadata().typed_dict())
+        return ExtractorOut(
+            **(
+                self.to_metadata().typed_dict()
+                | {
+                    "dbdv_min_id": self.version_range_ids[0],
+                    "dbdv_max_id": self.version_range_ids[1],
+                    "models_ids": ExtractorModelsIds.from_fmt_dict(self.models_ids),
+                }
+                | extra_info
+            )
+        )
 
-    def models_to_schemas(self) -> dict["FullModelType", "ModelOut"]:
+    def models_to_schemas(
+        self,
+        extra_info: dict["FullModelType", dict],
+    ) -> dict["FullModelType", "ModelOut"]:
         """Convert models to dict of corresponding Pydantic schemas."""
-        return {fmt: m.to_schema() for fmt, m in self._models.items()}
+        return {
+            fmt: m.to_schema(extra_info[fmt])
+            for fmt, m in self._models.items()
+        }
 
     def form_match(
-        self, version: DBDVersion, players: list["PlayerOut"]
+        self,
+        version: "DBDVersionOut",
+        players: list["PlayerOut"]
     ) -> FullMatchOut:
         self._check_flushed()
         return FullMatchOut(version=version, players=players)
