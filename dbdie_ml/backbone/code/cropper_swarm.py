@@ -26,9 +26,9 @@ def flatten_cpas(cpas):
     ]
 
 
-def check_croppers_dbdvr(croppers_flat, version_range) -> None:
+def check_croppers_dbdvr(croppers_flat, dbdvr) -> None:
     assert all(
-        cpp.settings.version_range == version_range
+        cpp.settings.dbdvr == dbdvr
         for cpp in croppers_flat
     ), "All croppers version ranges must exactly coincide"
 

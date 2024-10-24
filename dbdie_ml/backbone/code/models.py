@@ -2,15 +2,15 @@
 
 import json
 import os
-import yaml
 from typing import TYPE_CHECKING, Any
 
-from dbdie_classes.schemas.helpers import DBDVersionRange
 from torch import load, save
 from torch.cuda import mem_get_info
 
+from backbone.classes.metadata import SavedModelMetadata
+
 if TYPE_CHECKING:
-    from dbdie_classes.base import LabelRef, Path, PathToFolder
+    from dbdie_classes.base import FullModelType, LabelRef, Path, PathToFolder
 
 
 def is_str_like(v: Any) -> bool:
@@ -20,19 +20,19 @@ def is_str_like(v: Any) -> bool:
 # * Loading
 
 
-def load_metadata_and_model(model_fd: "PathToFolder"):
-    with open(os.path.join(model_fd, "metadata.yaml"), "r") as f:
-        metadata: dict = yaml.safe_load(f)
-    total_classes = metadata["total_classes"]
-    del metadata["total_classes"]
-    metadata["version_range"] = DBDVersionRange(
-        *[str(dbdv) for dbdv in metadata["version_range"]]
+def load_metadata_and_model(extr_name: str, fmt: "FullModelType", model_fd: str):
+    metadata = SavedModelMetadata.load(
+        fmt=fmt,
+        extr_name=extr_name,
+        model_id=None,
+        total_classes=None,
+        cps_name=None,
     )
 
     with open(os.path.join(model_fd, "model.pt"), "rb") as f:
         model = load(f)
 
-    return metadata, model, total_classes
+    return metadata, model, metadata.total_classes
 
 
 def load_label_ref(model_fd: "PathToFolder") -> "LabelRef":

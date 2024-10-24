@@ -1,7 +1,7 @@
 name: surv_player
 src_fd_rp: data/crops/player__surv
 dst_fd_rp: data/crops
-version_range:
+dbdvr:
   - "8.1.0-ptb"  # the 2v8 adaptation
   - null
 img_size:

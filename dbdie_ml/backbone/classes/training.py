@@ -1,10 +1,11 @@
 """Training light classes."""
 
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 from dbdie_classes.base import FullModelType
 from dbdie_classes.schemas.helpers import DBDVersionRange
 from pydantic import BaseModel, field_validator
-from typing import Any
 
 
 @dataclass
@@ -31,7 +32,15 @@ class TrainModel(BaseModel):
     fmt: FullModelType
     total_classes: int
     cps_name: str
-    trained_model: Any | None
+
+    @classmethod
+    def from_model(cls, iem) -> TrainModel:
+        return cls(
+            id=iem.id,
+            fmt=iem.fmt,
+            total_classes=iem.total_classes,
+            cps_name=iem.cps_name,
+        )
 
 
 class TrainExtractor(BaseModel):

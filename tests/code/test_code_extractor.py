@@ -8,15 +8,15 @@ from pytest import mark, raises
 from dbdie_classes.schemas.helpers import DBDVersionRange
 from backbone.code.extractor import (
     folder_save_logic,
-    get_version_range,
+    get_dbdvr,
     match_preds_types,
 )
 
 
 class MockModel:
-    def __init__(self, selected_fd: str, version_range: DBDVersionRange):
+    def __init__(self, selected_fd: str, dbdvr: DBDVersionRange):
         self.fmt = selected_fd
-        self.version_range = version_range
+        self.dbdvr = dbdvr
 
 
 class TestCodeExtractor:
@@ -95,7 +95,7 @@ class TestCodeExtractor:
             ),
         ],
     )
-    def test_get_version_range(self, models, expected):
+    def test_get_dbdvr(self, models, expected):
         models_proc = {
             mt: MockModel(
                 vs[0],
@@ -104,7 +104,7 @@ class TestCodeExtractor:
             for mt, vs in models.items()
         }
 
-        dbd_vr = get_version_range(models_proc, mode="match_all", expected=expected)
+        dbd_vr = get_dbdvr(models_proc, mode="match_all", expected=expected)
         first_mt = list(models.keys())[0]
         assert dbd_vr == DBDVersionRange(
             models[first_mt][1],
@@ -112,7 +112,7 @@ class TestCodeExtractor:
         )
 
         # For intersection changes nothing should change
-        dbd_vr = get_version_range(models_proc, mode="intersection", expected=expected)
+        dbd_vr = get_dbdvr(models_proc, mode="intersection", expected=expected)
         assert dbd_vr == DBDVersionRange(
             models[first_mt][1],
             models[first_mt][2],
@@ -218,7 +218,7 @@ class TestCodeExtractor:
             ),
         ],
     )
-    def test_get_version_range_raises(self, models, expected_ma, actual_expected_int):
+    def test_get_dbdvr_raises(self, models, expected_ma, actual_expected_int):
         models_proc = {
             mt: MockModel(
                 vs[0],
@@ -227,18 +227,18 @@ class TestCodeExtractor:
             for mt, vs in models.items()
         }
         with raises(AssertionError):
-            get_version_range(models_proc, mode="match_all", expected=expected_ma)
+            get_dbdvr(models_proc, mode="match_all", expected=expected_ma)
 
         # Intersection
         if actual_expected_int == -1:
             with raises(AssertionError):
-                get_version_range(models_proc, mode="intersection")
+                get_dbdvr(models_proc, mode="intersection")
         else:
-            assert actual_expected_int == get_version_range(
+            assert actual_expected_int == get_dbdvr(
                 models_proc,
                 mode="intersection",
             )
-            assert actual_expected_int == get_version_range(
+            assert actual_expected_int == get_dbdvr(
                 models_proc,
                 mode="intersection",
                 expected=actual_expected_int,

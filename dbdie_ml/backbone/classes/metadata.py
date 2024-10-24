@@ -55,20 +55,40 @@ def process_metadata_ifk_none(metadata: dict) -> tuple:
 
 
 @dataclass(kw_only=True)
+class SavedDBDVersion:
+    id: int
+    name: str
+    common_name: str | None
+    release_date: str | None
+
+    @classmethod
+    def from_dbdv(cls, dbdv) -> SavedDBDVersion:
+        return cls(
+            id=dbdv.id,
+            name=dbdv.name,
+            common_name=dbdv.common_name,
+            release_date=(
+                None if dbdv.release_date is None
+                else dbdv.release_date.strftime("%Y-%m-%d")
+            ),
+        )
+
+
+@dataclass(kw_only=True)
 class SavedModelMetadata:
     id: int
     total_classes: int
 
     cps_name: str
     cs_name: str | list[str]
+    dbdv_max: SavedDBDVersion | None
+    dbdv_min: SavedDBDVersion
     fmt: "FullModelType"
     img_size: "ImgSize"
     name: str
     norm_means: list[float]
     norm_std: list[float]
     training: TrainingParams
-    version_range: list[str]
-    version_range_ids: list[int]
 
     def __post_init__(self):
         assert self.total_classes > 1
@@ -76,14 +96,6 @@ class SavedModelMetadata:
         assert len(self.img_size) == 2
         assert len(self.norm_means) == 3
         assert len(self.norm_std) == 3
-
-        assert len(self.version_range) == 2
-        self.version_range = [
-            (str(dbdv) if dbdv is not None else None)
-            for dbdv in self.version_range
-        ]
-
-        assert len(self.version_range_ids) == 2
 
     def typed_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items()}
@@ -122,12 +134,17 @@ class SavedModelMetadata:
             cps = CropperSwarm.from_register(cps_name)
             cs = cps.get_cs_that_contains_fmt(fmt)
 
-            metadata["id"] = model_id
-            metadata["total_classes"] = total_classes
-            metadata["img_size"] = cs.crop_shapes[fmt]
-            metadata["version_range"] = cps.version_range.to_list()
-            metadata["cps_name"] = cps_name
-            metadata["version_range_ids"] = cps.version_range_ids
+            metadata = metadata | {
+                "id": model_id,
+                "total_classes": total_classes,
+                "img_size": cs.crop_shapes[fmt],
+                "dbdv_max": (
+                    SavedDBDVersion.from_dbdv(cps.dbdvr.dbdv_max)
+                    if cps.dbdvr.bounded else None
+                ),
+                "dbdv_min": SavedDBDVersion.from_dbdv(cps.dbdvr.dbdv_min),
+                "cps_name": cps_name,
+            }
 
         metadata["training"] = TrainingParams(**metadata["training"])
 
@@ -139,13 +156,16 @@ class SavedModelMetadata:
             {
                 k: getattr(iem, k)
                 for k in [
-                    "id", "name", "fmt", "total_classes",
-                    "cps_name", "cs_name", "version_range_ids",
+                    "id", "name", "fmt", "total_classes", "cps_name", "cs_name",
                 ]
             }
             | {k: getattr(iem, f"_{k}") for k in ["norm_means", "norm_std"]}
             | {
-                "version_range": iem.version_range.to_list(),
+                "dbdv_max": (
+                    SavedDBDVersion.from_dbdv(iem.dbdvr.dbdv_max)
+                    if iem.dbdvr.bounded else None
+                ),
+                "dbdv_min": SavedDBDVersion.from_dbdv(iem.dbdvr.dbdv_min),
                 "img_size": list(iem.img_size),
                 "training": TrainingParams(**iem.training_params),
             }
@@ -167,7 +187,8 @@ class SavedModelMetadata:
             if ifk is None
             else process_metadata_ifk(metadata)
         )
-        metadata["version_range"] = cs.version_range
+        metadata["dbdvr"] = cs.dbdvr
+        metadata["dbdvr_ids"] = cs.dbdvr.to_ids()
 
         return metadata
 
@@ -181,23 +202,15 @@ class SavedModelMetadata:
 @dataclass(kw_only=True)
 class SavedExtractorMetadata:
     cps_name: str
+    dbdv_max: SavedDBDVersion | None
+    dbdv_min: SavedDBDVersion
     id: int
-    models: dict["FullModelType", int]
+    models: dict["FullModelType", dict[str, str | int]]
     name: str
-    version_range: list[str]
-    version_range_ids: list[int]
 
     def __post_init__(self):
         assert self.id >= 0
         assert self.models
-
-        assert len(self.version_range) == 2
-        self.version_range = [
-            (str(dbdv) if dbdv is not None else None)
-            for dbdv in self.version_range
-        ]
-
-        assert len(self.version_range_ids) == 2
 
     def typed_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items()}

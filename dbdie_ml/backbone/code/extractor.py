@@ -14,6 +14,8 @@ from dbdie_classes.options import PLAYER_TYPE as PT
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.utils import filter_multitype
 
+from backbone.ml.models import IEModel
+
 if TYPE_CHECKING:
     from numpy import ndarray
 
@@ -21,16 +23,15 @@ if TYPE_CHECKING:
     from dbdie_classes.schemas.helpers import DBDVersionRange
 
     from backbone.classes.training import TrainModel
-    from backbone.ml.models import IEModel
 
 # * Loading
 
 
-def process_model_names(
+def process_models_metadata(
     metadata: dict,
     models_fd: "PathToFolder",
-) -> list:
-    model_names = set(metadata["models"])
+) -> dict["FullModelType", dict[str, str | int]]:
+    model_names = set(list(metadata["models"].keys()))
     assert len(model_names) == len(
         metadata["models"]
     ), "Duplicated model names in the metadata YAML file"
@@ -38,7 +39,7 @@ def process_model_names(
     assert model_names == set(
         fd for fd in listdir(models_fd) if isdir(join(models_fd, fd))
     ), "The model subfolders do not match the metadata YAML file"
-    return list(model_names)
+    return metadata["models"]
 
 
 # * Base
@@ -57,17 +58,23 @@ def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
     )
 
 
-def get_models(models_cfgs: list["TrainModel"]) -> dict["FullModelType", "IEModel"]:
+def get_models(
+    extr_name: str,
+    models_cfgs: dict["FullModelType", "TrainModel"],
+    trained_fmts: list["FullModelType"],
+) -> dict["FullModelType", IEModel]:
     """Get IEModels from their train configs."""
-    if all(mcfg.trained_model is not None for mcfg in models_cfgs):
-        return {
-            mcfg.fmt: mcfg.trained_model
-            for mcfg in models_cfgs
-        }
+    if trained_fmts:
+        all_trained = set(list(models_cfgs.keys())) == set(trained_fmts)
+        if all_trained:
+            return {
+                fmt: IEModel.from_folder(extr_name, fmt)
+                for fmt in trained_fmts
+            }
 
     from backbone.ml.models.custom import CharacterModel, ItemModel, PerkModel, StatusModel
 
-    TYPES_TO_MODELS: dict["ModelType", "IEModel"] = {
+    TYPES_TO_MODELS: dict["ModelType", IEModel] = {
         MT.CHARACTER: CharacterModel,
         MT.ITEM: ItemModel,
         MT.PERKS: PerkModel,
@@ -75,14 +82,14 @@ def get_models(models_cfgs: list["TrainModel"]) -> dict["FullModelType", "IEMode
     }
 
     # TODO: This are the currently implemented models
-    check_implemented_models(models_cfgs)
+    check_implemented_models(models_cfgs.values())
 
-    pred_tuples = PredictableTuples.from_fmts([mcfg.fmt for mcfg in models_cfgs])
+    pred_tuples = PredictableTuples.from_fmts(list(models_cfgs.keys()))
 
     return {
         mcfg.fmt: (
-            mcfg.trained_model
-            if mcfg.trained_model is not None
+            IEModel.from_folder(extr_name, mcfg.fmt)
+            if mcfg.fmt in trained_fmts
             else TYPES_TO_MODELS[ptup.mt](
                 id=mcfg.id,
                 ifk=ptup.ifk,
@@ -90,42 +97,42 @@ def get_models(models_cfgs: list["TrainModel"]) -> dict["FullModelType", "IEMode
                 cps_name=mcfg.cps_name,
             )
         )
-        for mcfg, ptup in zip(models_cfgs, pred_tuples)
+        for mcfg, ptup in zip(models_cfgs.values(), pred_tuples)
     }
 
 
-def get_version_range(
-    models: dict["FullModelType", "IEModel"],
+def get_dbdvr(
+    models: dict["FullModelType", IEModel],
     mode: Literal["match_all", "intersection"] = "match_all",
     expected: Optional["DBDVersionRange"] = None,
 ) -> tuple["DBDVersionRange", list[int]]:
     """Calculate DBDVersionRange from many IEModels."""
     assert all(model.fmt == mt for mt, model in models.items())
 
-    vrs = [model.version_range for model in models.values()]
-    vrs_ids = [model.version_range_ids for model in models.values()]
+    vrs = [model.dbdvr for model in models.values()]
+    vrs_ids = [model.dbdvr_ids for model in models.values()]
     if mode == "match_all":
-        version_range = vrs[0]
-        assert all(vr == version_range for vr in vrs), "All model versions must match."
-        version_range_ids = vrs_ids[0]
+        dbdvr = vrs[0]
+        assert all(vr == dbdvr for vr in vrs), "All model versions must match."
+        dbdvr_ids = vrs_ids[0]
     elif mode == "intersection":
         raise NotImplementedError("Not implemented yet because of missing DBDV ids implementation.")
         # if len(vrs) == 1:
-        #     version_range = vrs[0]
+        #     dbdvr = vrs[0]
         # else:
-        #     version_range = vrs[0] & vrs[1]
+        #     dbdvr = vrs[0] & vrs[1]
         #     if len(vrs) > 2:
         #         for vr in vrs[2:]:
-        #             version_range = version_range & vr
+        #             dbdvr = dbdvr & vr
     else:
         raise ValueError(f"Mode '{mode}' not recognized")
 
     if expected is not None:
         assert (
-            version_range == expected
-        ), f"Seen version ('{version_range}') is different from expected version ('{expected}')."
+            dbdvr == expected
+        ), f"Seen version ('{dbdvr}') is different from expected version ('{expected}')."
 
-    return version_range, version_range_ids
+    return dbdvr, dbdvr_ids
 
 
 def get_printable_info(models: dict) -> pd.DataFrame:
@@ -188,7 +195,7 @@ def save_models(models, extractor_fd: "PathToFolder") -> None:
 
 
 def folder_save_logic(
-    models: dict["FullModelType", "IEModel"],
+    models: dict["FullModelType", IEModel],
     extractor_fd: "PathToFolder",
     replace: bool,
 ) -> None:

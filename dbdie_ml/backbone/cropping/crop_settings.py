@@ -37,7 +37,7 @@ class CropSettings:
         name: "CropType",
         src_fd_rp: "RelPath",
         dst_fd_rp: "RelPath",
-        version_range: DBDVersionRange,
+        dbdvr: DBDVersionRange,
         img_size: "ImgSize",
         crops: dict["FullModelType", list[CropCoords]],
         allow: dict[Literal["overlap", "overboard"], bool],
@@ -46,7 +46,7 @@ class CropSettings:
         self.name = name
         self.src_fd_rp = src_fd_rp
         self.dst_fd_rp = dst_fd_rp
-        self.version_range = version_range
+        self.dbdvr = dbdvr
         self.img_size = img_size
         self.crops = crops
         self.allow = allow
@@ -102,7 +102,7 @@ class CropSettings:
         with open(path) as f:
             data = yaml.safe_load(f)
 
-        dbdv_min, dbdv_max = tuple(data["version_range"])
+        dbdv_min, dbdv_max = tuple(data["dbdvr"])
 
         dbdv_min = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_min})
         dbdv_min = getr(f"/dbd-version/{dbdv_min}", api=True)
@@ -116,7 +116,7 @@ class CropSettings:
             else getr(f"/dbd-version/{dbdv_max}", api=True)
         )
 
-        data["version_range"] = DBDVersionRange(
+        data["dbdvr"] = DBDVersionRange(
             dbdv_min=dbdv_min,
             dbdv_max=dbdv_max,
         )

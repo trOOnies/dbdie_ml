@@ -7,6 +7,7 @@ from functools import partial
 import pandas as pd
 from typing import TYPE_CHECKING
 
+from dbdie_classes.paths import recursive_dirname
 from dbdie_classes.schemas.objects import ModelOut
 from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
     from dbdie_classes.schemas.helpers import DBDVersionRange
 
 iem_print = get_class_cprint("IEModel")
+EXTRACTORS_FD = os.path.join(recursive_dirname(__file__, 5), "extractors")
 
 
 class IEModel:
@@ -70,7 +72,7 @@ class IEModel:
         ik (IsForKiller)
         mt (ModelType)
         img_size (tuple[int, int])
-        version_range (DBDVersionRange): DBD game version range for which
+        dbdvr (DBDVersionRange): DBD game version range for which
             the model works.
         norm_means (list[float]): 3 floats for the torch 'Compose'.
         norm_std (list[float]): Idem norm_means.
@@ -104,18 +106,18 @@ class IEModel:
         assert total_classes > 1
         md = metadata.to_model_class_metadata()
 
-        self.id               :               int = md["id"]
-        self.name             :               str = md["name"]
-        self.ifk              :        str | None = md["ifk"]
-        self.mt               :       "ModelType" = md["mt"]
-        self.img_size         :         "ImgSize" = md["img_size"]  # replaces cs & crop
-        self.version_range    : "DBDVersionRange" = md["version_range"]
-        self.version_range_ids:         list[int] = md["version_range_ids"]
-        self._norm_means      :       list[float] = md["norm_means"]
-        self._norm_std        :       list[float] = md["norm_std"]
-        self.cps_name         :               str = md["cps_name"]
-        self.cs_name          :   str | list[str] = md["cs_name"]
-        self.training_params                      = md["training"]
+        self.id            :               int = md["id"]
+        self.name          :               str = md["name"]
+        self.ifk           :        str | None = md["ifk"]
+        self.mt            :       "ModelType" = md["mt"]
+        self.img_size      :         "ImgSize" = md["img_size"]  # replaces cs & crop
+        self.dbdvr         : "DBDVersionRange" = md["dbdvr"]
+        self.dbdvr_ids     :         list[int] = md["dbdvr_ids"]
+        self._norm_means   :       list[float] = md["norm_means"]
+        self._norm_std     :       list[float] = md["norm_std"]
+        self.cps_name      :               str = md["cps_name"]
+        self.cs_name       :   str | list[str] = md["cs_name"]
+        self.training_params                   = md["training"]
 
         self.pt:     "PlayerType" = ifk_to_pt(self.ifk)
         self.fmt: "FullModelType" = to_fmt(self.mt, self.ifk)
@@ -128,7 +130,7 @@ class IEModel:
     def __repr__(self) -> str:
         """IEModel(...)"""
         vals = {
-            "version": self.version_range,
+            "dbdvr": self.dbdvr,
             "trained": self.model_is_trained,
         }
         vals = ", ".join(
@@ -183,10 +185,16 @@ class IEModel:
     # * Loading and saving
 
     @classmethod
-    def from_folder(cls, model_fd: "PathToFolder") -> IEModel:
+    def from_folder(cls, extr_name: str, fmt: "FullModelType") -> IEModel:
         """Loads a DBDIE model using its metadata and the actual model."""
         # TODO: Check if any other PT object needs to be saved
-        metadata, model, total_classes = load_metadata_and_model(model_fd)
+        model_fd = os.path.join(EXTRACTORS_FD, f"{extr_name}/models/{fmt}")
+
+        metadata, model, total_classes = load_metadata_and_model(
+            extr_name=extr_name,
+            fmt=fmt,
+            model_fd=model_fd,
+        )
 
         iem = cls(metadata, model=model, total_classes=total_classes)
 
@@ -327,8 +335,8 @@ class IEModel:
             **(
                 self.to_metadata().typed_dict()
                 | {
-                    "dbdv_min_id": self.version_range_ids[0],
-                    "dbdv_max_id": self.version_range_ids[1],
+                    "dbdv_min_id": self.dbdvr_ids[0],
+                    "dbdv_max_id": self.dbdvr_ids[1],
                 }
                 | extra_info
             )

@@ -124,9 +124,9 @@ class CropperSwarm:
         self.cropper_alignments = [CropperAlignments(cpp) for cpp in croppers]
 
         self._croppers_flat = flatten_cpas(self.cropper_alignments)
-        self.version_range = self._croppers_flat[0].settings.version_range
-        self.version_range_ids = [self.dbdv_min_id, self.dbdv_max_id]
-        check_croppers_dbdvr(self._croppers_flat, self.version_range)
+        self.dbdvr = self._croppers_flat[0].settings.dbdvr
+        self.dbdvr_ids = [self.dbdv_min_id, self.dbdv_max_id]
+        check_croppers_dbdvr(self._croppers_flat, self.dbdvr)
         self.cropper_flat_names = [cpp.name for cpp in self._croppers_flat]
 
         self._movable_report = None
@@ -142,7 +142,7 @@ class CropperSwarm:
         cps_croppers = len(self._croppers_flat)
         s = ", ".join(
             [
-                f"'{self.version_range}'",
+                f"'{self.dbdvr}'",
                 pls("level", cps_levels),
                 pls("cropper", cps_croppers),
             ]

@@ -58,22 +58,37 @@ def get_relevant_cols(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     ]
 
 
-def apply_mckd_filter(split: pd.DataFrame, mt: "ModelType", target_mckd: bool) -> pd.DataFrame:
+def apply_mckd_filter(
+    split: pd.DataFrame,
+    mt: "ModelType",
+    training: bool,
+) -> pd.DataFrame:
+    """Apply manually-checked filter."""
     mask = split[f"{mt}_mckd"]
-    if not target_mckd:
+    if not training:
         mask = np.logical_not(mask)
+
     split = split[mask]
-    assert not split.empty
+    if training:
+        assert not split.empty, "Split can't be empty when training."
+
     return split.drop(f"{mt}_mckd", axis=1)
 
 
-def apply_ifk_filter(split: pd.DataFrame, ifk: bool | None) -> pd.DataFrame:
+def apply_ifk_filter(
+    split: pd.DataFrame,
+    ifk: bool | None,
+    training: bool,
+) -> pd.DataFrame:
+    """Apply ifk (killer boolean) filter."""
     if ifk is not None:
         mask = split["ifk"].values.copy()
         if not ifk:
             mask = np.logical_not(mask)
+
         split = split[mask]
-        assert not split.empty, "No ifk related data."
+        if training:
+            assert not split.empty, "No ifk related data."
     return split.drop("ifk", axis=1)
 
 
@@ -119,28 +134,38 @@ def flatten_multiple_mt(split: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     else:
         raise NotImplementedError
 
+    cols = ["match_id", "player_id", "item_id", "label_id", "filename"]
+    if split.empty:
+        return pd.DataFrame(columns=cols)
+
     split = [split.copy() for _ in range(total_ids)]
     for i in range(total_ids):
         split[i].loc[:, "item_id"] = i
         split[i]["label_id"] = split[i]["label_id"].map(lambda vs: vs[i])
 
     split = pd.concat(split, axis=0)
-    split = split[["match_id", "player_id", "item_id", "label_id", "filename"]]
+    split = split[cols]
 
     return split.sort_values(["match_id", "player_id", "item_id"], ignore_index=True)
 
 
-def process_label_ids(split: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
+def process_label_ids(
+    split: pd.DataFrame,
+    mt: "ModelType",
+    training: bool,
+) -> pd.DataFrame:
     split = split.rename({TO_ID_NAMES[mt]: "label_id"}, axis=1)
-    split = (
-        flatten_multiple_mt(split, mt)
-        if mt in MULTIPLE_PER_PLAYER
-        else split.astype({"label_id": int})
-    )
+    if mt in MULTIPLE_PER_PLAYER:
+        split = flatten_multiple_mt(split, mt)
+    split = split.astype({"label_id": int if training else float})
     return split.reset_index(drop=True)
 
 
-def suffix_filenames(split: pd.DataFrame) -> pd.DataFrame:
+def suffix_filenames(split: pd.DataFrame, training: bool) -> pd.DataFrame:
+    if split.empty:
+        assert not training
+        return split
+
     has_item_id = "item_id" in split.columns.values
     split["filename"] = split.apply(
         lambda row: f"{row['filename'][:-4]}_{row['player_id']}_",
@@ -234,7 +259,9 @@ def get_raw_dataset(
     data = filter_mckd(data, pred_tuples.mts, target_mckd)
 
     data = data.merge(matches, how="inner", on="match_id")
-    assert not data.empty, "No labeled match was found in the 'matches' table."
+    assert not data.empty, (
+        f"No {'labeled' if target_mckd else 'unlabeled'} match was found in the 'matches' table."
+    )
 
     return data.sort_values(["match_id", "player_id"], ignore_index=True)
 
@@ -259,11 +286,11 @@ def split_and_save_dataset(
     for ptup in pred_tuples:
         split = get_relevant_cols(data, ptup.mt)
 
-        split = apply_mckd_filter(split, ptup.mt, target_mckd=split_data)
-        split = apply_ifk_filter(split, ptup.ifk)
+        split = apply_mckd_filter(split, ptup.mt, training=split_data)
+        split = apply_ifk_filter(split, ptup.ifk, training=split_data)
 
-        split = process_label_ids(split, ptup.mt)
-        split = suffix_filenames(split)
+        split = process_label_ids(split, ptup.mt, training=split_data)
+        split = suffix_filenames(split, training=split_data)
 
         if split_data:
             t_split, v_split = custom_tv_split(split)

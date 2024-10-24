@@ -48,7 +48,7 @@ class Cropper:
                     src=self.settings.src_fd_rp[5:],
                     dst=self.settings.dst_fd_rp[5:] + "/...",
                 ),
-                f"version='{self.settings.version_range}'",
+                f"dbdvr='{self.settings.dbdvr}'",
                 f"img_size={self.settings.img_size}",
                 pls("crop", len(self)),
             ]

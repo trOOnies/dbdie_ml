@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import os
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -15,21 +16,26 @@ from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
 from dbdie_classes.schemas.objects import ExtractorModelsIds, ExtractorOut
 
-from backbone.classes.metadata import SavedExtractorMetadata, SavedModelMetadata
+from backbone.classes.metadata import (
+    SavedDBDVersion,
+    SavedExtractorMetadata,
+)
+from backbone.classes.training import TrainModel
 from backbone.code.extractor import (
     check_datasets,
     folder_save_logic,
+    get_dbdvr,
     get_models,
     get_printable_info,
-    get_version_range,
     match_preds_types,
-    process_model_names,
+    process_models_metadata,
     save_metadata,
     save_models,
 )
 # from backbone.db import to_player
 from backbone.ml.models import IEModel
 from backbone.options.COLORS import get_class_cprint
+from dbdie_classes.schemas.helpers import DBDVersionRange, DBDVersionOut
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -38,7 +44,6 @@ if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType
     from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
     from dbdie_classes.schemas.groupings import PlayerOut
-    from dbdie_classes.schemas.helpers import DBDVersionRange, DBDVersionOut
     from dbdie_classes.schemas.objects import ModelOut
 
     from backbone.classes.training import TrainExtractor, TrainModel
@@ -53,7 +58,7 @@ class InfoExtractor:
         name (str | None): Name of the InfoExtractor.
 
     Attrs:
-        version_range (DBDVersionRange | None): Inferred from its models.
+        dbdvr (DBDVersionRange | None): Inferred from its models.
         fmts (list[FullModelType] | None)
         models_are_init (bool)
         models_are_trained (bool)
@@ -82,7 +87,7 @@ class InfoExtractor:
 
     def __repr__(self) -> str:
         """InfoExtractor('my_info_extractor', version='7.5.0')"""
-        vals = f"id={self.id}, name='{self.name}', version='{self.version_range}"
+        vals = f"id={self.id}, name='{self.name}', version='{self.dbdvr}"
         return f"InfoExtractor({vals})"
 
     @property
@@ -114,8 +119,9 @@ class InfoExtractor:
     def init_extractor(
         self,
         cps_name: str,
-        models_cfgs: list[TrainModel],
-        expected_version_range: Optional["DBDVersionRange"] = None,
+        models_cfgs: dict["FullModelType", TrainModel],
+        trained_fmts: list["FullModelType"],
+        expected_dbdvr: Optional[DBDVersionRange] = None,
     ) -> None:
         """Initialize the InfoExtractor and its IEModels.
         Can be provided with already trained models.
@@ -128,10 +134,10 @@ class InfoExtractor:
         assert models_cfgs, "'models_cfgs' can't be empty."
 
         self.cps_name = cps_name
-        self._models = get_models(models_cfgs)
-        self.version_range, self.version_range_ids = get_version_range(
+        self._models = get_models(self.name, models_cfgs, trained_fmts)
+        self.dbdvr, self.dbdvr_ids = get_dbdvr(
             self._models,
-            expected=expected_version_range,
+            expected=expected_dbdvr,
         )
         for model in self._models.values():
             if not model.model_is_trained:
@@ -157,33 +163,36 @@ class InfoExtractor:
         if cfg.custom_dbdvr is not None:
             raise NotImplementedError
         ie = InfoExtractor(cfg.id, cfg.name)
-        ie.init_extractor(cfg.cps_name, [model for model in cfg.fmts.values()])
+        ie.init_extractor(cfg.cps_name, cfg.fmts, trained_fmts=[])
         return ie
 
     @classmethod
-    def from_folder(cls, ie_name: str) -> InfoExtractor:
+    def from_folder(cls, extr_name: str) -> InfoExtractor:
         """Loads a trained `InfoExtractor` using each model's metadata and the actual models."""
-        extractor_fd: "PathToFolder" = f"extractors/{ie_name}"
+        extractor_fd: "PathToFolder" = f"extractors/{extr_name}"
         with open(os.path.join(extractor_fd, "metadata.yaml"), "r") as f:
             metadata = yaml.safe_load(f)
 
         models_fd = os.path.join(extractor_fd, "models")
-        model_names = process_model_names(metadata, models_fd)
+        models_md = process_models_metadata(metadata, models_fd)
         del metadata["models"]
 
-        exp_version_range = metadata["version_range"]
-        del metadata["version_range"]
+        expected_dbdvr = DBDVersionRange.from_dicts(metadata["dbdv_min"], metadata["dbdv_max"])
+        del metadata["dbdv_min"], metadata["dbdv_max"]
 
-        # TODO: Untangle this implementation
-        ie = InfoExtractor(**metadata)
+        ie = InfoExtractor(id=metadata["id"], name=metadata["name"])
         trained_models = {
-            mn: IEModel.from_folder(os.path.join(models_fd, mn))
-            for mn in model_names
+            fmt: IEModel.from_folder(extr_name, fmt=fmt)
+            for fmt in models_md
         }
         ie.init_extractor(
             metadata["cps_name"],
-            [SavedModelMetadata.from_model_class(iem) for iem in trained_models.values()],
-            expected_version_range=exp_version_range,
+            {
+                fmt: TrainModel.from_model(iem)
+                for fmt, iem in trained_models.items()
+            },
+            trained_fmts=list(trained_models.keys()),
+            expected_dbdvr=expected_dbdvr,
         )
         return ie
 
@@ -191,14 +200,20 @@ class InfoExtractor:
         """Return the extractor's `SavedExtractorMetadata`."""
         return SavedExtractorMetadata(
             cps_name=self.cps_name,
+            dbdv_max=(
+                SavedDBDVersion.from_dbdv(self.dbdvr.dbdv_max)
+                if self.dbdvr.bounded else None
+            ),
+            dbdv_min=SavedDBDVersion.from_dbdv(self.dbdvr.dbdv_min),
             id=self.id,
             models={
-                model.fmt: model.id
+                model.fmt: {
+                    "id": model.id,
+                    "name": model.name,
+                }
                 for model in self._models.values()
             },
             name=self.name,
-            version_range=self.version_range.to_list(),
-            version_range_ids=self.version_range_ids,
         )
 
     def save(self, replace: bool = True) -> None:
@@ -220,8 +235,8 @@ class InfoExtractor:
             {"id": m["id"], "filename": m["filename"]}
             for m in filter_images_with_dbdv(
                 matches,
-                self.version_range_ids[0],
-                self.version_range_ids[1],
+                self.dbdvr_ids[0],
+                self.dbdvr_ids[1],
             )
         ]
 
@@ -287,7 +302,7 @@ class InfoExtractor:
         datasets: dict["FullModelType", Path] | dict["FullModelType", "DataFrame"],
         fmts: list["FullModelType"] | None = None,
         probas: bool = False,
-    ) -> dict["FullModelType", "ndarray"]:
+    ) -> dict["FullModelType", dict[str, "ndarray"]]:
         self._check_flushed()
         assert self.models_are_trained
 
@@ -301,7 +316,11 @@ class InfoExtractor:
         check_datasets(fmts_, datasets)
 
         return {
-            fmt: self._models[fmt].predict_batch(datasets[fmt], probas=probas)
+            fmt: {
+                "match_ids": pd.read_csv(datasets[fmt], usecols=["match_id"])["match_id"].values,
+                "player_ids": pd.read_csv(datasets[fmt], usecols=["player_id"])["player_id"].values,
+                "preds": self._models[fmt].predict_batch(datasets[fmt], probas=probas),
+            }
             for fmt in fmts_
         }
 
@@ -336,8 +355,8 @@ class InfoExtractor:
             **(
                 self.to_metadata().typed_dict()
                 | {
-                    "dbdv_min_id": self.version_range_ids[0],
-                    "dbdv_max_id": self.version_range_ids[1],
+                    "dbdv_min_id": self.dbdvr_ids[0],
+                    "dbdv_max_id": self.dbdvr_ids[1],
                     "models_ids": ExtractorModelsIds.from_fmt_dict(self.models_ids),
                 }
                 | extra_info
@@ -356,7 +375,7 @@ class InfoExtractor:
 
     def form_match(
         self,
-        version: "DBDVersionOut",
+        version: DBDVersionOut,
         players: list["PlayerOut"]
     ) -> FullMatchOut:
         self._check_flushed()
