@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from copy import deepcopy
 import yaml
 
-from dbdie_classes.base import Path, PathToFolder
+from dbdie_classes.base import Path
 from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
 from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
@@ -20,6 +20,7 @@ from backbone.classes.metadata import (
     SavedDBDVersion,
     SavedExtractorMetadata,
 )
+from backbone.classes.register import get_extr_mpath
 from backbone.classes.training import TrainModel
 from backbone.code.extractor import (
     check_datasets,
@@ -162,25 +163,27 @@ class InfoExtractor:
         """Load an untrained `InfoExtractor` from a training config."""
         if cfg.custom_dbdvr is not None:
             raise NotImplementedError
-        ie = InfoExtractor(cfg.id, cfg.name)
+        ie = cls(cfg.id, cfg.name)
         ie.init_extractor(cfg.cps_name, cfg.fmts, trained_fmts=[])
         return ie
 
     @classmethod
     def from_folder(cls, extr_name: str) -> InfoExtractor:
         """Loads a trained `InfoExtractor` using each model's metadata and the actual models."""
-        extractor_fd: "PathToFolder" = f"extractors/{extr_name}"
-        with open(os.path.join(extractor_fd, "metadata.yaml"), "r") as f:
+        mpath = get_extr_mpath(extr_name)
+        extr_fd = os.path.dirname(mpath)
+
+        with open(mpath, "r") as f:
             metadata = yaml.safe_load(f)
 
-        models_fd = os.path.join(extractor_fd, "models")
+        models_fd = os.path.join(extr_fd, "models")
         models_md = process_models_metadata(metadata, models_fd)
         del metadata["models"]
 
         expected_dbdvr = DBDVersionRange.from_dicts(metadata["dbdv_min"], metadata["dbdv_max"])
         del metadata["dbdv_min"], metadata["dbdv_max"]
 
-        ie = InfoExtractor(id=metadata["id"], name=metadata["name"])
+        ie = cls(id=metadata["id"], name=metadata["name"])
         trained_models = {
             fmt: IEModel.from_folder(extr_name, fmt=fmt)
             for fmt in models_md
@@ -221,10 +224,12 @@ class InfoExtractor:
         self._check_flushed()
         assert self.models_are_trained, "Non-trained InfoExtractor cannot be saved."
 
-        extractor_fd: "PathToFolder" = f"extractors/{self.name}"
-        folder_save_logic(self._models, extractor_fd, replace)
-        save_metadata(self, extractor_fd)
-        save_models(self._models, extractor_fd)
+        mpath = get_extr_mpath(self.name)
+        extr_fd = os.path.dirname(mpath)
+
+        folder_save_logic(self._models, extr_fd, replace)
+        save_metadata(self, mpath)
+        save_models(self._models, extr_fd)
         ie_print("All models have been saved.")
 
     # * Training

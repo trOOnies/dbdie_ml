@@ -1,4 +1,4 @@
-"""Cropping settings implementation"""
+"""CropSettings implementation."""
 
 from __future__ import annotations
 
@@ -9,9 +9,10 @@ import yaml
 
 from dbdie_classes.extract import CropCoords
 from dbdie_classes.options import CROP_TYPES
-from dbdie_classes.paths import absp, recursive_dirname
+from dbdie_classes.paths import absp
 from dbdie_classes.schemas.helpers import DBDVersionRange
 
+from backbone.classes.register import get_crop_settings_mpath
 from backbone.code.crop_settings import (
     check_overboard,
     check_overlap,
@@ -25,8 +26,6 @@ if TYPE_CHECKING:
     from dbdie_classes.base import (
         CropType, FullModelType, ImgSize, Path, RelPath
     )
-
-CONFIGS_FD = os.path.join(recursive_dirname(__file__, n=2), "configs")
 
 
 class CropSettings:
@@ -95,10 +94,7 @@ class CropSettings:
         depends_on: CropSettings | None,
     ) -> CropSettings:
         """Instantiate CropSettings from a config file."""
-        path = os.path.join(
-            CONFIGS_FD,
-            f"cropper_swarms/{cps_name}/crop_settings/{cs_name}.yaml",
-        )
+        path = get_crop_settings_mpath(cps_name, cs_name)
         with open(path) as f:
             data = yaml.safe_load(f)
 
@@ -107,14 +103,9 @@ class CropSettings:
         dbdv_min = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_min})
         dbdv_min = getr(f"/dbd-version/{dbdv_min}", api=True)
 
-        dbdv_max = (
-            None if dbdv_max is None
-            else getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_max})
-        )
-        dbdv_max = (
-            None if dbdv_max is None
-            else getr(f"/dbd-version/{dbdv_max}", api=True)
-        )
+        if dbdv_max is not None:
+            dbdv_max = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_max})
+            dbdv_max = getr(f"/dbd-version/{dbdv_max}", api=True)
 
         data["dbdvr"] = DBDVersionRange(
             dbdv_min=dbdv_min,

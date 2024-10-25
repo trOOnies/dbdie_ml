@@ -1,18 +1,15 @@
 """Endpoint for cropping related purposes."""
 
 from dbdie_classes.base import FullModelType
-from dbdie_classes.paths import recursive_dirname
 from dbdie_classes.schemas.objects import CropperSwarmOut
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
-import os
 from traceback import print_exc
 import yaml
 
+from backbone.classes.register import get_cropper_swarm_mpath
 from backbone.cropping.cropper_swarm import CropperSwarm
 from backbone.endpoints import getr
-
-CONFIGS_FD = os.path.join(recursive_dirname(__file__, 2), "configs")
 
 router = APIRouter()
 
@@ -20,7 +17,7 @@ router = APIRouter()
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_cropper_swarm(cropper_swarm: CropperSwarmOut):
     data = cropper_swarm.model_dump()
-    path = os.path.join(CONFIGS_FD, f"cropper_swarms/{data['name']}/metadata.yaml")
+    path = get_cropper_swarm_mpath(data["name"])
     with open(path, "w") as f:
         yaml.safe_dump(data, f)
 

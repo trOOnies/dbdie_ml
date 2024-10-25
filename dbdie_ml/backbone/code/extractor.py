@@ -52,9 +52,9 @@ def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
         for ifk in [True, False]
     ] + [f"{MT.STATUS}__{PT.SURV}"]
 
-    implemented_pred_tuples = PredictableTuples.from_fmts(implemented_fmts)
-    assert all(mcfg.fmt in implemented_pred_tuples.fmts for mcfg in models_cfgs), (
-        f"fmts must be one of the following implemented models: {implemented_pred_tuples.fmts}"
+    implemented_pts = PredictableTuples.from_fmts(implemented_fmts)
+    assert all(mcfg.fmt in implemented_pts.fmts for mcfg in models_cfgs), (
+        f"fmts must be one of the following implemented models: {implemented_pts.fmts}"
     )
 
 
@@ -182,8 +182,7 @@ def check_datasets(
 # * Saving
 
 
-def save_metadata(obj, extractor_fd: "PathToFolder") -> None:
-    dst = join(extractor_fd, "metadata.yaml")
+def save_metadata(obj, dst: "Path") -> None:
     metadata = obj.to_metadata()
     metadata.save(dst)
 

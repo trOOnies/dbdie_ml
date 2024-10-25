@@ -9,6 +9,8 @@ import yaml
 from dbdie_classes.options.FMT import ALL as ALL_FMTS
 from dbdie_classes.options.PLAYER_FMT import ALL as ALL_PLAYER_FMTS
 
+from backbone.classes.register import safe_pathing
+
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, Path, PathToFolder
 
@@ -24,7 +26,7 @@ class DBDIEFolderStructure:
 
     def __init__(self, path: "Path"):
         assert path[-5:] == ".yaml"
-        assert ".." not in path[:-5]
+        safe_pathing(path)
         with open(path) as f:
             self.fs = yaml.safe_load(f)
 

@@ -3,12 +3,11 @@ from __future__ import annotations
 from copy import deepcopy
 from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.options.CROP_TYPES import DEFAULT_CROP_TYPES_SEQ
-from dbdie_classes.paths import recursive_dirname
 from dbdie_classes.utils import pls
-import os
 from typing import TYPE_CHECKING
 import yaml
 
+from backbone.classes.register import get_cropper_swarm_mpath
 from backbone.code.cropper_swarm import (
     check_croppers_dbdvr,
     check_cropper_types,
@@ -27,7 +26,6 @@ if TYPE_CHECKING:
     from dbdie_classes.base import Filename, FullModelType, RelPath
 
 csw_print = get_class_cprint("CropperSwarm")
-CONFIGS_FD = os.path.join(recursive_dirname(__file__, n=2), "configs")
 
 
 class CropperAlignments:
@@ -180,8 +178,7 @@ class CropperSwarm:
 
     @classmethod
     def load_metadata(cls, name: str) -> dict:
-        assert all(ch not in name for ch in [".", "/", "\\"])
-        path = os.path.join(CONFIGS_FD, f"cropper_swarms/{name}/metadata.yaml")
+        path = get_cropper_swarm_mpath(name)
         with open(path) as f:
             metadata = yaml.safe_load(f)
         assert metadata["name"] == name
