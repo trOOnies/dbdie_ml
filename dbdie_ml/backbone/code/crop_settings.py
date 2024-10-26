@@ -3,6 +3,11 @@
 from itertools import combinations
 
 from dbdie_classes.extract import CropCoords
+from dbdie_classes.schemas.helpers import DBDVersionRange
+
+from backbone.endpoints import getr
+
+# * Check crop shapes
 
 
 def check_overboard(name, allow, img_size, crops) -> None:
@@ -48,3 +53,19 @@ def process_img_size(data: dict, depends_on) -> dict:
         assert len(data["img_size"]) == 2
         data["img_size"] = tuple(data["img_size"])
     return data
+
+
+# * Instantiation
+
+
+def get_dbdvr(dbdv_list: list[str]) -> DBDVersionRange:
+    dbdv_min, dbdv_max = tuple(dbdv_list)
+
+    dbdv_min = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_min})
+    dbdv_min = getr(f"/dbd-version/{dbdv_min}", api=True)
+
+    if dbdv_max is not None:
+        dbdv_max = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_max})
+        dbdv_max = getr(f"/dbd-version/{dbdv_max}", api=True)
+
+    return DBDVersionRange(dbdv_min=dbdv_min, dbdv_max=dbdv_max)

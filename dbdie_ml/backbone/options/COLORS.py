@@ -43,24 +43,25 @@ PER_CLASS = {
 
 
 def colored(color: str, text: str) -> str:
+    """Return colored text."""
     return f"{color}{text}{ENDC}"
 
 
 def cprint(color: str, text: str) -> None:
-    """Color printing."""
+    """Print text using `color`."""
     print(colored(color, text))
 
 
 def make_cprint(color: str):
-    """Make a cprint function with a certain fixed color."""
+    """Make a cprint function with a certain fixed `color`."""
     return partial(cprint, color)
 
 
 def make_cprint_with_header(color: str, header_text: str):
-    """Make a cprint function with a certain fixed color."""
+    """Make a header-based cprint function with a certain fixed `color`."""
     return partial(cprint, colored(color, header_text) + " ")
 
 
 def get_class_cprint(name: str):
-    """Get the corresponding class' cprint function."""
+    """Get the corresponding DBDIE class' cprint function."""
     return partial(cprint, colored(PER_CLASS[name], f"[{name}]") + " ")

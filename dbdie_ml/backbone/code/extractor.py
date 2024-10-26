@@ -12,6 +12,7 @@ from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.options import MODEL_TYPE as MT
 from dbdie_classes.options import PLAYER_TYPE as PT
 from dbdie_classes.options.FMT import to_fmt
+from dbdie_classes.options.IMPLEMENTED import FMTS as IMPLEMENTED_FMTS
 from dbdie_classes.utils import filter_multitype
 
 from backbone.ml.models import IEModel
@@ -46,13 +47,7 @@ def process_models_metadata(
 
 
 def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
-    implemented_fmts = [
-        to_fmt(mt, ifk)
-        for mt in [MT.CHARACTER, MT.ITEM, MT.PERKS]
-        for ifk in [True, False]
-    ] + [f"{MT.STATUS}__{PT.SURV}"]
-
-    implemented_pts = PredictableTuples.from_fmts(implemented_fmts)
+    implemented_pts = PredictableTuples.from_fmts(IMPLEMENTED_FMTS)
     assert all(mcfg.fmt in implemented_pts.fmts for mcfg in models_cfgs), (
         f"fmts must be one of the following implemented models: {implemented_pts.fmts}"
     )

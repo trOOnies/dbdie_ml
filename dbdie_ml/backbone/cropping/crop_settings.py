@@ -10,7 +10,6 @@ import yaml
 from dbdie_classes.extract import CropCoords
 from dbdie_classes.options import CROP_TYPES
 from dbdie_classes.paths import absp
-from dbdie_classes.schemas.helpers import DBDVersionRange
 
 from backbone.classes.register import get_crop_settings_mpath
 from backbone.code.crop_settings import (
@@ -18,14 +17,15 @@ from backbone.code.crop_settings import (
     check_overlap,
     check_positivity,
     check_shapes,
+    get_dbdvr,
     process_img_size,
 )
-from backbone.endpoints import getr
 
 if TYPE_CHECKING:
     from dbdie_classes.base import (
         CropType, FullModelType, ImgSize, Path, RelPath
     )
+    from dbdie_classes.schemas.helpers import DBDVersionRange
 
 
 class CropSettings:
@@ -36,7 +36,7 @@ class CropSettings:
         name: "CropType",
         src_fd_rp: "RelPath",
         dst_fd_rp: "RelPath",
-        dbdvr: DBDVersionRange,
+        dbdvr: "DBDVersionRange",
         img_size: "ImgSize",
         crops: dict["FullModelType", list[CropCoords]],
         allow: dict[Literal["overlap", "overboard"], bool],
@@ -98,19 +98,7 @@ class CropSettings:
         with open(path) as f:
             data = yaml.safe_load(f)
 
-        dbdv_min, dbdv_max = tuple(data["dbdvr"])
-
-        dbdv_min = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_min})
-        dbdv_min = getr(f"/dbd-version/{dbdv_min}", api=True)
-
-        if dbdv_max is not None:
-            dbdv_max = getr("/dbd-version/id", api=True, params={"dbdv_str": dbdv_max})
-            dbdv_max = getr(f"/dbd-version/{dbdv_max}", api=True)
-
-        data["dbdvr"] = DBDVersionRange(
-            dbdv_min=dbdv_min,
-            dbdv_max=dbdv_max,
-        )
+        data["dbdvr"] = get_dbdvr(data["dbdvr"])
         data = process_img_size(data, depends_on)
         data["crops"] = {
             fmt: [CropCoords(*c) for c in crops]

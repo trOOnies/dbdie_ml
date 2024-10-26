@@ -21,17 +21,19 @@ def parse_data(
 ) -> pd.DataFrame:
     id_names = {mt: idn for mt, idn in TO_ID_NAMES.items() if mt in mts}
     data = [
-        {
+        (
+            {
             "match_id": d["match_id"],
             "player_id": d["player"]["id"],
             "ifk": d["player"]["id"] == 4,
-        }
-        | {idn: d["player"][idn] for idn in id_names.values()}
-        | {
-            f"{mt}_mckd": v
-            for mt, v in d["manual_checks"]["predictables"].items()
-            if mt in mts
-        }
+            }
+            | {idn: d["player"][idn] for idn in id_names.values()}
+            | {
+                f"{mt}_mckd": v
+                for mt, v in d["manual_checks"]["predictables"].items()
+                if mt in mts
+            }
+        )
         for d in data
         if d["manual_checks"]["in_progress"]
     ]
@@ -174,12 +176,38 @@ def suffix_filenames(split: pd.DataFrame, training: bool) -> pd.DataFrame:
         )
     else:
         split["filename"] = split["filename"] + "0.jpg"
+
     return split
 
 
+def split_unique(
+    data: pd.DataFrame,
+    unique_vals: pd.Series[int],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split the data using unique values."""
+    unique_vals = unique_vals.index.values
+    mask = data["label_id"].isin(unique_vals)
+    return data[~mask], data[mask]
+
+
+def process_unique(unique_data: pd.DataFrame, val_size: int) -> int:
+    """Process maximum unique assertion."""
+    unique_data_count = unique_data.shape[0]
+
+    target_non_unique_val = val_size - unique_data_count
+    cond = target_non_unique_val > 0
+    assert cond, (
+        f"Unique label ids ({unique_data_count}) cannot exceed "
+        + f"or equal the validation size ({val_size})."
+    )
+
+    return target_non_unique_val
+
+
 def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Custom train-validation split that takes into account that values
-    that aren't repeated in the data should always go to the validation split.
+    """Custom train-validation split.
+    It takes into account that values that aren't repeated
+    in the data should always go to the validation split.
     """
     unique_vals = data["label_id"].value_counts()
 
@@ -199,20 +227,8 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
             df_train.sample(frac=1, random_state=random_state, ignore_index=True),
             df_val.sample(frac=1, random_state=random_state, ignore_index=True),
         )
-
-    unique_vals = unique_vals.index.values
-
-    mask = data["label_id"].isin(unique_vals)
-    unique_data = data[mask]
-    unique_data_count = unique_data.shape[0]
-    target_non_unique_val = val_size - unique_data_count
-    assert (
-        target_non_unique_val > 0
-    ), (
-        f"Unique label ids ({unique_data_count}) cannot exceed "
-        + f"or equal the validation size ({val_size})."
-    )
-    data = data[~mask]
+    data, unique_data = split_unique(data, unique_vals)
+    target_non_unique_val = process_unique(unique_data, val_size)
 
     df_train, df_val = train_test_split(
         data,

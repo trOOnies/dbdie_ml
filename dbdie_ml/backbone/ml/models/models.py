@@ -7,10 +7,6 @@ from functools import partial
 import pandas as pd
 from typing import TYPE_CHECKING
 
-from dbdie_classes.paths import recursive_dirname
-from dbdie_classes.schemas.objects import ModelOut
-from dbdie_classes.options.FMT import to_fmt
-from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
 import numpy as np
 from torch.cuda import device as get_device
 from torch.cuda import empty_cache
@@ -18,7 +14,12 @@ from torch.cuda import is_available as cuda_is_available
 from torch.utils.data import DataLoader
 from torchsummary import summary
 
+from dbdie_classes.schemas.objects import ModelOut
+from dbdie_classes.options.FMT import to_fmt
+from dbdie_classes.options.PLAYER_TYPE import ifk_to_pt
+
 from backbone.classes.metadata import SavedModelMetadata
+from backbone.classes.register import get_model_mpath
 from backbone.code.models import (
     is_str_like,
     load_label_ref,
@@ -56,7 +57,6 @@ if TYPE_CHECKING:
     from dbdie_classes.schemas.helpers import DBDVersionRange
 
 iem_print = get_class_cprint("IEModel")
-EXTRACTORS_FD = os.path.join(recursive_dirname(__file__, 5), "extractors")
 
 
 class IEModel:
@@ -186,9 +186,9 @@ class IEModel:
 
     @classmethod
     def from_folder(cls, extr_name: str, fmt: "FullModelType") -> IEModel:
-        """Loads a DBDIE model using its metadata and the actual model."""
+        """Loads a trained DBDIE model using its metadata and the actual model."""
         # TODO: Check if any other PT object needs to be saved
-        model_fd = os.path.join(EXTRACTORS_FD, f"{extr_name}/models/{fmt}")
+        model_fd = os.path.dirname(get_model_mpath(extr_name, fmt, is_already_trained=True))
 
         metadata, model, total_classes = load_metadata_and_model(
             extr_name=extr_name,
@@ -244,7 +244,7 @@ class IEModel:
         train_dataset_path: "Path",
         val_dataset_path: "Path",
     ) -> None:
-        """Trains the 'IEModel'."""
+        """Trains the `IEModel`."""
         iem_print(f"Training initialized: {self.fmt}")
         assert not self.flushed, "IEModel was flushed."
 
@@ -283,7 +283,7 @@ class IEModel:
 
     def predict(self, crop: "CropCoords"):
         assert not self.flushed, "IEModel was flushed."
-        raise NotImplementedError
+        raise NotImplementedError  # TODO
 
     def predict_batch(
         self,

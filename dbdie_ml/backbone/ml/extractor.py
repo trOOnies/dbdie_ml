@@ -201,13 +201,11 @@ class InfoExtractor:
 
     def to_metadata(self) -> SavedExtractorMetadata:
         """Return the extractor's `SavedExtractorMetadata`."""
+        dbdv_min, dbdv_max = SavedDBDVersion.dbdvr_to_saved_dbdvs(self.dbdvr)
         return SavedExtractorMetadata(
             cps_name=self.cps_name,
-            dbdv_max=(
-                SavedDBDVersion.from_dbdv(self.dbdvr.dbdv_max)
-                if self.dbdvr.bounded else None
-            ),
-            dbdv_min=SavedDBDVersion.from_dbdv(self.dbdvr.dbdv_min),
+            dbdv_max=dbdv_max,
+            dbdv_min=dbdv_min,
             id=self.id,
             models={
                 model.fmt: {

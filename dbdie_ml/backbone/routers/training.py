@@ -1,13 +1,14 @@
 """Endpoint for training related processes."""
 
 import datetime as dt
+from fastapi import APIRouter, status
+from fastapi.exceptions import HTTPException
+from shutil import rmtree
+from traceback import print_exc
+
 from dbdie_classes.base import FullModelType
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.schemas.objects import ExtractorOut, ModelOut
-from fastapi import APIRouter, status
-from fastapi.exceptions import HTTPException
-from traceback import print_exc
-from shutil import rmtree
 
 from backbone.classes.training import TrainExtractor
 from backbone.code.extraction import (

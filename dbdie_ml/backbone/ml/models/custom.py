@@ -1,5 +1,5 @@
 """Custom models code.
-Mainly default IEModels for each (implemented) predictable.
+Mainly default `IEModels` for each (implemented) predictable.
 """
 
 from dbdie_classes.options import MODEL_TYPE as MT
@@ -11,6 +11,7 @@ from backbone.ml.models import IEModel
 
 
 def max_pool_round(int_tuple: tuple[int, int]) -> tuple[int, int]:
+    """Applies max pool formula, rounding to the nearest integer."""
     return (
         round(0.5 * int_tuple[0] - 0.01),
         round(0.5 * int_tuple[1] - 0.01),
@@ -18,7 +19,7 @@ def max_pool_round(int_tuple: tuple[int, int]) -> tuple[int, int]:
 
 
 class AddonsModel(IEModel):
-    """Recommended custom IEModel with an addon-based non-trained model."""
+    """Recommended custom `IEModel` with an addon-based non-trained model."""
 
     def __init__(
         self,

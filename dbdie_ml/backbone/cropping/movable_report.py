@@ -1,11 +1,12 @@
 """MovableReport class code."""
 
-from dbdie_classes.paths import (
-    CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
-)
 import os
 from shutil import move
 from typing import TYPE_CHECKING
+
+from dbdie_classes.paths import (
+    CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp, relp
+)
 
 from backbone.code.movable_report import calculate_umvis
 from backbone.options.COLORS import get_class_cprint
