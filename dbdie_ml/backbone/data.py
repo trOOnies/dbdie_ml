@@ -21,11 +21,13 @@ class DatasetClass(Dataset):
         self,
         fmt: "FullModelType",
         labels: str | pd.DataFrame,
+        training: bool,
         to_net_ids: dict["LabelId", "NetId"],
         transform: Optional["Compose"] = None,
     ) -> None:
         usecols = ["filename", "label_id"]
 
+        self.training = training
         if isinstance(labels, str):
             self.labels = pd.read_csv(labels, usecols=usecols)
         elif isinstance(labels, pd.DataFrame):
@@ -34,6 +36,9 @@ class DatasetClass(Dataset):
             raise TypeError("'labels' must be either a path (str) or a DataFrame.")
 
         self.labels["net_id"] = self.labels["label_id"].map(to_net_ids)
+        if training:
+            mask = self.labels["net_id"].isnull()
+            assert not mask.any(), f"Some null net_ids were found:\n{self.labels[mask]}"
         self.labels = self.labels.drop("label_id", axis=1)
 
         self.fmt = fmt

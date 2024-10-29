@@ -43,7 +43,12 @@ def batch_train(extr_config: TrainExtractor):
         matches = get_matches(ie)
 
         raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=True)
-        paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=True)
+        paths_dict = split_and_save_dataset(
+            raw_dataset,
+            pred_tuples,
+            split_data=True,
+            stratify_fallback=extr_config.stratify_fallback,
+        )
         del raw_dataset
 
         label_refs = get_label_refs(pred_tuples)

@@ -10,8 +10,6 @@ import pandas as pd
 
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.options import MODEL_TYPE as MT
-from dbdie_classes.options import PLAYER_TYPE as PT
-from dbdie_classes.options.FMT import to_fmt
 from dbdie_classes.options.IMPLEMENTED import FMTS as IMPLEMENTED_FMTS
 from dbdie_classes.utils import filter_multitype
 
@@ -67,16 +65,24 @@ def get_models(
                 for fmt in trained_fmts
             }
 
-    from backbone.ml.models.custom import CharacterModel, ItemModel, PerkModel, StatusModel
+    from backbone.ml.models.custom import (
+        AddonsModel,
+        CharacterModel,
+        ItemModel,
+        OfferingModel,
+        PerkModel,
+        StatusModel,
+    )
 
     TYPES_TO_MODELS: dict["ModelType", IEModel] = {
+        MT.ADDONS: AddonsModel,
         MT.CHARACTER: CharacterModel,
         MT.ITEM: ItemModel,
+        MT.OFFERING: OfferingModel,
         MT.PERKS: PerkModel,
         MT.STATUS: StatusModel,
     }
 
-    # TODO: This are the currently implemented models
     check_implemented_models(models_cfgs.values())
 
     pred_tuples = PredictableTuples.from_fmts(list(models_cfgs.keys()))

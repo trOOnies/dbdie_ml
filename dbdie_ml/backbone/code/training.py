@@ -95,6 +95,7 @@ def load_training_config(iem) -> TrainingConfig:
 def label_ref_transformations(
     label_ref: "LabelRef",
 ) -> tuple[dict["LabelId", "NetId"], np.ndarray]:
+    # TODO: Turn into functions so that both can be used like to_(...)
     return (
         {lid: i for i, lid in enumerate(label_ref.keys())},
         np.fromiter((v for v in label_ref.keys()), dtype=int),
@@ -112,13 +113,15 @@ def load_process(
         "train": DatasetClass(
             fmt,
             train_ds_path,
-            to_net_ids,
+            training=True,
+            to_net_ids=to_net_ids,
             transform=cfg.transform,
         ),
         "val": DatasetClass(
             fmt,
             val_ds_path,
-            to_net_ids,
+            training=True,
+            to_net_ids=to_net_ids,
             transform=cfg.transform,
         ),
     }
@@ -135,7 +138,7 @@ def load_process(
 
 
 def train_backprop(model, train_loader: DataLoader, cfg: TrainingConfig):
-    """Train backpropagation"""
+    """Train backpropagation."""
     for images, labels in train_loader:
         images = images.cuda()
         labels = labels.cuda()
@@ -207,6 +210,7 @@ def predict_process(
     dataset: DatasetClass,
     loader: DataLoader,
 ) -> np.ndarray:
+    """NOTE: Predictions are NetIds."""
     all_preds = np.zeros(len(dataset), dtype=np.ushort)
     i = 0
     with no_grad():

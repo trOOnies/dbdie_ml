@@ -30,8 +30,17 @@ def batch_extract(
         raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=False)
         paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=False)
 
-        preds_dict = ie.predict_batch(paths_dict["pred"], fmts_, probas=False)
-        preds_dict = {k: {k2: a.tolist() for k2, a in d.items()} for k, d in preds_dict.items()}
+        preds_dict = ie.predict_batch(
+            paths_dict["pred"],
+            use_label_ids=True,
+            fmts=fmts_,
+            probas=False,
+        )
+
+        preds_dict = {
+            k: {k2: a.tolist() for k2, a in d.items()}
+            for k, d in preds_dict.items()
+        }
     except Exception as e:
         print_exc()
         raise HTTPException(

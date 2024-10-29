@@ -57,6 +57,7 @@ def split_and_save_dataset(
     data: pd.DataFrame,
     pred_tuples: "PredictableTuples",
     split_data: bool,
+    stratify_fallback: bool = False,
 ) -> dict[str, dict["FullModelType", "Path"]]:
     """Split (optionally) and save dataset."""
     splits_fd = "dbdie_ml/backbone/cache/splits"
@@ -72,6 +73,7 @@ def split_and_save_dataset(
         }
 
     for ptup in pred_tuples:
+        print(f"Splitting {ptup.fmt}...")
         split = get_relevant_cols(data, ptup.mt)
 
         split = apply_mckd_filter(split, ptup.mt, training=split_data)
@@ -81,7 +83,11 @@ def split_and_save_dataset(
         split = suffix_filenames(split, training=split_data)
 
         if split_data:
-            t_split, v_split = custom_tv_split(split)
+            t_split, v_split = custom_tv_split(
+                split,
+                ptup.fmt,
+                stratify_fallback=stratify_fallback,
+            )
             del split
 
             t_split.to_csv(paths_dict["train"][ptup.fmt], index=False)

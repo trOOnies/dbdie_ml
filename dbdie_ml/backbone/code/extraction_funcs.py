@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dbdie_classes.base import IsForKiller, ModelType
+    from dbdie_classes.base import FullModelType, IsForKiller, ModelType
 
 
 def parse_data(
@@ -139,7 +139,9 @@ def flatten_multiple_mt(split: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
     split = [split.copy() for _ in range(total_ids)]
     for i in range(total_ids):
         split[i].loc[:, "item_id"] = i
-        split[i]["label_id"] = split[i]["label_id"].map(lambda vs: vs[i])
+        split[i]["label_id"] = (
+            split[i]["label_id"].map(lambda vs: vs[i] if vs is not None else None)
+        )
 
     split = pd.concat(split, axis=0)
     split = split[cols]
@@ -182,7 +184,7 @@ def suffix_filenames(split: pd.DataFrame, training: bool) -> pd.DataFrame:
 
 def split_unique(
     data: pd.DataFrame,
-    unique_vals: pd.Series[int],
+    unique_vals: pd.Series,  # Series[int]
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split the data using unique values."""
     unique_vals = unique_vals.index.values
@@ -190,21 +192,32 @@ def split_unique(
     return data[~mask], data[mask]
 
 
-def process_unique(unique_data: pd.DataFrame, val_size: int) -> int:
+def process_unique(
+    unique_data: pd.DataFrame,
+    val_size: int,
+    fmt: "FullModelType",
+    stratify_fallback: bool,
+) -> tuple[int, bool]:
     """Process maximum unique assertion."""
-    unique_data_count = unique_data.shape[0]
+    unique_count = unique_data.shape[0]
 
-    target_non_unique_val = val_size - unique_data_count
+    target_non_unique_val = val_size - unique_count
     cond = target_non_unique_val > 0
-    assert cond, (
-        f"Unique label ids ({unique_data_count}) cannot exceed "
-        + f"or equal the validation size ({val_size})."
-    )
 
-    return target_non_unique_val
+    if not stratify_fallback:
+        assert cond, (
+            f"[{fmt}] Unique label ids ({unique_count}) cannot exceed "
+            + f"or equal the validation size ({val_size})."
+        )
+
+    return target_non_unique_val, cond
 
 
-def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def custom_tv_split(
+    data: pd.DataFrame,
+    fmt: "FullModelType",
+    stratify_fallback: bool,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Custom train-validation split.
     It takes into account that values that aren't repeated
     in the data should always go to the validation split.
@@ -217,6 +230,7 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     unique_vals = unique_vals[unique_vals.values == 1]
     if unique_vals.empty:
+        print("- No unique value was found")
         df_train, df_val = train_test_split(
             data,
             test_size=val_size,
@@ -228,7 +242,25 @@ def custom_tv_split(data: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
             df_val.sample(frac=1, random_state=random_state, ignore_index=True),
         )
     data, unique_data = split_unique(data, unique_vals)
-    target_non_unique_val = process_unique(unique_data, val_size)
+    target_non_unique_val, cond_unique = process_unique(
+        unique_data,
+        val_size,
+        fmt,
+        stratify_fallback=stratify_fallback,
+    )
+
+    if not cond_unique:
+        print("- Unique count condition was not met")
+        df_train, df_val = train_test_split(
+            data,
+            test_size=val_size,
+            random_state=random_state,
+            stratify=data["label_id"],
+        )
+        return (
+            df_train.sample(frac=1, random_state=random_state, ignore_index=True),
+            df_val.sample(frac=1, random_state=random_state, ignore_index=True),
+        )
 
     df_train, df_val = train_test_split(
         data,

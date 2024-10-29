@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pydantic import BaseModel, field_validator
+
 from dbdie_classes.base import FullModelType
 from dbdie_classes.schemas.helpers import DBDVersionRange
-from pydantic import BaseModel, field_validator
 
 
 @dataclass
@@ -48,6 +49,7 @@ class TrainExtractor(BaseModel):
     name: str
     cps_name: str
     fmts: dict[FullModelType, TrainModel]
+    stratify_fallback: bool  # TODO: change name to another one
     custom_dbdvr: DBDVersionRange | None  # TODO: Not implemented
 
     @field_validator("fmts")

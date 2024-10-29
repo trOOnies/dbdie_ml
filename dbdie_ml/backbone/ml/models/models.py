@@ -288,6 +288,7 @@ class IEModel:
     def predict_batch(
         self,
         raw_dataset: "Path" | "DataFrame",
+        use_label_ids: bool,
         probas: bool = False,
     ) -> np.ndarray:
         """Returns: preds or probas."""
@@ -297,12 +298,15 @@ class IEModel:
         dataset = DatasetClass(
             self.fmt,
             raw_dataset,
-            self.to_net_ids,
-            self.cfg.transform,
+            training=False,
+            to_net_ids=self.to_net_ids,
+            transform=self.cfg.transform,
         )
         loader = DataLoader(dataset, batch_size=self.cfg.batch_size)
 
         if probas:
+            # TODO: Not adapted for id conversion yet
+            raise NotImplementedError
             return predict_probas_process(
                 self._model,
                 dataset,
@@ -310,7 +314,10 @@ class IEModel:
                 self.total_classes,
             )
         else:
-            return predict_process(self._model, dataset, loader)
+            preds = predict_process(self._model, dataset, loader)
+            if use_label_ids:
+                preds = self.to_label_ids[preds]
+            return preds
 
     def convert_names(self, preds: np.ndarray) -> list["LabelName"]:
         """Convert integer predictions to named predictions."""

@@ -22,11 +22,14 @@ def get_extr_mpath(name: str) -> "Path":
 
 
 def get_model_mpath(
-    extr_name: str,
+    extr_name: str | None,
     fmt: "FullModelType",
     is_already_trained: bool,
 ) -> "Path":
-    safe_pathing(extr_name)
+    if is_already_trained:
+        assert extr_name is not None
+    if extr_name is not None:
+        safe_pathing(extr_name)
     safe_pathing(fmt)
     return (
         os.path.join(EXTRACTORS_FD, f"{extr_name}/models/{fmt}/metadata.yaml")

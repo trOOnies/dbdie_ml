@@ -303,6 +303,7 @@ class InfoExtractor:
     def predict_batch(
         self,
         datasets: dict["FullModelType", Path] | dict["FullModelType", "DataFrame"],
+        use_label_ids: bool,
         fmts: list["FullModelType"] | None = None,
         probas: bool = False,
     ) -> dict["FullModelType", dict[str, "ndarray"]]:
@@ -322,7 +323,11 @@ class InfoExtractor:
             fmt: {
                 "match_ids": pd.read_csv(datasets[fmt], usecols=["match_id"])["match_id"].values,
                 "player_ids": pd.read_csv(datasets[fmt], usecols=["player_id"])["player_id"].values,
-                "preds": self._models[fmt].predict_batch(datasets[fmt], probas=probas),
+                "preds": self._models[fmt].predict_batch(
+                    datasets[fmt],
+                    use_label_ids=use_label_ids,
+                    probas=probas,
+                ),
             }
             for fmt in fmts_
         }
