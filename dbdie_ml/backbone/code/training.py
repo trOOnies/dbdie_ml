@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 import torch.nn.functional as F
@@ -92,14 +92,20 @@ def load_training_config(iem) -> TrainingConfig:
 # * Training
 
 
-def label_ref_transformations(
-    label_ref: "LabelRef",
-) -> tuple[dict["LabelId", "NetId"], np.ndarray]:
-    # TODO: Turn into functions so that both can be used like to_(...)
-    return (
-        {lid: i for i, lid in enumerate(label_ref.keys())},
-        np.fromiter((v for v in label_ref.keys()), dtype=int),
-    )
+def make_lbl_to_net(label_ref: "LabelRef"):
+    """Make `to_net_ids` function."""
+    d: dict["LabelId", "NetId"] = {lid: i for i, lid in enumerate(label_ref.keys())}
+    def lbl_to_net(label_id: "LabelId") -> "NetId":
+        return d[label_id]
+    return lbl_to_net
+
+
+def make_net_to_lbl(label_ref: "LabelRef"):
+    """Make `to_label_ids` function."""
+    arr = np.fromiter((v for v in label_ref.keys()), dtype=int)
+    def net_to_lbl(net_id: Union["NetId", np.ndarray]) -> Union["LabelId", np.ndarray]:
+        return arr[net_id]
+    return net_to_lbl
 
 
 def load_process(

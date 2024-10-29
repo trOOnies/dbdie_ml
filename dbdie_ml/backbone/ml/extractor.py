@@ -1,4 +1,4 @@
-"""InfoExtractor code (which manages many IEModels)"""
+"""`InfoExtractor` code (which manages many `IEModels`)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ import yaml
 from dbdie_classes.base import Path
 from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
-from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
+from dbdie_classes.options.FMT import from_fmts
+from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES, MULTIPLE_PER_PLAYER
 from dbdie_classes.schemas.groupings import FullMatchOut
 from dbdie_classes.schemas.objects import ExtractorModelsIds, ExtractorOut
 
@@ -306,7 +307,7 @@ class InfoExtractor:
         use_label_ids: bool,
         fmts: list["FullModelType"] | None = None,
         probas: bool = False,
-    ) -> dict["FullModelType", dict[str, "ndarray"]]:
+    ) -> dict["FullModelType", dict[str, Optional["ndarray"]]]:
         self._check_flushed()
         assert self.models_are_trained
 
@@ -318,18 +319,39 @@ class InfoExtractor:
             fmts_ = deepcopy(fmts)
 
         check_datasets(fmts_, datasets)
+        mts, _, _ = from_fmts(fmts_)
 
-        return {
+        resp = {
             fmt: {
-                "match_ids": pd.read_csv(datasets[fmt], usecols=["match_id"])["match_id"].values,
-                "player_ids": pd.read_csv(datasets[fmt], usecols=["player_id"])["player_id"].values,
+                "dataset": pd.read_csv(
+                    datasets[fmt],
+                    usecols=(
+                        ["match_id", "player_id", "item_id"]
+                        if mt in MULTIPLE_PER_PLAYER
+                        else ["match_id", "player_id"]
+                    ),
+                ),
                 "preds": self._models[fmt].predict_batch(
                     datasets[fmt],
                     use_label_ids=use_label_ids,
                     probas=probas,
                 ),
             }
-            for fmt in fmts_
+            for fmt, mt in zip(fmts_, mts)
+        }
+
+        return {
+            fmt: {
+                "match_ids": d["dataset"]["match_id"].values,
+                "player_ids": d["dataset"]["player_id"].values,
+                "item_ids": (
+                    d["dataset"]["item_id"].values
+                    if "item_id" in d["dataset"].columns
+                    else None
+                ),
+                "preds": d["preds"],
+            }
+            for fmt, d in resp.items()
         }
 
     def convert_names(

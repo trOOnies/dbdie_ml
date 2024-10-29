@@ -30,9 +30,10 @@ from backbone.code.models import (
     save_model,
 )
 from backbone.code.training import (
-    label_ref_transformations,
     load_process,
     load_training_config,
+    make_lbl_to_net,
+    make_net_to_lbl,
     predict_probas_process,
     predict_process,
     train_process,
@@ -202,7 +203,8 @@ class IEModel:
         iem.init_model()
         iem.model_is_trained = True
         iem.label_ref = load_label_ref(model_fd)
-        iem.to_net_ids, iem.to_label_ids = label_ref_transformations(iem.label_ref)
+        iem.to_label_ids = make_net_to_lbl(iem.label_ref)
+        iem.to_net_ids = make_lbl_to_net(iem.label_ref)
 
         return iem
 
@@ -262,7 +264,8 @@ class IEModel:
         self.label_ref = {row["id"]: row["name"] for _, row in label_ref.iterrows()}
         del label_ref
 
-        self.to_net_ids, self.to_label_ids = label_ref_transformations(self.label_ref)
+        self.to_label_ids = make_net_to_lbl(self.label_ref)
+        self.to_net_ids = make_lbl_to_net(self.label_ref)
 
         train_loader, val_loader = load_process(
             self.fmt,
@@ -316,7 +319,7 @@ class IEModel:
         else:
             preds = predict_process(self._model, dataset, loader)
             if use_label_ids:
-                preds = self.to_label_ids[preds]
+                preds = self.to_label_ids(preds)
             return preds
 
     def convert_names(self, preds: np.ndarray) -> list["LabelName"]:

@@ -5,10 +5,14 @@ from dbdie_classes.groupings import PredictableTuples
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
 from traceback import print_exc
+from typing import TYPE_CHECKING, Optional
 
 from backbone.code.extraction import get_raw_dataset, split_and_save_dataset
 from backbone.code.routers.training import get_matches
 from backbone.ml.extractor import InfoExtractor
+
+if TYPE_CHECKING:
+    from dbdie_classes.base import FullModelType
 
 router = APIRouter()
 
@@ -18,7 +22,9 @@ def batch_extract(
     extr_name: str,
     # fmts: list[FullModelType] | None = None,  # TODO
 ):
-    """IMPORTANT. If doing partial uploads, please use 'fmts'."""
+    """Batch extract labels using an `InfoExtractor`.
+    NOTE: If doing partial uploads, please use 'fmts'.
+    """
     ie = InfoExtractor.from_folder(extr_name)
 
     try:
@@ -37,9 +43,12 @@ def batch_extract(
             probas=False,
         )
 
-        preds_dict = {
-            k: {k2: a.tolist() for k2, a in d.items()}
-            for k, d in preds_dict.items()
+        preds_dict: dict["FullModelType", dict[str, Optional[list[int]]]] = {
+            fmt: {
+                k: (arr.tolist() if arr is not None else None)
+                for k, arr in d.items()
+            }
+            for fmt, d in preds_dict.items()
         }
     except Exception as e:
         print_exc()

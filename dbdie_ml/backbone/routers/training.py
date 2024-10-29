@@ -34,6 +34,7 @@ router = APIRouter()
     response_model=dict[str, ExtractorOut | dict[FullModelType, ModelOut]],
 )
 def batch_train(extr_config: TrainExtractor):
+    """Batch train an `InfoExtractor`."""
     fmts = list(extr_config.fmts.keys())
     pred_tuples = PredictableTuples.from_fmts(fmts)
 
