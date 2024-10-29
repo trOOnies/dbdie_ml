@@ -52,6 +52,7 @@ def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
 
 
 def get_models(
+    extr_id: int,
     extr_name: str,
     models_cfgs: dict["FullModelType", "TrainModel"],
     trained_fmts: list["FullModelType"],
@@ -96,6 +97,7 @@ def get_models(
                 ifk=ptup.ifk,
                 total_classes=mcfg.total_classes,
                 cps_name=mcfg.cps_name,
+                extr_id=extr_id,
             )
         )
         for mcfg, ptup in zip(models_cfgs.values(), pred_tuples)

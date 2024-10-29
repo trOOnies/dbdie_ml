@@ -103,12 +103,13 @@ class IEModel:
         metadata: SavedModelMetadata,
         model: "Sequential",
         total_classes: int,
+        new_name: str | None = None,
     ) -> None:
         assert total_classes > 1
         md = metadata.to_model_class_metadata()
 
         self.id            :               int = md["id"]
-        self.name          :               str = md["name"]
+        self.name          :               str = md["name"] if new_name is None else new_name
         self.ifk           :        str | None = md["ifk"]
         self.mt            :       "ModelType" = md["mt"]
         self.img_size      :         "ImgSize" = md["img_size"]  # replaces cs & crop
@@ -186,7 +187,12 @@ class IEModel:
     # * Loading and saving
 
     @classmethod
-    def from_folder(cls, extr_name: str, fmt: "FullModelType") -> IEModel:
+    def from_folder(
+        cls,
+        extr_name: str,
+        fmt: "FullModelType",
+        new_name: str | None = None,
+    ) -> IEModel:
         """Loads a trained DBDIE model using its metadata and the actual model."""
         # TODO: Check if any other PT object needs to be saved
         model_fd = os.path.dirname(get_model_mpath(extr_name, fmt, is_already_trained=True))
@@ -197,7 +203,7 @@ class IEModel:
             model_fd=model_fd,
         )
 
-        iem = cls(metadata, model=model, total_classes=total_classes)
+        iem = cls(metadata, model=model, total_classes=total_classes, new_name=new_name)
 
         # Init the already trained model
         iem.init_model()

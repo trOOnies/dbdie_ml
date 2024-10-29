@@ -136,7 +136,7 @@ class InfoExtractor:
         assert models_cfgs, "'models_cfgs' can't be empty."
 
         self.cps_name = cps_name
-        self._models = get_models(self.name, models_cfgs, trained_fmts)
+        self._models = get_models(self.id, self.name, models_cfgs, trained_fmts)
         self.dbdvr, self.dbdvr_ids = get_dbdvr(
             self._models,
             expected=expected_dbdvr,
@@ -267,6 +267,7 @@ class InfoExtractor:
                 val_dataset_path=val_datasets[mt],
             )
             print(50 * "-")
+        # TODO: Add training summary table
         ie_print("All models have been trained.")
 
     def flush(self) -> None:

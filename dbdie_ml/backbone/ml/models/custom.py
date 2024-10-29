@@ -27,6 +27,7 @@ class AddonsModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.ADDONS, ifk),
@@ -56,6 +57,7 @@ class AddonsModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -68,6 +70,7 @@ class CharacterModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.CHARACTER, ifk),
@@ -101,6 +104,7 @@ class CharacterModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -113,6 +117,7 @@ class ItemModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.ITEM, ifk),
@@ -142,6 +147,7 @@ class ItemModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -154,6 +160,7 @@ class OfferingModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.OFFERING, ifk),
@@ -183,6 +190,7 @@ class OfferingModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -195,6 +203,7 @@ class PerkModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.PERKS, ifk),
@@ -224,6 +233,7 @@ class PerkModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -239,6 +249,7 @@ class PrestigeModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.PRESTIGE, ifk),
@@ -272,6 +283,7 @@ class PrestigeModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
 
 
@@ -284,6 +296,7 @@ class StatusModel(IEModel):
         ifk: bool,
         total_classes: int,
         cps_name: str,
+        extr_id: int,
     ) -> None:
         metadata = SavedModelMetadata.load(
             fmt=to_fmt(MT.STATUS, ifk),
@@ -313,4 +326,5 @@ class StatusModel(IEModel):
             metadata=metadata,
             model=model,
             total_classes=total_classes,
+            new_name=f"md{extr_id}-{metadata.name[3:]}",
         )
