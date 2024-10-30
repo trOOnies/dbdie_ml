@@ -5,9 +5,10 @@ import pandas as pd
 from backbone.endpoints import getr
 
 
-def get_matches(ie) -> pd.DataFrame:
+def get_matches(ie, use_dbdvr: bool = True) -> pd.DataFrame:
+    """Get matches for training or extraction."""
     matches = getr("/matches", api=True, params={"limit": 300_000})
-    matches = ie.filter_matches_with_dbdv(matches)
+    matches = ie.filter_matches_with_dbdv(matches, use_dbdvr=use_dbdvr)
     assert matches, "No matches intersect with the extractor's DBDVersionRange."
     return pd.DataFrame(
             [

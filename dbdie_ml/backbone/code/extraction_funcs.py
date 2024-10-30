@@ -8,11 +8,28 @@ from dbdie_classes.options.MODEL_TYPE import (
 )
 import numpy as np
 import pandas as pd
+import requests
 from sklearn.model_selection import train_test_split
 from typing import TYPE_CHECKING
 
+from backbone.endpoints import bendp, getr, parse_or_raise
+
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, IsForKiller, ModelType
+
+
+def get_raw_data(matches: pd.DataFrame) -> list[dict]:
+    raw_data = parse_or_raise(
+        requests.post(
+            bendp("/labels/filter-many"),
+            params={"ifk": None, "limit": 300_000, "skip": 0},
+            json=None,
+        ),
+        exp_status_code=200,  # OK
+    )
+    raw_data = [m for m in raw_data if m["match_id"] in matches["match_id"].values]
+    assert raw_data, "No labels of selected matches were found."
+    return raw_data
 
 
 def parse_data(
@@ -40,6 +57,21 @@ def parse_data(
     assert data, "No usable label was found in general."
 
     return pd.DataFrame(data)
+
+
+def merge_and_sort_data(
+    data: pd.DataFrame,
+    matches: pd.DataFrame,
+    target_mckd: bool,
+) -> pd.DataFrame:
+    data = data.merge(matches, how="inner", on="match_id")
+    assert not data.empty, (
+        f"No {'labeled' if target_mckd else 'unlabeled'} match was found in the 'matches' table."
+    )
+    return data.sort_values(["match_id", "player_id"], ignore_index=True)
+
+
+# * Split functions
 
 
 def get_relevant_cols(data: pd.DataFrame, mt: "ModelType") -> pd.DataFrame:
@@ -275,3 +307,65 @@ def custom_tv_split(
             axis=0,
         ).sample(frac=1, random_state=random_state, ignore_index=True),
     )
+
+
+# * Higher level functions
+
+
+def get_paths_dict(
+    fmts: list["FullModelType"],
+    split_data: bool,
+) -> dict[str, dict["FullModelType", str]]:
+    splits_fd = "dbdie_ml/backbone/cache/splits"
+    if split_data:
+        return {
+            "train": {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in fmts},
+            "val":   {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in fmts},
+        }
+    else:
+        return {
+            "pred": {fmt: f"{splits_fd}/{fmt}_pred.csv" for fmt in fmts},
+        }
+
+
+def processes_presplit(
+    data: pd.DataFrame,
+    ptup,
+    split_data: bool,
+) -> pd.DataFrame:
+    """Processes to be done before splitting."""
+    split = get_relevant_cols(data, ptup.mt)
+
+    split = apply_mckd_filter(split, ptup.mt, training=split_data)
+    split = apply_ifk_filter(split, ptup.ifk, training=split_data)
+
+    split = process_label_ids(split, ptup.mt, training=split_data)
+    return suffix_filenames(split, training=split_data)
+
+
+# * label_refs functions
+
+
+def get_mt_data(pred_tuples) -> dict["FullModelType", list[dict]]:
+    data = {
+        ptup.fmt: getr(
+            f"/{ptup.mt}",
+            api=True, params={"limit": 300_000, "ifk": ptup.ifk}
+        )
+        for ptup in pred_tuples
+    }
+    assert all(len(ds) > 0 for ds in data.values()), "ModelType data is empty."
+    return data
+
+
+def data_to_dfs(
+    data: dict["FullModelType", list[dict]]
+) -> dict["FullModelType", pd.DataFrame]:
+    data = {
+        fmt: pd.DataFrame([(d["id"], d["name"]) for d in ds], columns=["id", "name"])
+        for fmt, ds in data.items()
+    }
+    return {
+        fmt: df.sort_values("id", ignore_index=True)
+        for fmt, df in data.items()
+    }

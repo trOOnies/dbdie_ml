@@ -20,6 +20,7 @@ router = APIRouter()
 @router.post("/batch", status_code=status.HTTP_201_CREATED)
 def batch_extract(
     extr_name: str,
+    use_dbdvr: bool,
     # fmts: list[FullModelType] | None = None,  # TODO
 ):
     """Batch extract labels using an `InfoExtractor`.
@@ -31,7 +32,7 @@ def batch_extract(
         fmts_ = deepcopy(ie.fmts)  # TODO
         pred_tuples = PredictableTuples.from_fmts(fmts_)
 
-        matches = get_matches(ie)
+        matches = get_matches(ie, use_dbdvr)
 
         raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=False)
         paths_dict = split_and_save_dataset(raw_dataset, pred_tuples, split_data=False)

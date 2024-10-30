@@ -1,11 +1,39 @@
 """Extra code for the metadata classes."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from backbone.classes.training import TrainingParams
 from backbone.cropping import CropperSwarm, CropSettings
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType
+
+
+def load_assertions(extr_name: str | None, vars: list[Any | None]) -> bool:
+    is_trained_model = extr_name is not None
+    assert all(
+        is_trained_model == (v is None)
+        for v in vars
+    ), "Model params should be passed iif the model is being created."
+    return is_trained_model
+
+
+def form_metadata_dict(iem, dbdv_min, dbdv_max) -> dict:
+    return (
+        {
+            k: getattr(iem, k)
+            for k in [
+                "id", "name", "fmt", "total_classes", "cps_name", "cs_name",
+            ]
+        }
+        | {k: getattr(iem, f"_{k}") for k in ["norm_means", "norm_std"]}
+        | {
+            "dbdv_max": dbdv_max,
+            "dbdv_min": dbdv_min,
+            "img_size": list(iem.img_size),
+            "training": TrainingParams(**iem.training_params),
+        }
+    )
 
 
 def process_metadata(metadata: dict) -> tuple:

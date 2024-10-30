@@ -9,6 +9,8 @@ import yaml
 from backbone.classes.register import get_model_mpath
 from backbone.classes.training import TrainingParams
 from backbone.code.metadata import (
+    form_metadata_dict,
+    load_assertions,
     patch_untrained_metadata,
     process_metadata,
     process_metadata_ifk_none,
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class SavedDBDVersion:
+    """YAML-formatted `DBDVersion`."""
     id: int
     name: str
     common_name: str | None
@@ -55,6 +58,7 @@ class SavedDBDVersion:
 
 @dataclass(kw_only=True)
 class SavedModelMetadata:
+    """YAML-formatted `IEModel`."""
     id: int
     total_classes: int
 
@@ -94,11 +98,7 @@ class SavedModelMetadata:
         cps_name: str | None,
     ) -> SavedModelMetadata:
         """Load `SavedModelMetadata` from config YAML file."""
-        is_trained_model = extr_name is not None
-        assert all(
-            is_trained_model == (v is None)
-            for v in [model_id, total_classes, cps_name]
-        ), "Model params should be passed iif the model is being created."
+        is_trained_model = load_assertions(extr_name, [model_id, total_classes, cps_name])
 
         path = get_model_mpath(extr_name, fmt, is_trained_model)
         with open(path) as f:
@@ -116,21 +116,7 @@ class SavedModelMetadata:
     @classmethod
     def from_model_class(cls, iem) -> SavedModelMetadata:
         dbdv_min, dbdv_max = SavedDBDVersion.dbdvr_to_saved_dbdvs(iem.dbdvr)
-        metadata = (
-            {
-                k: getattr(iem, k)
-                for k in [
-                    "id", "name", "fmt", "total_classes", "cps_name", "cs_name",
-                ]
-            }
-            | {k: getattr(iem, f"_{k}") for k in ["norm_means", "norm_std"]}
-            | {
-                "dbdv_max": dbdv_max,
-                "dbdv_min": dbdv_min,
-                "img_size": list(iem.img_size),
-                "training": TrainingParams(**iem.training_params),
-            }
-        )
+        metadata = form_metadata_dict(iem, dbdv_min, dbdv_max)
         return cls(**metadata)
 
     def to_model_class_metadata(self) -> dict:
@@ -161,6 +147,7 @@ class SavedModelMetadata:
 
 @dataclass(kw_only=True)
 class SavedExtractorMetadata:
+    """YAML-formatted `InfoExtractor`."""
     cps_name: str
     dbdv_max: SavedDBDVersion | None
     dbdv_min: SavedDBDVersion

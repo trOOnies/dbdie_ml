@@ -233,16 +233,26 @@ class InfoExtractor:
 
     # * Training
 
-    def filter_matches_with_dbdv(self, matches: list[dict]) -> list[dict[str, int | str]]:
+    def filter_matches_with_dbdv(
+        self,
+        matches: list[dict],
+        use_dbdvr: bool = True,
+    ) -> list[dict[str, int | str]]:
         """Filter matches list with DBDVersion ids."""
-        return [
-            {"id": m["id"], "filename": m["filename"]}
-            for m in filter_images_with_dbdv(
-                matches,
-                self.dbdvr_ids[0],
-                self.dbdvr_ids[1],
-            )
-        ]
+        if use_dbdvr:
+            return [
+                {"id": m["id"], "filename": m["filename"]}
+                for m in filter_images_with_dbdv(
+                    matches,
+                    self.dbdvr_ids[0],
+                    self.dbdvr_ids[1],
+                )
+            ]
+        else:
+            return [
+                {"id": m["id"], "filename": m["filename"]}
+                for m in matches
+            ]
 
     def train(
         self,

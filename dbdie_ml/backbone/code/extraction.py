@@ -2,21 +2,20 @@
 
 import numpy as np
 import pandas as pd
-import requests
 from typing import TYPE_CHECKING
 
 from backbone.code.extraction_funcs import (
-    apply_ifk_filter,
-    apply_mckd_filter,
     custom_tv_split,
+    data_to_dfs,
     filter_ifk,
     filter_mckd,
-    get_relevant_cols,
+    get_mt_data,
+    get_paths_dict,
+    get_raw_data,
+    merge_and_sort_data,
     parse_data,
-    process_label_ids,
-    suffix_filenames,
+    processes_presplit,
 )
-from backbone.endpoints import bendp, getr, parse_or_raise
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, Path
@@ -29,28 +28,13 @@ def get_raw_dataset(
     target_mckd: bool,
 ) -> pd.DataFrame:
     """Get raw dataset for an `InfoExtractor`."""
-    raw_data = parse_or_raise(
-        requests.post(
-            bendp("/labels/filter-many"),
-            params={"ifk": None, "limit": 300_000, "skip": 0},
-            json=None,
-        ),
-        exp_status_code=200,  # OK
-    )
-    raw_data = [m for m in raw_data if m["match_id"] in matches["match_id"].values]
-    assert raw_data, "No labels of selected matches were found."
-
+    raw_data = get_raw_data(matches)
     data = parse_data(raw_data, pred_tuples.mts)
 
     data = filter_ifk(data, pred_tuples.ifks)
     data = filter_mckd(data, pred_tuples.mts, target_mckd)
 
-    data = data.merge(matches, how="inner", on="match_id")
-    assert not data.empty, (
-        f"No {'labeled' if target_mckd else 'unlabeled'} match was found in the 'matches' table."
-    )
-
-    return data.sort_values(["match_id", "player_id"], ignore_index=True)
+    return merge_and_sort_data(data, matches, target_mckd)
 
 
 def split_and_save_dataset(
@@ -60,27 +44,11 @@ def split_and_save_dataset(
     stratify_fallback: bool = False,
 ) -> dict[str, dict["FullModelType", "Path"]]:
     """Split (optionally) and save dataset."""
-    splits_fd = "dbdie_ml/backbone/cache/splits"
-
-    if split_data:
-        paths_dict = {
-            "train": {fmt: f"{splits_fd}/{fmt}_train.csv" for fmt in pred_tuples.fmts},
-            "val":   {fmt: f"{splits_fd}/{fmt}_val.csv"   for fmt in pred_tuples.fmts},
-        }
-    else:
-        paths_dict = {
-            "pred": {fmt: f"{splits_fd}/{fmt}_pred.csv" for fmt in pred_tuples.fmts},
-        }
+    paths_dict = get_paths_dict(pred_tuples.fmts, split_data)
 
     for ptup in pred_tuples:
         print(f"Splitting {ptup.fmt}...")
-        split = get_relevant_cols(data, ptup.mt)
-
-        split = apply_mckd_filter(split, ptup.mt, training=split_data)
-        split = apply_ifk_filter(split, ptup.ifk, training=split_data)
-
-        split = process_label_ids(split, ptup.mt, training=split_data)
-        split = suffix_filenames(split, training=split_data)
+        split = processes_presplit(data, ptup, split_data)
 
         if split_data:
             t_split, v_split = custom_tv_split(
@@ -104,22 +72,8 @@ def get_label_refs(
     pred_tuples: "PredictableTuples"
 ) -> dict["FullModelType", pd.DataFrame]:
     """Get labels reference for selected mts."""
-    data = {
-        ptup.fmt: getr(
-            f"/{ptup.mt}",
-            api=True, params={"limit": 300_000, "ifk": ptup.ifk}
-        )
-        for ptup in pred_tuples
-    }
-    assert all(len(ds) for ds in data.values()), "ModelType data is empty."
-    data = {
-        fmt: pd.DataFrame([(d["id"], d["name"]) for d in ds], columns=["id", "name"])
-        for fmt, ds in data.items()
-    }
-    data = {
-        fmt: df.sort_values("id", ignore_index=True)
-        for fmt, df in data.items()
-    }
+    data = get_mt_data(pred_tuples)
+    data = data_to_dfs(data)
     for fmt in data:
         data[fmt]["net_id"] = np.arange(data[fmt].shape[0], dtype=int)
     return data
