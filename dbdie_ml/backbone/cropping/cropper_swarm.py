@@ -20,7 +20,7 @@ from backbone.code.cropper_swarm import (
 )
 from backbone.cropping.cropper import Cropper
 from backbone.cropping.movable_report import MovableReport
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, FullModelType, RelPath
@@ -269,6 +269,18 @@ class CropperSwarm:
         if move:
             self.move_images()
         self._movable_report = None
+
+    def run_on_image(
+        self,
+        image,
+        use_croppers,
+    ) -> None:
+        cpp_to_use = filter_use_croppers(self.cropper_flat_names, use_croppers)
+        run_using_cropper_names(
+            self.cropper_alignments,
+            self._movable_report,
+            cpp_to_use,
+        )
 
     # * Moving
 

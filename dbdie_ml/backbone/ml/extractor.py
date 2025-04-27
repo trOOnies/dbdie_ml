@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pandas as pd
 import os
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -12,8 +11,8 @@ import yaml
 from dbdie_classes.base import Path
 from dbdie_classes.code.version import filter_images_with_dbdv
 from dbdie_classes.extract import PlayerInfo
-from dbdie_classes.options.FMT import from_fmts
-from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES, MULTIPLE_PER_PLAYER
+from dbdie_classes.groupings import PredictableTuples
+from dbdie_classes.options.MODEL_TYPE import TO_ID_NAMES
 from dbdie_classes.schemas.groupings import FullMatchOut
 from dbdie_classes.schemas.objects import ExtractorModelsIds, ExtractorOut
 
@@ -24,8 +23,10 @@ from backbone.classes.metadata import (
 from backbone.classes.register import get_extr_mpath
 from backbone.classes.training import TrainModel
 from backbone.code.extractor import (
+    batch_predict,
     check_datasets,
     folder_save_logic,
+    format_batch_prediction,
     get_dbdvr,
     get_models,
     get_printable_info,
@@ -36,7 +37,7 @@ from backbone.code.extractor import (
 )
 # from backbone.db import to_player
 from backbone.ml.models import IEModel
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 from dbdie_classes.schemas.helpers import DBDVersionRange, DBDVersionOut
 
 if TYPE_CHECKING:
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
     from pandas import DataFrame
 
     from dbdie_classes.base import FullModelType
-    from dbdie_classes.extract import CropCoords, PlayersCropCoords, PlayersInfoDict
     from dbdie_classes.schemas.groupings import PlayerOut
     from dbdie_classes.schemas.objects import ModelOut
 
@@ -137,10 +137,7 @@ class InfoExtractor:
 
         self.cps_name = cps_name
         self._models = get_models(self.id, self.name, models_cfgs, trained_fmts)
-        self.dbdvr, self.dbdvr_ids = get_dbdvr(
-            self._models,
-            expected=expected_dbdvr,
-        )
+        self.dbdvr, self.dbdvr_ids = get_dbdvr(self._models, expected=expected_dbdvr)
         for model in self._models.values():
             if not model.model_is_trained:
                 model.init_model()
@@ -295,22 +292,18 @@ class InfoExtractor:
             del self._models
 
     def _check_flushed(self) -> None:
-        """Check whether the model has been flushed yet."""
+        """Check whether the extractor has been flushed yet."""
         assert not self.flushed, "InfoExtractor was flushed"
 
     # * Prediction
 
-    def predict_on_crop(self, crop: "CropCoords") -> PlayerInfo:
+    def predict_on_crops(self, crops: dict) -> PlayerInfo:
         self._check_flushed()
         preds = {
-            TO_ID_NAMES[k]: model.predict(crop)
+            TO_ID_NAMES[k]: model.predict(crops[k])
             for k, model in self._models.items()
         }
         return PlayerInfo(**preds)
-
-    def predict(self, player_crops: "PlayersCropCoords") -> "PlayersInfoDict":
-        self._check_flushed()
-        return {i: self.predict_on_crop(s) for i, s in player_crops.items()}
 
     def predict_batch(
         self,
@@ -330,40 +323,10 @@ class InfoExtractor:
             fmts_ = deepcopy(fmts)
 
         check_datasets(fmts_, datasets)
-        mts, _, _ = from_fmts(fmts_)
+        pts = PredictableTuples.from_fmts(fmts_)
 
-        resp = {
-            fmt: {
-                "dataset": pd.read_csv(
-                    datasets[fmt],
-                    usecols=(
-                        ["match_id", "player_id", "item_id"]
-                        if mt in MULTIPLE_PER_PLAYER
-                        else ["match_id", "player_id"]
-                    ),
-                ),
-                "preds": self._models[fmt].predict_batch(
-                    datasets[fmt],
-                    use_label_ids=use_label_ids,
-                    probas=probas,
-                ),
-            }
-            for fmt, mt in zip(fmts_, mts)
-        }
-
-        return {
-            fmt: {
-                "match_ids": d["dataset"]["match_id"].values,
-                "player_ids": d["dataset"]["player_id"].values,
-                "item_ids": (
-                    d["dataset"]["item_id"].values
-                    if "item_id" in d["dataset"].columns
-                    else None
-                ),
-                "preds": d["preds"],
-            }
-            for fmt, d in resp.items()
-        }
+        resp = batch_predict(pts, datasets, self._models, use_label_ids, probas)
+        return format_batch_prediction(resp)
 
     def convert_names(
         self,

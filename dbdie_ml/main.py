@@ -2,8 +2,8 @@
 
 from fastapi import FastAPI
 
-from backbone.options import ENDPOINTS as EP
-from backbone.routers import cropping, extraction, training
+from backbone.options import ENDPOINT as EP
+from backbone.routers import cropping, deleting, extraction, training
 
 app = FastAPI(
     title="DBDIE ML API",
@@ -11,9 +11,10 @@ app = FastAPI(
     description="ML package to process your 💀 Dead By Daylight 💀 matches' endcards.",
 )
 
-app.include_router(cropping.router,   prefix=EP.CROP)
-app.include_router(extraction.router, prefix=EP.EXTRACT)
-app.include_router(training.router,   prefix=EP.TRAIN)
+app.include_router(cropping.router,   prefix=EP.CROP    )
+app.include_router(extraction.router, prefix=EP.EXTRACT )
+app.include_router(training.router,   prefix=EP.TRAIN   )
+app.include_router(deleting.router,   prefix=EP.DELETE  )
 
 
 @app.get("/health", summary="Health check")

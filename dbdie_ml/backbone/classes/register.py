@@ -1,41 +1,41 @@
 """Classes' register related code."""
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from dbdie_classes.paths import recursive_dirname
 
 if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType, Path
 
-CONFIGS_FD = os.path.join(recursive_dirname(__file__, 2), "configs")
-EXTRACTORS_FD = os.path.join(recursive_dirname(__file__, 4), "extractors")
+BASE_SUPFD = recursive_dirname(__file__, 4)
+
+CONFIGS_FD = os.path.join(BASE_SUPFD, "configs")
+EXTRACTORS_FD = os.path.join(BASE_SUPFD, "extractors")
+MODELS_FD = os.path.join(BASE_SUPFD, "models")
 
 
 def safe_pathing(path_part: str) -> None:
     assert all(ch not in path_part for ch in [".", "/", "\\"])
 
 
-def get_extr_mpath(name: str) -> "Path":
-    assert name != "models"
-    return os.path.join(EXTRACTORS_FD, f"{name}/metadata.yaml")
+def get_extr_mpath(id: int) -> "Path":
+    assert isinstance(id, int), "id must be an integer."
+    return os.path.join(EXTRACTORS_FD, f"{id}/metadata.yaml")
 
 
 def get_model_mpath(
-    extr_name: str | None,
-    fmt: "FullModelType",
-    is_already_trained: bool,
+    fmt: Union["FullModelType", None] = None,
+    id: int | None = None,
 ) -> "Path":
-    if is_already_trained:
-        assert extr_name is not None
-    if extr_name is not None:
-        safe_pathing(extr_name)
-    safe_pathing(fmt)
-    return (
-        os.path.join(EXTRACTORS_FD, f"{extr_name}/models/{fmt}/metadata.yaml")
-        if is_already_trained
-        else os.path.join(CONFIGS_FD, f"custom_models/{fmt}/metadata.yaml")
-    )
+    assert (fmt is None) != (id is None), "Either fmt or id must be provided."
+
+    if fmt is not None:
+        safe_pathing(fmt)
+        return os.path.join(CONFIGS_FD, f"custom_models/{fmt}/metadata.yaml")
+    else:
+        assert isinstance(id, int), "id must be an integer."
+        return os.path.join(MODELS_FD, f"{id}/metadata.yaml")
 
 
 def get_cropper_swarm_mpath(name: str) -> "Path":

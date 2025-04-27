@@ -39,7 +39,7 @@ from backbone.code.training import (
     train_process,
 )
 from backbone.data import DatasetClass
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -54,7 +54,6 @@ if TYPE_CHECKING:
         PathToFolder,
         PlayerType,
     )
-    from dbdie_classes.extract import CropCoords
     from dbdie_classes.schemas.helpers import DBDVersionRange
 
 iem_print = get_class_cprint("IEModel")
@@ -153,7 +152,7 @@ class IEModel:
 
     def init_model(self) -> None:
         """Initialize model to allow it to be trained."""
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         assert not self.model_is_init, "IEModel can't be initialized more than once."
 
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -167,7 +166,7 @@ class IEModel:
 
     def get_summary(self) -> None:
         """Get underlying model summary."""
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         assert self.model_is_init
 
         summary(
@@ -219,7 +218,7 @@ class IEModel:
 
     def save(self, model_fd: "PathToFolder") -> None:
         """Save all necessary objects of the IEModel."""
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         if not os.path.isdir(model_fd):
             os.mkdir(model_fd)
 
@@ -235,7 +234,7 @@ class IEModel:
         """Flush IEModel params so as to free space.
         A flushed IEModel shouldn't be reused, but deleted and reinstantiated.
         """
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         self.flushed = True
         if not self.model_is_init:
             return
@@ -243,6 +242,10 @@ class IEModel:
         del self.cfg
         del self._device
         empty_cache()
+
+    def _check_flushed(self) -> None:
+        """Check whether the model has been flushed yet."""
+        assert not self.flushed, "IEModel was flushed"
 
     # * Training
 
@@ -254,7 +257,7 @@ class IEModel:
     ) -> None:
         """Trains the `IEModel`."""
         iem_print(f"Training initialized: {self.fmt}")
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
 
         # TODO: Add training scores as attributes once trained
         assert self.model_is_init, "IEModel is not initialized"
@@ -290,9 +293,9 @@ class IEModel:
 
     # * Prediction
 
-    def predict(self, crop: "CropCoords"):
-        assert not self.flushed, "IEModel was flushed."
-        raise NotImplementedError  # TODO
+    def predict_on_crop(self, crop):
+        self._check_flushed()
+        return self._model(crop)
 
     def predict_batch(
         self,
@@ -301,7 +304,7 @@ class IEModel:
         probas: bool = False,
     ) -> np.ndarray:
         """Returns: preds or probas."""
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         assert self.model_is_trained, "IEModel is not trained"
 
         dataset = DatasetClass(
@@ -330,7 +333,7 @@ class IEModel:
 
     def convert_names(self, preds: np.ndarray) -> list["LabelName"]:
         """Convert integer predictions to named predictions."""
-        assert not self.flushed, "IEModel was flushed."
+        self._check_flushed()
         assert isinstance(preds[0], (np.ushort, int))
         assert self.model_is_trained, "IEModel is not trained"
         return [self.label_ref[lbl] for lbl in preds]

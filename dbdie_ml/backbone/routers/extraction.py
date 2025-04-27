@@ -1,4 +1,4 @@
-"""Endpoint for extraction related processes."""
+"""Router for extraction related processes."""
 
 from copy import deepcopy
 from dbdie_classes.groupings import PredictableTuples
@@ -15,6 +15,38 @@ if TYPE_CHECKING:
     from dbdie_classes.base import FullModelType
 
 router = APIRouter()
+
+@router.post("/image", status_code=status.HTTP_200_OK)
+def extract_from_image(
+    image: bytes,
+    extr_name: str,
+    # use_dbdvr: bool,
+):
+    """Extract labels from an image, NOT a path."""
+    ie = InfoExtractor.from_folder(extr_name)
+
+    try:
+        # fmts_ = deepcopy(ie.fmts)  # TODO
+        crops = ...
+        preds_dict = ie.predict_on_crops(crops)
+        preds_dict: dict["FullModelType", dict[str, Optional[list[int]]]] = {
+            fmt: {
+                k: (arr.tolist() if arr is not None else None)
+                for k, arr in d.items()
+            }
+            for fmt, d in preds_dict.items()
+        }
+    except Exception as e:
+        print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        ) from e
+    finally:
+        ie.flush()
+        del ie
+
+    return preds_dict
 
 
 @router.post("/batch", status_code=status.HTTP_201_CREATED)
