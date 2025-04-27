@@ -53,19 +53,20 @@ def check_implemented_models(models_cfgs: list["TrainModel"]) -> None:
 
 
 def get_models(
-    extr_id: int,
     extr_name: str,
     models_cfgs: dict["FullModelType", "TrainModel"],
-    trained_fmts: list["FullModelType"],
 ) -> dict["FullModelType", IEModel]:
     """Get IEModels from their train configs."""
-    if trained_fmts:
-        all_trained = set(list(models_cfgs.keys())) == set(trained_fmts)
-        if all_trained:
-            return {
-                fmt: IEModel.from_folder(extr_name, fmt)
-                for fmt in trained_fmts
-            }
+    if all(mcfg.pretrained for mcfg in models_cfgs.values()):
+        return {
+            fmt: IEModel.from_folder(extr_name, fmt)
+            for fmt in models_cfgs
+        }
+
+    ie_models = {
+        fmt: IEModel.from_folder(extr_name, fmt) if mcfg.pretrained else None
+        for fmt, mcfg in models_cfgs.items()
+    }
 
     from backbone.ml.models.custom import (
         AddonsModel,
@@ -90,18 +91,12 @@ def get_models(
     pred_tuples = PredictableTuples.from_fmts(list(models_cfgs.keys()))
 
     return {
-        mcfg.fmt: (
-            IEModel.from_folder(extr_name, mcfg.fmt)
-            if mcfg.fmt in trained_fmts
-            else TYPES_TO_MODELS[ptup.mt](
-                id=mcfg.id,
-                ifk=ptup.ifk,
-                total_classes=mcfg.total_classes,
-                cps_name=mcfg.cps_name,
-                extr_id=extr_id,
-            )
+        fmt: (
+            ie_models[fmt]
+            if ie_models[fmt] is not None
+            else TYPES_TO_MODELS[pt.mt](**mcfg)
         )
-        for mcfg, ptup in zip(models_cfgs.values(), pred_tuples)
+        for (fmt, mcfg), pt in zip(models_cfgs.items(), pred_tuples)
     }
 
 

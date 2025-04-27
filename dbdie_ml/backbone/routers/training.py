@@ -10,7 +10,7 @@ from dbdie_classes.base import FullModelType
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.schemas.objects import ExtractorOut, ModelOut
 
-from backbone.classes.training import TrainExtractor
+from backbone.classes.training import TrainExtractor, TrainModel
 from backbone.code.extraction import (
     get_label_refs,
     get_raw_dataset,
@@ -23,6 +23,7 @@ from backbone.code.routers.training import (
     to_trained_model_schemas,
 )
 from backbone.cropping import CropperSwarm
+from backbone.endpoints import getr
 from backbone.ml.extractor import InfoExtractor
 
 router = APIRouter()
@@ -35,12 +36,33 @@ router = APIRouter()
 )
 def batch_train(extr_config: TrainExtractor):
     """Batch train an `InfoExtractor`."""
-    fmts = list(extr_config.fmts.keys())
+    fmts = list(extr_config.pretrained_models_ids.keys())
     pred_tuples = PredictableTuples.from_fmts(fmts)
+
+    # Extractor setting
+    extr_config.id = getr("/extractor/count", api=True)
+
+    # Models setting
+    mask_pretrained = [mid is not None for mid in extr_config.pretrained_models_ids.values()]
+    total_non_pretrained = len(mask_pretrained) - sum(mask_pretrained)
+    if total_non_pretrained == 0:
+        models_cfgs = {
+            fmt: TrainModel.from_pretrained(id)
+            for fmt, id in extr_config.pretrained_models_ids.items()
+        }
+    else:
+        i = getr("/models/count", api=True)
+        models_cfgs = {}
+        for fmt, is_pretrained in zip(fmts, mask_pretrained):
+            if is_pretrained:
+                models_cfgs[fmt] = TrainModel.from_pretrained(id)
+            else:
+                models_cfgs[fmt] = TrainModel.from_untrained(i, fmt)
+                i += 1
 
     ie = None
     try:
-        ie = InfoExtractor.from_train_config(extr_config)
+        ie = InfoExtractor.from_train_config(extr_config, models_cfgs)
         matches = get_matches(ie)
 
         raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=True)

@@ -21,7 +21,6 @@ from backbone.classes.metadata import (
     SavedExtractorMetadata,
 )
 from backbone.classes.register import get_extr_mpath
-from backbone.classes.training import TrainModel
 from backbone.code.extractor import (
     batch_predict,
     check_datasets,
@@ -122,7 +121,6 @@ class InfoExtractor:
         self,
         cps_name: str,
         models_cfgs: dict["FullModelType", TrainModel],
-        trained_fmts: list["FullModelType"],
         expected_dbdvr: Optional[DBDVersionRange] = None,
     ) -> None:
         """Initialize the InfoExtractor and its IEModels.
@@ -133,10 +131,9 @@ class InfoExtractor:
         assert (
             not self.models_are_init
         ), "InfoExtractor can't be reinitialized before being flushed first."
-        assert models_cfgs, "'models_cfgs' can't be empty."
 
         self.cps_name = cps_name
-        self._models = get_models(self.id, self.name, models_cfgs, trained_fmts)
+        self._models = get_models(self.name, models_cfgs)
         self.dbdvr, self.dbdvr_ids = get_dbdvr(self._models, expected=expected_dbdvr)
         for model in self._models.values():
             if not model.model_is_trained:
@@ -157,12 +154,16 @@ class InfoExtractor:
     # * Loading and saving
 
     @classmethod
-    def from_train_config(cls, cfg: "TrainExtractor") -> InfoExtractor:
+    def from_train_config(
+        cls,
+        cfg: "TrainExtractor",
+        models_cfgs: dict["FullModelType", TrainModel],
+    ) -> InfoExtractor:
         """Load an untrained `InfoExtractor` from a training config."""
         if cfg.custom_dbdvr is not None:
             raise NotImplementedError
         ie = cls(cfg.id, cfg.name)
-        ie.init_extractor(cfg.cps_name, cfg.fmts, trained_fmts=[])
+        ie.init_extractor(cfg.cps_name, models_cfgs)
         return ie
 
     @classmethod

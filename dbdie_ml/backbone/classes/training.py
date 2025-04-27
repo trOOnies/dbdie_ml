@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from pydantic import BaseModel, field_validator
 
 from dbdie_classes.base import FullModelType
+from dbdie_classes.options import FMT
 from dbdie_classes.schemas.helpers import DBDVersionRange
+from pydantic import BaseModel, field_validator
+from yaml import safe_load
+
+from backbone.classes.register import get_model_mpath
 
 
 @dataclass
@@ -30,34 +34,46 @@ class TrainingParams:
 
 class TrainModel(BaseModel):
     id: int
+    name: str
     fmt: FullModelType
     total_classes: int
     cps_name: str
+    pretrained: bool
 
     @classmethod
-    def from_model(cls, iem) -> TrainModel:
-        return cls(
-            id=iem.id,
-            fmt=iem.fmt,
-            total_classes=iem.total_classes,
-            cps_name=iem.cps_name,
-        )
+    def from_pretrained(cls, id: int) -> TrainModel:
+        mpath = get_model_mpath(id=id)
+        with open(mpath, "r") as f:
+            metadata = safe_load(f)
+        metadata["pretrained"] = True
+        return cls(**metadata)
+
+    @classmethod
+    def from_untrained(cls, id: int, fmt: FullModelType) -> TrainModel:
+        mpath = get_model_mpath(fmt=fmt)
+        with open(mpath, "r") as f:
+            metadata = safe_load(f)
+        metadata["id"] = id
+        metadata["pretrained"] = False
+        return cls(**metadata)
 
 
 class TrainExtractor(BaseModel):
-    id: int
     name: str
     cps_name: str
-    fmts: dict[FullModelType, TrainModel]
     stratify_fallback: bool  # TODO: change name to another one
-    custom_dbdvr: DBDVersionRange | None  # TODO: Not implemented
+    custom_dbdvr: DBDVersionRange | None = None  # TODO: Not implemented
+    pretrained_models_ids: dict[FullModelType, int | None] | None = None
+    id: int | None = None  # ! NOT MEANT TO BE SET
 
-    @field_validator("fmts")
+    @field_validator("pretrained_models_ids")
     @classmethod
-    def fmt_not_empty(cls, fmts: dict) -> dict[FullModelType, TrainModel]:
-        assert fmts, "fmts cannot be empty."
-        return fmts
-
-    @property
-    def models_ids(self) -> dict[FullModelType, int]:
-        return {fmt: mcfg.id for fmt, mcfg in self.fmts.items()}
+    def fmt_not_empty(
+        cls,
+        pretrained_models_ids: dict,
+    ) -> dict[FullModelType, int | None]:
+        models_ids = {fmt: None for fmt in FMT.ALL}
+        if pretrained_models_ids is not None:
+            assert pretrained_models_ids, "Pretrained models ids cannot be empty."
+            models_ids = models_ids | pretrained_models_ids
+        return models_ids
