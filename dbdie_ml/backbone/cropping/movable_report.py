@@ -9,7 +9,7 @@ from dbdie_classes.paths import (
 )
 
 from backbone.code.movable_report import calculate_umvis
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder

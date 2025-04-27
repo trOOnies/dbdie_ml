@@ -4,7 +4,7 @@ from dbdie_classes.paths import CROP_PENDING_IMG_FD_RP, CROPPED_IMG_FD_RP, absp
 import os
 from typing import TYPE_CHECKING
 
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 
 if TYPE_CHECKING:
     from dbdie_classes.base import Filename, PathToFolder

@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from backbone.data import DatasetClass
-from backbone.options.COLORS import get_class_cprint
+from backbone.options.COLOR import get_class_cprint
 
 if TYPE_CHECKING:
     from torch.optim import Optimizer

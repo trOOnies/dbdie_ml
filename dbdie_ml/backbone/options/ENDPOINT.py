@@ -8,3 +8,4 @@ if TYPE_CHECKING:
 CROP    : "Endpoint" = "/crop"
 EXTRACT : "Endpoint" = "/extract"
 TRAIN   : "Endpoint" = "/train"
+DELETE  : "Endpoint" = "/delete"
