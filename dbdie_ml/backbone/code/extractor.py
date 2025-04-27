@@ -10,6 +10,7 @@ import pandas as pd
 
 from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.options import MODEL_TYPE as MT
+from dbdie_classes.options.MODEL_TYPE import MULTIPLE_PER_PLAYER
 from dbdie_classes.options.IMPLEMENTED import FMTS as IMPLEMENTED_FMTS
 from dbdie_classes.utils import filter_multitype
 
@@ -248,3 +249,46 @@ def match_preds_types(
         on_ = [deepcopy(on)]
 
     return preds_, on_
+
+
+def batch_predict(
+    pts: PredictableTuples,
+    datasets: dict["FullModelType", str],
+    models: dict["FullModelType", IEModel],
+    use_label_ids: bool,
+    probas: bool,
+) -> dict:
+    return {
+        pt.fmt: {
+            "dataset": pd.read_csv(
+                datasets[pt.fmt],
+                usecols=(
+                    ["match_id", "player_id", "item_id"]
+                    if pt.mt in MULTIPLE_PER_PLAYER
+                    else ["match_id", "player_id"]
+                ),
+            ),
+            "preds": models[pt.fmt].predict_batch(
+                datasets[pt.fmt],
+                use_label_ids=use_label_ids,
+                probas=probas,
+            ),
+        }
+        for pt in pts
+    }
+
+
+def format_batch_prediction(resp) -> dict:
+    return {
+        fmt: {
+            "match_ids": d["dataset"]["match_id"].values,
+            "player_ids": d["dataset"]["player_id"].values,
+            "item_ids": (
+                d["dataset"]["item_id"].values
+                if "item_id" in d["dataset"].columns
+                else None
+            ),
+            "preds": d["preds"],
+        }
+        for fmt, d in resp.items()
+    }
