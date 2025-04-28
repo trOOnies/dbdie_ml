@@ -160,8 +160,6 @@ class InfoExtractor:
         models_cfgs: dict["FullModelType", TrainModel],
     ) -> InfoExtractor:
         """Load an untrained `InfoExtractor` from a training config."""
-        if cfg.custom_dbdvr is not None:
-            raise NotImplementedError
         ie = cls(cfg.id, cfg.name)
         ie.init_extractor(cfg.cps_name, models_cfgs)
         return ie

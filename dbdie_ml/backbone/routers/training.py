@@ -53,11 +53,22 @@ def batch_train(extr_config: TrainExtractor):
     else:
         i = getr("/models/count", api=True)
         models_cfgs = {}
-        for fmt, is_pretrained in zip(fmts, mask_pretrained):
+        for m_num, (pt, is_pretrained) in enumerate(zip(pred_tuples, mask_pretrained)):
             if is_pretrained:
-                models_cfgs[fmt] = TrainModel.from_pretrained(id)
+                models_cfgs[pt.fmt] = TrainModel.from_pretrained(id)
             else:
-                models_cfgs[fmt] = TrainModel.from_untrained(i, fmt)
+                tcs = getr(
+                    f"/{pt.mt}/filter-with-dbdvr/count",
+                    api=True,
+                    params={
+                        "dbdv_min_id": extr_config.dbdv_min_id,
+                        "dbdv_max_id": extr_config.dbdv_max_id,
+                    },
+                )
+                models_cfgs[pt.fmt] = TrainModel(
+                    id=i, name=f"m{m_num}-{extr_config.name}", fmt=pt.fmt,
+                    total_classes=tcs, cps_name=extr_config.cps_name,
+                )
                 i += 1
 
     ie = None
