@@ -12,7 +12,6 @@ from backbone.config import ST
 if TYPE_CHECKING:
     from dbdie_classes.base import Endpoint, FullEndpoint
 
-
 ENDPOINT_PATT = re.compile(r"\/[a-z\-]+$")
 NOT_WS_PATT = re.compile(r"\S")
 

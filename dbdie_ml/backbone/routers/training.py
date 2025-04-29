@@ -1,30 +1,18 @@
 """Endpoint for training related processes."""
 
-import datetime as dt
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
 from shutil import rmtree
 from traceback import print_exc
 
 from dbdie_classes.base import FullModelType
-from dbdie_classes.groupings import PredictableTuples
 from dbdie_classes.schemas.objects import ExtractorOut, ModelOut
 
-from backbone.classes.training import TrainExtractor, TrainModel
-from backbone.code.extraction import (
-    get_label_refs,
-    get_raw_dataset,
-    save_label_refs,
-    split_and_save_dataset,
-)
-from backbone.code.routers.training import (
-    get_matches,
-    to_trained_ie_schema,
-    to_trained_model_schemas,
-)
-from backbone.cropping import CropperSwarm
-from backbone.endpoints import getr
+from backbone.classes.register import safe_pathing
+from backbone.classes.training import TrainExtractor
 from backbone.ml.extractor import InfoExtractor
+from backbone.training.calls import get_models_cfg, process_extr_config
+from backbone.training.functions import get_label_ref_paths, get_paths_dict, get_schemas_out
 
 router = APIRouter()
 
@@ -36,68 +24,20 @@ router = APIRouter()
 )
 def batch_train(extr_config: TrainExtractor):
     """Batch train an `InfoExtractor`."""
-    fmts = list(extr_config.pretrained_models_ids.keys())
-    pred_tuples = PredictableTuples.from_fmts(fmts)
+    pred_tuples, mask_pretrained = process_extr_config(extr_config)
+    models_cfgs = get_models_cfg(extr_config, pred_tuples, mask_pretrained)
 
-    # Extractor setting
-    extr_config.id = getr("/extractor/count", api=True)
-
-    # Models setting
-    mask_pretrained = [mid is not None for mid in extr_config.pretrained_models_ids.values()]
-    total_non_pretrained = len(mask_pretrained) - sum(mask_pretrained)
-    if total_non_pretrained == 0:
-        models_cfgs = {
-            fmt: TrainModel.from_pretrained(id)
-            for fmt, id in extr_config.pretrained_models_ids.items()
-        }
-    else:
-        i = getr("/models/count", api=True)
-        models_cfgs = {}
-        for m_num, (pt, is_pretrained) in enumerate(zip(pred_tuples, mask_pretrained)):
-            if is_pretrained:
-                models_cfgs[pt.fmt] = TrainModel.from_pretrained(id)
-            else:
-                tcs = getr(
-                    f"/{pt.mt}/filter-with-dbdvr/count",
-                    api=True,
-                    params={
-                        "dbdv_min_id": extr_config.dbdv_min_id,
-                        "dbdv_max_id": extr_config.dbdv_max_id,
-                    },
-                )
-                models_cfgs[pt.fmt] = TrainModel(
-                    id=i, name=f"m{m_num}-{extr_config.name}", fmt=pt.fmt,
-                    total_classes=tcs, cps_name=extr_config.cps_name,
-                )
-                i += 1
+    label_ref_paths = get_label_ref_paths(pred_tuples)
 
     ie = None
     try:
         ie = InfoExtractor.from_train_config(extr_config, models_cfgs)
-        matches = get_matches(ie)
-
-        raw_dataset = get_raw_dataset(matches, pred_tuples, target_mckd=True)
-        paths_dict = split_and_save_dataset(
-            raw_dataset,
-            pred_tuples,
-            split_data=True,
-            stratify_fallback=extr_config.stratify_fallback,
-        )
-        del raw_dataset
-
-        label_refs = get_label_refs(pred_tuples)
-        label_ref_paths = save_label_refs(label_refs)
-        del label_refs
+        paths_dict = get_paths_dict(ie, pred_tuples, extr_config)
 
         ie.train(label_ref_paths, paths_dict["train"], paths_dict["val"])
         ie.save()
 
-        now = dt.datetime.now()
-        today = dt.date.today().strftime("%Y-%m-%d")
-        cps_id = CropperSwarm.load_metadata(extr_config.cps_name)["id"]
-
-        ie_out = to_trained_ie_schema(ie, cps_id, now, today)
-        models_out = to_trained_model_schemas(ie, cps_id, now, today)
+        ie_out, models_out = get_schemas_out(ie, extr_config)
     except Exception as e:
         print_exc()
         raise HTTPException(
@@ -117,6 +57,7 @@ def batch_train(extr_config: TrainExtractor):
 
 @router.delete("")
 def delete_extractor(extr_name: str, delete_models: bool):
-    if not delete_models:
+    safe_pathing(extr_name)
+    if delete_models:
         raise NotImplementedError  # TODO
     rmtree(f"extractors/{extr_name}")
